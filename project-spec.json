@@ -1,0 +1,227 @@
+{
+  "project_name": "Smart Content Studio",
+  "description": "A self-learning, AI-driven system that generates, analyses, and optimises short-form social videos automatically. It combines LLM-based script generation, ffmpeg video rendering, visual analysis, engagement prediction, and trend awareness to continually improve content performance.",
+
+  "goals": [
+    "Generate vertical social videos (5–15 s) using B-roll and AI-written text overlays.",
+    "Continuously learn from engagement metrics via Ayrshare analytics.",
+    "Predict performance using machine learning on visual and textual features.",
+    "Refine templates, tone, and pacing automatically based on results.",
+    "Use free or low-cost services and APIs for trend data and analytics."
+  ],
+
+  "stack": {
+    "frontend": "Next.js 14 + TailwindCSS + Chart.js",
+    "backend": "Node 18+ (App Router APIs)",
+    "database": "Prisma ORM + Neon/Postgres (free tier)",
+    "storage": "Vercel Blob or Cloudflare R2 for B-roll and exports",
+    "video": "ffmpeg-static + fluent-ffmpeg for rendering",
+    "ai": "OpenAI GPT-4-mini / Claude Haiku for text generation and template refinement",
+    "ml": "scikit-learn + OpenCV + TensorFlow.js for engagement prediction and visual scoring",
+    "scheduler": "GitHub Actions cron jobs",
+    "analytics": "Ayrshare API for post metrics",
+    "trend_data": "RapidAPI TikTok Trends, Google Trends, Hashtagify (metadata only)"
+  },
+
+  "env_variables": [
+    "OPENAI_API_KEY",
+    "AYRSHARE_KEY",
+    "RAPIDAPI_KEY",
+    "NEON_DATABASE_URL",
+    "BLOB_READ_WRITE_TOKEN"
+  ],
+
+  "data_models": [
+    {
+      "name": "Video",
+      "fields": [
+        "id:String@id@uuid",
+        "theme:String",
+        "tone:String",
+        "duration:Int",
+        "hookLines:String[]",
+        "caption:String",
+        "templateId:String?",
+        "brollId:String?",
+        "fileUrl:String",
+        "features:Json?",
+        "metrics:Metrics?",
+        "createdAt:DateTime@now"
+      ]
+    },
+    {
+      "name": "Metrics",
+      "fields": [
+        "id:String@id@uuid",
+        "videoId:String@unique",
+        "views:Int?",
+        "likes:Int?",
+        "completionRate:Float?",
+        "engagement:Float?",
+        "visualScore:Float?",
+        "toneScore:Float?",
+        "predictedScore:Float?",
+        "Video:Video@relation(fields:[videoId],references:[id])"
+      ]
+    },
+    {
+      "name": "Template",
+      "fields": [
+        "id:String@id@uuid",
+        "name:String",
+        "json:Json",
+        "parentId:String?",
+        "performance:Float?",
+        "createdAt:DateTime@now"
+      ]
+    },
+    {
+      "name": "Trend",
+      "fields": [
+        "id:String@id@uuid",
+        "tag:String",
+        "platform:String",
+        "popularity:Int",
+        "mood:String?",
+        "collectedAt:DateTime@now"
+      ]
+    }
+  ],
+
+  "modules": [
+    {
+      "name": "LLM Content Generator",
+      "description": "Uses GPT-4-mini or Claude to create hooks, captions, hashtags. Prompt includes tone, trend data, and insights from past high-performing videos.",
+      "tasks": [
+        "Create /lib/llm.ts for OpenAI/Claude SDK integration.",
+        "Build prompt templates that include tone, theme, trending tags, and examples.",
+        "Cache results in DB to avoid duplicate generations.",
+        "Expose /api/generate route returning JSON lines + caption."
+      ]
+    },
+    {
+      "name": "Video Renderer",
+      "description": "Uses ffmpeg to compose video from selected B-roll and template JSON.",
+      "tasks": [
+        "Implement /lib/video.ts with ffmpeg-static and fluent-ffmpeg.",
+        "Support text overlays, timing, brightness/contrast filters.",
+        "Save rendered .mp4 to blob storage and record fileUrl in DB."
+      ]
+    },
+    {
+      "name": "Template System",
+      "description": "JSON-defined layouts controlling timing, text positions, and visual filters.",
+      "tasks": [
+        "Store templates in /templates/*.json and DB.",
+        "Create /api/templates/refine endpoint using LLM to modify template JSON based on feedback.",
+        "Add performance scoring per template.",
+        "Render preview thumbnails via ffmpeg -vframes 1."
+      ]
+    },
+    {
+      "name": "Analytics Integration",
+      "description": "Pull metrics from Ayrshare and update DB automatically.",
+      "tasks": [
+        "Build /lib/ayrshare.ts wrapper for analytics endpoints.",
+        "Create /api/metrics/sync route for daily updates.",
+        "Implement webhook handler for real-time metric updates."
+      ]
+    },
+    {
+      "name": "Feature Extraction & ML",
+      "description": "Analyse videos visually and textually to predict engagement.",
+      "tasks": [
+        "Use OpenCV to compute brightness, contrast, motion, text overlap.",
+        "Train RandomForestRegressor on features vs. engagement.",
+        "Implement /workers/trainModel.ts retraining script.",
+        "Expose /api/score route to predict performance for new videos.",
+        "Auto-adjust video brightness, duration, or B-roll if predicted score < threshold."
+      ]
+    },
+    {
+      "name": "A/B Testing Engine",
+      "description": "Generate multiple variants and pick best-performing style automatically.",
+      "tasks": [
+        "Create /api/abtest route to generate 2–3 variants per theme.",
+        "Tag each post with variantId in DB.",
+        "Compare metrics after N hours and mark winner.",
+        "Feed results back into model for bias updates."
+      ]
+    },
+    {
+      "name": "Trend Awareness",
+      "description": "Fetch trending hashtags, sounds, and topics from public APIs (metadata only).",
+      "tasks": [
+        "Create /workers/trendFetcher.ts cron job.",
+        "Store trends in Trend table with mood classification (LLM).",
+        "Inject trend summary into /api/generate prompts."
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Next.js frontend to visualise analytics, manage templates, and trigger generation.",
+      "tasks": [
+        "Build /dashboard page showing charts for engagement, tone, template performance.",
+        "Add buttons for 'Generate New Batch', 'Retrain Model', 'Refine Templates'.",
+        "Integrate Chart.js for visualisation."
+      ]
+    }
+  ],
+
+  "learning_cycle": {
+    "steps": [
+      "Generate N videos using LLM + template system.",
+      "Predict engagement with ML model and auto-adjust if low.",
+      "Post via Ayrshare (optional).",
+      "Sync metrics daily into DB.",
+      "Extract visual/textual features for training.",
+      "Retrain ML model weekly using updated dataset.",
+      "Refine templates and adjust LLM prompt parameters.",
+      "Repeat cycle; system becomes smarter with each iteration."
+    ]
+  },
+
+  "compliance": {
+    "rules": [
+      "Do not scrape or bulk-download TikTok videos.",
+      "Use only Ayrshare analytics for owned content.",
+      "Use only metadata (hashtags, captions, sound names) from public trend APIs.",
+      "Keep all visual analysis local; do not redistribute third-party assets."
+    ]
+  },
+
+  "stretch_goals": [
+    "Add voiceover synthesis using ElevenLabs or OpenAI Audio.",
+    "Integrate music matching by BPM from trending sound metadata.",
+    "Add cross-platform republishing (Reels, Shorts).",
+    "Fine-tune small LLM on user’s historic captions for tone mimicry.",
+    "Build predictive scheduler for optimal posting time.",
+    "Implement chat assistant to edit tone/layout interactively."
+  ],
+
+  "expected_costs": {
+    "llm_calls": "$2–5/month",
+    "storage": "Free (Vercel Blob) or <$2/month",
+    "hosting": "Free (Vercel Hobby)",
+    "trend_apis": "Free tiers",
+    "ml_compute": "Local or $5 VPS",
+    "total_estimate": "$5–10/month"
+  },
+
+  "delivery": {
+    "initial_commit": [
+      "Next.js scaffold with /app/api routes and Tailwind setup.",
+      "Prisma schema + migration.",
+      "LLM generator + ffmpeg renderer MVP.",
+      "Analytics sync and trend fetcher scripts.",
+      "Simple dashboard to display generated videos and metrics."
+    ],
+    "milestones": [
+      "M1: MVP generator (text→video).",
+      "M2: Analytics + metrics ingestion.",
+      "M3: ML scoring + auto-adjustments.",
+      "M4: A/B testing and template refinement.",
+      "M5: Full dashboard + self-learning cycle."
+    ]
+  }
+}

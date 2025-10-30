@@ -1,0 +1,23 @@
+{
+  "functions": {
+    "src/app/api/generate/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/ml/retrain/route.ts": {
+      "maxDuration": 300
+    },
+    "src/workers/trendFetcher.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/trends",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/ml/retrain",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

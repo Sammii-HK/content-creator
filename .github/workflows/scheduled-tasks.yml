@@ -1,0 +1,114 @@
+name: Scheduled Tasks
+
+on:
+  schedule:
+    # Run trend collection every 6 hours
+    - cron: '0 */6 * * *'
+    # Run model retraining daily at 2 AM UTC
+    - cron: '0 2 * * *'
+    # Run template performance updates every 12 hours
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+  ANALYTICS_API_KEY: ${{ secrets.ANALYTICS_API_KEY }}
+  BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+
+jobs:
+  trend-collection:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run trend collection
+        run: |
+          curl -X POST "${{ secrets.VERCEL_URL }}/api/trends" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  model-retraining:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Retrain ML model
+        run: |
+          curl -X POST "${{ secrets.VERCEL_URL }}/api/ml/retrain" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  template-updates:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */12 * * *' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update template performance
+        run: |
+          curl -X POST "${{ secrets.VERCEL_URL }}/api/templates/update-performance" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+  health-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Health check
+        run: |
+          curl -f "${{ secrets.VERCEL_URL }}/api/health" || exit 1
+          echo "✅ Health check passed"
+
+  auto-generation:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */12 * * *' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Generate content batch
+        run: |
+          curl -X POST "${{ secrets.VERCEL_URL }}/api/generate" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -d '{
+              "theme": "trending topic",
+              "generateVariants": 2,
+              "includeTrends": true
+            }'

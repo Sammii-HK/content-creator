@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Video {
+  id         String    @id @default(cuid())
+  theme      String
+  tone       String
+  duration   Int       // Duration in seconds
+  hookLines  String[]  // Array of hook lines
+  caption    String
+  templateId String?
+  brollId    String?
+  fileUrl    String    // URL to the rendered video file
+  features   Json?     // Visual/textual features for ML
+  createdAt  DateTime  @default(now())
+  
+  // Relations
+  template      Template?        @relation(fields: [templateId], references: [id])
+  broll         Broll?           @relation(fields: [brollId], references: [id])
+  metrics       Metrics?
+  abTestVariant AbTestVariant[]
+  contentQueue  ContentQueue[]
+  
+  @@map("videos")
+}
+
+model Metrics {
+  id              String  @id @default(cuid())
+  videoId         String  @unique
+  views           Int?
+  likes           Int?
+  shares          Int?
+  comments        Int?
+  completionRate  Float?  // Percentage of video watched
+  engagement      Float?  // Calculated engagement score
+  visualScore     Float?  // ML-generated visual appeal score
+  toneScore       Float?  // ML-generated tone effectiveness score
+  predictedScore  Float?  // Predicted engagement before posting
+  actualScore     Float?  // Actual performance score
+  
+  // Relations
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  
+  @@map("metrics")
+}
+
+model Template {
+  id          String    @id @default(cuid())
+  name        String
+  json        Json      // Template configuration (timing, positions, filters)
+  parentId    String?   // For template evolution tracking
+  performance Float?    // Average performance score
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  parent   Template?  @relation("TemplateEvolution", fields: [parentId], references: [id])
+  children Template[] @relation("TemplateEvolution")
+  videos   Video[]
+  
+  @@map("templates")
+}
+
+model Trend {
+  id          String   @id @default(cuid())
+  tag         String
+  platform    String   // "tiktok", "instagram", "youtube"
+  popularity  Int      // Trend popularity score
+  mood        String?  // Detected mood/sentiment
+  category    String?  // Content category
+  collectedAt DateTime @default(now())
+  
+  @@unique([tag, platform])
+  @@map("trends")
+}
+
+model Broll {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  fileUrl     String   // URL to the B-roll video file
+  duration    Int      // Duration in seconds
+  category    String?  // Category for organization
+  tags        String[] // Tags for searchability
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  videos Video[]
+  
+  @@map("broll")
+}
+
+model AbTest {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("active") // "active", "completed", "paused"
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  
+  // Test configuration
+  variants    AbTestVariant[]
+  
+  @@map("ab_tests")
+}
+
+model AbTestVariant {
+  id        String @id @default(cuid())
+  testId    String
+  name      String
+  videoId   String
+  isControl Boolean @default(false)
+  
+  // Performance metrics
+  views         Int?
+  engagement    Float?
+  conversionRate Float?
+  
+  // Relations
+  test  AbTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  video Video  @relation(fields: [videoId], references: [id])
+  
+  @@map("ab_test_variants")
+}
+
+model ContentQueue {
+  id          String   @id @default(cuid())
+  videoId     String
+  scheduledAt DateTime
+  status      String   @default("pending") // "pending", "posted", "failed"
+  platform    String   // "tiktok", "instagram", "youtube"
+  postId      String?  // External platform post ID
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  video Video @relation(fields: [videoId], references: [id])
+  
+  @@map("content_queue")
+}
+
+model MLModel {
+  id          String   @id @default(cuid())
+  name        String
+  version     String
+  modelPath   String   // Path to the trained model file
+  performance Json     // Model performance metrics
+  isActive    Boolean  @default(false)
+  trainedAt   DateTime @default(now())
+  
+  @@unique([name, version])
+  @@map("ml_models")
+}
