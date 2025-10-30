@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { trendFetcher } from '@/workers/trendFetcher';
+import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,9 +10,26 @@ export async function GET(request: NextRequest) {
     let trends;
     
     if (category) {
-      trends = await trendFetcher.getTrendsByCategory(category, limit);
+      trends = await db.trend.findMany({
+        where: { 
+          category,
+          collectedAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+          }
+        },
+        orderBy: { popularity: 'desc' },
+        take: limit
+      });
     } else {
-      trends = await trendFetcher.getCurrentTrends(limit);
+      trends = await db.trend.findMany({
+        orderBy: { popularity: 'desc' },
+        take: limit,
+        where: {
+          collectedAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+          }
+        }
+      });
     }
 
     return NextResponse.json({
@@ -31,18 +48,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(_request: NextRequest) {
   try {
-    // Manual trigger for trend collection
-    await trendFetcher.fetchAllTrends();
-
+    // This endpoint is called by Cloudflare Workers to trigger trend collection
+    // For now, just return success - the actual collection happens in Cloudflare Workers
+    
     return NextResponse.json({
       success: true,
-      message: 'Trend collection completed'
+      message: 'Trend collection trigger received - processing via Cloudflare Workers'
     });
 
   } catch (error) {
-    console.error('Trend collection failed:', error);
+    console.error('Trend collection trigger failed:', error);
     return NextResponse.json(
-      { error: 'Trend collection failed' },
+      { error: 'Trend collection trigger failed' },
       { status: 500 }
     );
   }
