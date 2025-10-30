@@ -12,11 +12,12 @@ const UpdateBrollSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const broll = await db.broll.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!broll) {
@@ -39,14 +40,15 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const data = UpdateBrollSchema.parse(body);
 
     const broll = await db.broll.update({
-      where: { id: params.id },
+      where: { id },
       data
     });
 
@@ -74,11 +76,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await db.broll.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({

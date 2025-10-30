@@ -3,10 +3,10 @@ import { templateService } from '@/lib/templates';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const templateId = params.id;
+    const { id: templateId } = await params;
 
     // Update performance metrics first
     await templateService.updateTemplatePerformance(templateId);
