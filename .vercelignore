@@ -1,0 +1,31 @@
+# Vercel ignore file - exclude files from deployment
+
+# Development files
+.env.local
+.env.example
+env.example
+
+# Documentation
+README.md
+project-spec.json
+
+# Cloudflare Workers (deployed separately)
+workers/
+
+# Development dependencies
+.vscode/
+.cursor/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Testing
+coverage/
+
+# Misc
+.DS_Store
+*.tsbuildinfo
