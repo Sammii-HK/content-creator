@@ -1,16 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['ffmpeg-static'],
-  turbopack: {
-    resolveAlias: {
-      'fluent-ffmpeg': require.resolve('fluent-ffmpeg'),
+  serverExternalPackages: ['ffmpeg-static', 'fluent-ffmpeg'],
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        'fluent-ffmpeg': 'fluent-ffmpeg',
+      },
     },
   },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      'fluent-ffmpeg': require.resolve('fluent-ffmpeg'),
     };
+    config.externals.push({
+      'fluent-ffmpeg': 'commonjs fluent-ffmpeg',
+      'ffmpeg-static': 'commonjs ffmpeg-static'
+    });
     return config;
   },
 }
