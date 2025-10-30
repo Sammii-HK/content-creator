@@ -1,0 +1,67 @@
+# Cloudflare Workers configuration for Smart Content Studio
+
+# Trend Collector Worker
+[[workers]]
+name = "smart-content-trend-collector"
+main = "trend-collector.js"
+compatibility_date = "2024-01-01"
+
+[workers.triggers]
+crons = ["0 */6 * * *"]  # Every 6 hours
+
+[workers.vars]
+# These will be set in Cloudflare dashboard
+# VERCEL_URL = "https://your-app.vercel.app"
+# CRON_SECRET = "your-cron-secret"
+
+# Model Retrainer Worker  
+[[workers]]
+name = "smart-content-model-retrainer"
+main = "model-retrainer.js" 
+compatibility_date = "2024-01-01"
+
+[workers.triggers]
+crons = ["0 2 * * *"]  # Daily at 2 AM UTC
+
+[workers.vars]
+# VERCEL_URL = "https://your-app.vercel.app"
+# CRON_SECRET = "your-cron-secret"
+
+# Content Generator Worker
+[[workers]]
+name = "smart-content-generator"
+main = "content-generator.js"
+compatibility_date = "2024-01-01"
+
+[workers.triggers] 
+crons = ["0 */12 * * *"]  # Every 12 hours
+
+[workers.vars]
+# VERCEL_URL = "https://your-app.vercel.app"
+# CRON_SECRET = "your-cron-secret"
+
+# Template Optimizer Worker
+[[workers]]
+name = "smart-content-template-optimizer"
+main = "template-optimizer.js"
+compatibility_date = "2024-01-01"
+
+[workers.triggers]
+crons = ["0 */12 * * *"]  # Every 12 hours (offset from content generator)
+
+[workers.vars]
+# VERCEL_URL = "https://your-app.vercel.app" 
+# CRON_SECRET = "your-cron-secret"
+
+# Health Monitor Worker
+[[workers]]
+name = "smart-content-health-monitor"
+main = "health-monitor.js"
+compatibility_date = "2024-01-01"
+
+[workers.triggers]
+crons = ["0 * * * *"]  # Every hour
+
+[workers.vars]
+# VERCEL_URL = "https://your-app.vercel.app"
+# CRON_SECRET = "your-cron-secret"

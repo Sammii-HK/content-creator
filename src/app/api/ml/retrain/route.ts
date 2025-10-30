@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mlService } from '@/lib/ml';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     console.log('Starting model retraining...');
     
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const featureImportance = await mlService.getFeatureImportance();
     

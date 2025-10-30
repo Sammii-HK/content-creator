@@ -28,8 +28,26 @@ ChartJS.register(
   Legend
 );
 
+interface VideoWithMetrics {
+  id: string;
+  theme: string;
+  createdAt: string;
+  metrics?: {
+    views?: number;
+    likes?: number;
+    engagement?: number;
+    completionRate?: number;
+  };
+}
+
+interface Template {
+  id: string;
+  name: string;
+  performance?: number;
+}
+
 interface DashboardData {
-  recentVideos: any[];
+  recentVideos: VideoWithMetrics[];
   metrics: {
     totalVideos: number;
     totalViews: number;
@@ -37,7 +55,7 @@ interface DashboardData {
     avgEngagement: number;
     avgCompletionRate: number;
   };
-  templates: any[];
+  templates: Template[];
 }
 
 export default function Dashboard() {

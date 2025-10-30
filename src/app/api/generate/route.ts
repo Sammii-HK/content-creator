@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { llmService } from '@/lib/llm';
-import { videoRenderer } from '@/lib/video';
+import { videoRenderer, type VideoTemplate } from '@/lib/video';
 import { templateService } from '@/lib/templates';
 import { z } from 'zod';
 
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
       try {
         // Render video
         const videoUrl = await videoRenderer.renderVideo({
-          template: template.json as any,
+          template: template.json as unknown as VideoTemplate,
           brollPath: broll.fileUrl,
           content: {
             hook: content.hook,

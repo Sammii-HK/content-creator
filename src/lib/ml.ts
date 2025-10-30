@@ -159,19 +159,19 @@ export class MLService {
   /**
    * Extract features from video record
    */
-  private extractFeaturesFromVideo(video: any): VideoFeatures {
-    const features = video.features || {};
+  private extractFeaturesFromVideo(video: Record<string, unknown>): VideoFeatures {
+    const features = (video.features as Record<string, unknown>) || {};
     
     return {
-      avgBrightness: features.avgBrightness || 50,
-      avgContrast: features.avgContrast || 50,
-      motionLevel: features.motionLevel || 50,
-      colorVariance: features.colorVariance || 50,
-      textCoverage: features.textCoverage || 20,
-      hookStrength: features.hookStrength || 0.5,
-      contentLength: Math.min(features.contentLength || 100, 500) / 5, // Normalize to 0-100
-      duration: video.duration,
-      toneScore: this.calculateToneScore(video.tone)
+      avgBrightness: (features.avgBrightness as number) || 50,
+      avgContrast: (features.avgContrast as number) || 50,
+      motionLevel: (features.motionLevel as number) || 50,
+      colorVariance: (features.colorVariance as number) || 50,
+      textCoverage: (features.textCoverage as number) || 20,
+      hookStrength: (features.hookStrength as number) || 0.5,
+      contentLength: Math.min((features.contentLength as number) || 100, 500) / 5, // Normalize to 0-100
+      duration: (video.duration as number) || 10,
+      toneScore: this.calculateToneScore((video.tone as string) || 'energetic')
     };
   }
 

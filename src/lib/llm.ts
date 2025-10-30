@@ -14,8 +14,8 @@ const VideoContentSchema = z.object({
 const TemplateRefinementSchema = z.object({
   changes: z.array(z.object({
     field: z.string(),
-    oldValue: z.any(),
-    newValue: z.any(),
+    oldValue: z.unknown(),
+    newValue: z.unknown(),
     reason: z.string()
   })),
   explanation: z.string()
@@ -118,10 +118,10 @@ Return analysis for content creation strategy.`;
   /**
    * Refine template based on performance feedback
    */
-  async refineTemplate(templateJson: any, performanceData: {
+  async refineTemplate(templateJson: unknown, performanceData: {
     avgEngagement: number;
-    topPerformingVideos: any[];
-    lowPerformingVideos: any[];
+    topPerformingVideos: unknown[];
+    lowPerformingVideos: unknown[];
   }) {
     const prompt = `Analyze this video template and suggest improvements based on performance data.
 
@@ -172,7 +172,7 @@ Focus on data-driven improvements that could increase engagement.`;
   /**
    * Optimize content for specific platforms
    */
-  async optimizeForPlatform(content: any, platform: 'tiktok' | 'instagram' | 'youtube') {
+  async optimizeForPlatform(content: unknown, platform: 'tiktok' | 'instagram' | 'youtube') {
     const platformGuidelines = {
       tiktok: 'TikTok: Use trending sounds, hashtag challenges, quick cuts, vertical format',
       instagram: 'Instagram: Aesthetic visuals, story-driven, use Reels features',

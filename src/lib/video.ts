@@ -94,7 +94,7 @@ export class VideoRenderer {
       videoFilters.push('crop=1080:1920');
 
       // Apply scene-based filters
-      template.scenes.forEach((scene, index) => {
+      template.scenes.forEach((scene) => {
         if (scene.filters && scene.filters.length > 0) {
           const timeFilter = `enable='between(t,${scene.start},${scene.end})'`;
           scene.filters.forEach(filter => {
@@ -160,7 +160,7 @@ export class VideoRenderer {
   private async generateTextOverlays(scenes: VideoScene[], content: Record<string, string>): Promise<string[]> {
     const textFilters: string[] = [];
 
-    scenes.forEach((scene, index) => {
+    scenes.forEach((scene) => {
       const textContent = this.replaceTemplateVariables(scene.text.content, content);
       
       // Calculate position in pixels (assuming 1080x1920 resolution)
@@ -216,22 +216,22 @@ export class VideoRenderer {
     colorVariance: number;
     textCoverage: number;
   }> {
-    const analysisPath = path.join(this.tempDir, `analysis_${uuidv4()}.json`);
+    // const analysisPath = path.join(this.tempDir, `analysis_${uuidv4()}.json`);
 
     try {
       // Use ffprobe to analyze video
       await new Promise<void>((resolve, reject) => {
         ffmpeg(videoPath)
-          .ffprobe((err, metadata) => {
+          .ffprobe((err, _metadata) => {
             if (err) {
               reject(err);
               return;
             }
 
             // Extract basic metadata
-            const duration = metadata.format.duration || 0;
-            const width = metadata.streams[0]?.width || 0;
-            const height = metadata.streams[0]?.height || 0;
+            // const duration = metadata.format.duration || 0;
+            // const width = metadata.streams[0]?.width || 0;
+            // const height = metadata.streams[0]?.height || 0;
 
             resolve();
           });

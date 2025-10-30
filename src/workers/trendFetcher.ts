@@ -1,5 +1,5 @@
 import { db } from '../lib/db';
-import { llmService } from '../lib/llm';
+// import { llmService } from '../lib/llm';
 
 /**
  * Trend Fetcher Worker
@@ -154,12 +154,12 @@ class TrendFetcher {
     console.log('🤖 Classifying trends with AI...');
 
     try {
-      const trendTags = trends.map(t => t.tag);
-      const classification = await llmService.classifyTrends(trendTags);
+      // const trendTags = trends.map(t => t.tag);
+      // const classification = await llmService.classifyTrends(trendTags);
 
       // Parse classification response (simplified)
       // In a real implementation, you'd parse the LLM response more carefully
-      const classifiedTrends = trends.map((trend, index) => ({
+      const classifiedTrends = trends.map((trend) => ({
         ...trend,
         mood: this.getMoodForTag(trend.tag),
         category: this.getCategoryForTag(trend.tag)
@@ -274,7 +274,7 @@ class TrendFetcher {
   /**
    * Get current trending topics
    */
-  async getCurrentTrends(limit: number = 10): Promise<any[]> {
+  async getCurrentTrends(limit: number = 10): Promise<unknown[]> {
     return await db.trend.findMany({
       orderBy: { popularity: 'desc' },
       take: limit,
@@ -289,7 +289,7 @@ class TrendFetcher {
   /**
    * Get trends by category
    */
-  async getTrendsByCategory(category: string, limit: number = 5): Promise<any[]> {
+  async getTrendsByCategory(category: string, limit: number = 5): Promise<unknown[]> {
     return await db.trend.findMany({
       where: { 
         category,

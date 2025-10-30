@@ -80,7 +80,7 @@ export class TemplateService {
     return await db.template.create({
       data: {
         name,
-        json: templateJson as any,
+        json: JSON.parse(JSON.stringify(templateJson)),
         parentId,
         isActive: true
       }
@@ -178,8 +178,8 @@ export class TemplateService {
   /**
    * Calculate performance metrics for a template
    */
-  private calculatePerformance(videos: any[]): TemplatePerformance {
-    const videosWithMetrics = videos.filter(v => v.metrics);
+  private calculatePerformance(videos: unknown[]): TemplatePerformance {
+    const videosWithMetrics = videos.filter((v: any) => v.metrics);
     
     if (videosWithMetrics.length === 0) {
       return {
@@ -192,7 +192,7 @@ export class TemplateService {
       };
     }
 
-    const metrics = videosWithMetrics.map(v => v.metrics);
+    const metrics = videosWithMetrics.map((v: any) => v.metrics);
     
     const avgViews = metrics.reduce((sum, m) => sum + (m.views || 0), 0) / metrics.length;
     const avgLikes = metrics.reduce((sum, m) => sum + (m.likes || 0), 0) / metrics.length;
@@ -220,10 +220,10 @@ export class TemplateService {
   /**
    * Apply refinement suggestions to template
    */
-  private applyRefinements(template: VideoTemplate, changes: any[]): VideoTemplate {
-    let refined = JSON.parse(JSON.stringify(template)); // Deep clone
+  private applyRefinements(template: VideoTemplate, changes: unknown[]): VideoTemplate {
+    const refined = JSON.parse(JSON.stringify(template)); // Deep clone
 
-    changes.forEach(change => {
+    changes.forEach((change: any) => {
       try {
         // Apply changes based on field path
         if (change.field.includes('scenes')) {
@@ -384,24 +384,24 @@ export class TemplateService {
     switch (variantNumber) {
       case 1:
         // Variation 1: Adjust text positioning
-        variant.scenes.forEach((scene: any) => {
-          scene.text.position.y += (Math.random() - 0.5) * 20; // ±10% position change
+        variant.scenes.forEach((scene: Record<string, unknown>) => {
+          (scene.text as any).position.y += (Math.random() - 0.5) * 20; // ±10% position change
         });
         break;
         
       case 2:
         // Variation 2: Adjust timing
-        variant.scenes.forEach((scene: any) => {
-          const duration = scene.end - scene.start;
-          scene.start += (Math.random() - 0.5) * 1; // ±0.5s timing change
-          scene.end = scene.start + duration;
+        variant.scenes.forEach((scene: Record<string, unknown>) => {
+          const duration = (scene.end as number) - (scene.start as number);
+          (scene as any).start += (Math.random() - 0.5) * 1; // ±0.5s timing change
+          (scene as any).end = (scene.start as number) + duration;
         });
         break;
         
       case 3:
         // Variation 3: Adjust text styling
-        variant.scenes.forEach((scene: any) => {
-          scene.text.style.fontSize *= (0.9 + Math.random() * 0.2); // ±10% size change
+        variant.scenes.forEach((scene: Record<string, unknown>) => {
+          (scene.text as any).style.fontSize *= (0.9 + Math.random() * 0.2); // ±10% size change
         });
         break;
     }

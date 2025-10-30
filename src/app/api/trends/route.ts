@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Manual trigger for trend collection
     await trendFetcher.fetchAllTrends();
