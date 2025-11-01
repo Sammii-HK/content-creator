@@ -5,6 +5,8 @@
 .env.example
 env.example
 
+# Note: .env is used for both dev and prod environment variables
+
 # Documentation
 README.md
 project-spec.json
