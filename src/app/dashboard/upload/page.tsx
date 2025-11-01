@@ -2,185 +2,150 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import FileUpload from '@/components/ui/FileUpload';
+import { ArrowLeftIcon, PlayIcon } from '@heroicons/react/24/outline';
 
 export default function UploadBroll() {
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<string | null>(null);
+  const [recentUploads, setRecentUploads] = useState<any[]>([]);
 
-  const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setUploading(true);
-    setUploadResult(null);
-
-    const formData = new FormData(e.currentTarget);
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      setUploadResult('Please select a video file');
-      setUploading(false);
-      return;
-    }
-
-    const metadata = {
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-      category: formData.get('category') as string,
-      tags: (formData.get('tags') as string).split(',').map(t => t.trim()).filter(Boolean),
-      duration: parseInt(formData.get('duration') as string)
-    };
-
+  const handleUpload = async (file: File, metadata: any) => {
     const uploadFormData = new FormData();
     uploadFormData.append('file', file);
     uploadFormData.append('metadata', JSON.stringify(metadata));
 
-    try {
-      const response = await fetch('/api/upload/broll', {
-        method: 'POST',
-        body: uploadFormData
-      });
+    const response = await fetch('/api/upload/broll', {
+      method: 'POST',
+      body: uploadFormData
+    });
 
-      const result = await response.json();
-      
-      if (response.ok) {
-        setUploadResult(`✅ Successfully uploaded: ${result.broll.name}`);
-        (e.target as HTMLFormElement).reset();
-      } else {
-        setUploadResult(`❌ Upload failed: ${result.error}`);
-      }
-    } catch (error) {
-      setUploadResult(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setUploading(false);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Upload failed');
     }
+
+    const result = await response.json();
+    setRecentUploads(prev => [result.broll, ...prev].slice(0, 5)); // Keep last 5
+    
+    return result;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center py-6">
+            <Link 
+              href="/dashboard" 
+              className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-800 transition-colors mr-6"
+            >
+              <ArrowLeftIcon className="h-5 w-5" />
+              <span className="font-medium">Back to Dashboard</span>
+            </Link>
             <div>
-              <Link href="/dashboard" className="text-indigo-600 hover:text-indigo-800 text-sm">
-                ← Back to Dashboard
-              </Link>
-              <h1 className="text-3xl font-bold text-gray-900 mt-2">Upload B-roll Content</h1>
-              <p className="text-gray-600">Add video files for content generation</p>
+              <h1 className="text-3xl font-bold text-gray-900">Upload B-roll Content</h1>
+              <p className="text-gray-600 mt-1">Add video files from your iPhone or computer</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <form onSubmit={handleUpload} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Video File
-              </label>
-              <input
-                type="file"
-                name="file"
-                accept="video/*"
-                required
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="e.g., City Timelapse"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                name="description"
-                rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Brief description of the video content"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category
-                </label>
-                <select
-                  name="category"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Select category</option>
-                  <option value="urban">Urban</option>
-                  <option value="nature">Nature</option>
-                  <option value="technology">Technology</option>
-                  <option value="lifestyle">Lifestyle</option>
-                  <option value="abstract">Abstract</option>
-                </select>
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Upload Section */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="bg-indigo-100 rounded-lg p-2">
+                  <PlayIcon className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Upload Video</h2>
+                  <p className="text-gray-600">Duration detected automatically</p>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Duration (seconds)
-                </label>
-                <input
-                  type="number"
-                  name="duration"
-                  min="1"
-                  max="300"
-                  defaultValue="30"
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
+              <FileUpload onUpload={handleUpload} maxSize={200} />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags (comma-separated)
-              </label>
-              <input
-                type="text"
-                name="tags"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="e.g., fast, energy, modern, city"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={uploading}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {uploading ? 'Uploading...' : 'Upload B-roll Video'}
-            </button>
-
-            {uploadResult && (
-              <div className={`p-4 rounded-lg ${uploadResult.includes('✅') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                {uploadResult}
+          {/* Recent Uploads & Info */}
+          <div className="space-y-6">
+            {/* Recent Uploads */}
+            {recentUploads.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Uploads</h3>
+                <div className="space-y-3">
+                  {recentUploads.map((upload, index) => (
+                    <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+                      <div className="bg-green-100 rounded-full p-1">
+                        <PlayIcon className="h-4 w-4 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-green-900 truncate">
+                          {upload.name}
+                        </p>
+                        <p className="text-xs text-green-700">
+                          {upload.duration}s • {upload.category || 'Auto-categorized'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </form>
 
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">💡 Tips for Good B-roll:</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Use vertical videos (9:16 aspect ratio) for best results</li>
-              <li>• Keep videos under 60 seconds for faster processing</li>
-              <li>• High-quality, well-lit footage works best</li>
-              <li>• Avoid videos with existing text overlays</li>
-              <li>• MP4 format recommended</li>
-            </ul>
+            {/* Enhanced Categories Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Smart Categories</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start space-x-3">
+                  <div className="bg-purple-100 rounded-full w-3 h-3 mt-1"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Personal/Creator</p>
+                    <p className="text-gray-600">Videos of you talking, selfies, creator content</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-blue-100 rounded-full w-3 h-3 mt-1"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Workspace/Tech</p>
+                    <p className="text-gray-600">Desk setups, coding, computers, office spaces</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-green-100 rounded-full w-3 h-3 mt-1"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Lifestyle/Daily</p>
+                    <p className="text-gray-600">Coffee, food, routines, home life</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-orange-100 rounded-full w-3 h-3 mt-1"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Auto-detected</p>
+                    <p className="text-gray-600">AI categorizes based on your description and tags</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Next Steps */}
+            <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-6">
+              <h3 className="text-lg font-semibold text-indigo-900 mb-3">After Upload</h3>
+              <div className="space-y-2 text-sm text-indigo-800">
+                <p>1. ✂️ Create segments with timestamps</p>
+                <p>2. ⭐ Rate segment quality (1-10)</p>
+                <p>3. 🎬 Test video generation</p>
+                <p>4. 🤖 Set up automation</p>
+              </div>
+              <Link
+                href="/dashboard/content"
+                className="inline-flex items-center space-x-2 mt-4 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <span>Manage Content</span>
+              </Link>
+            </div>
           </div>
         </div>
       </main>
