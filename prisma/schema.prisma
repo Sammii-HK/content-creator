@@ -17,15 +17,17 @@ model Video {
   duration   Int       // Duration in seconds
   hookLines  String[]  // Array of hook lines
   caption    String
-  templateId String?
-  brollId    String?
-  fileUrl    String    // URL to the rendered video file
+  templateId     String?
+  brollId        String?
+  brollSegmentId String? // Specific segment used for this video
+  fileUrl        String  // URL to the rendered video file
   features   Json?     // Visual/textual features for ML
   createdAt  DateTime  @default(now())
   
   // Relations
   template      Template?        @relation(fields: [templateId], references: [id])
   broll         Broll?           @relation(fields: [brollId], references: [id])
+  brollSegment  BrollSegment?    @relation(fields: [brollSegmentId], references: [id])
   metrics       Metrics?
   abTestVariant AbTestVariant[]
   contentQueue  ContentQueue[]
@@ -87,17 +89,38 @@ model Broll {
   id          String   @id @default(cuid())
   name        String
   description String?
-  fileUrl     String   // URL to the B-roll video file
-  duration    Int      // Duration in seconds
+  fileUrl     String   // URL to the source video file
+  duration    Int      // Total duration in seconds
   category    String?  // Category for organization
   tags        String[] // Tags for searchability
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   
   // Relations
-  videos Video[]
+  videos   Video[]
+  segments BrollSegment[]
   
   @@map("broll")
+}
+
+model BrollSegment {
+  id          String  @id @default(cuid())
+  brollId     String
+  name        String  // Name for this segment
+  startTime   Float   // Start timestamp in seconds (e.g., 5.5)
+  endTime     Float   // End timestamp in seconds (e.g., 12.3)
+  quality     Int     @default(5) // Quality rating 1-10
+  mood        String? // Mood/vibe of this segment
+  description String? // What happens in this segment
+  tags        String[] // Specific tags for this segment
+  isUsable    Boolean @default(true) // Whether this segment is good to use
+  usageCount  Int     @default(0) // How many times it's been used
+  
+  // Relations
+  broll Broll   @relation(fields: [brollId], references: [id], onDelete: Cascade)
+  videos Video[]
+  
+  @@map("broll_segments")
 }
 
 model AbTest {
