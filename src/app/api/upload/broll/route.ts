@@ -85,9 +85,8 @@ export async function POST(request: NextRequest) {
     console.log('Starting R2 upload...');
     
     // Upload to Cloudflare R2 - handles ANY file size reliably
-    const uploader = new ClientR2Uploader(
-      'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev'
-    );
+    const r2PublicUrl = 'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev';
+    const uploader = new ClientR2Uploader(r2PublicUrl);
     
     const uploadResult = await uploader.uploadFile(
       file, 
