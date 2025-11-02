@@ -15,6 +15,21 @@ export async function POST(request: NextRequest) {
   console.log('=== B-roll Upload Request Started ===');
   
   try {
+    // Check request size first
+    const contentLength = request.headers.get('content-length');
+    console.log('Request content length:', contentLength);
+    
+    if (contentLength && parseInt(contentLength) > 4.5 * 1024 * 1024) {
+      return NextResponse.json(
+        { 
+          error: 'File too large for direct upload',
+          details: `File size: ${(parseInt(contentLength) / (1024 * 1024)).toFixed(1)}MB. Use client-side upload for files over 4MB.`,
+          suggestion: 'The system will handle this automatically'
+        },
+        { status: 413 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     

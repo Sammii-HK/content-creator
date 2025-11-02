@@ -70,6 +70,14 @@ export default function FileUpload({
 
     console.log('✅ File validation passed - uploading iPhone video');
 
+    // Check if we need to use client-side upload for large files
+    const isLargeFile = fileSizeMB > 4;
+    if (isLargeFile) {
+      console.log(`🔄 Large iPhone video detected (${fileSizeMB.toFixed(1)}MB), using client-side upload`);
+      await handleClientSideUpload(file);
+      return;
+    }
+
     // Auto-fill name if empty
     if (!metadata.name) {
       setMetadata(prev => ({
@@ -115,6 +123,84 @@ export default function FileUpload({
     }
   };
 
+  const handleClientSideUpload = async (file: File) => {
+    try {
+      setUploadMessage('🔄 Preparing large iPhone video...');
+
+      // Get upload token
+      const tokenResponse = await fetch('/api/upload/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || 'video/quicktime'
+        })
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to get upload token');
+      }
+
+      const { uploadToken } = await tokenResponse.json();
+      
+      setUploadMessage('🔄 Uploading large iPhone video directly...');
+
+      // Upload directly to blob storage
+      const uploadResponse = await fetch(uploadToken.url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${uploadToken.token}`,
+          'Content-Type': uploadToken.contentType
+        },
+        body: file
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      }
+
+      setUploadMessage('🔄 Saving to database...');
+
+      // Save to database
+      const fileSizeMB = file.size / (1024 * 1024);
+      const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+      
+      const brollData = {
+        name: metadata.name || file.name.replace(/\.[^/.]+$/, ""),
+        description: metadata.description || `iPhone video: ${file.name}`,
+        fileUrl: `${uploadToken.url}/${uploadToken.pathname}`,
+        duration: estimatedDuration,
+        category: metadata.category || 'personal',
+        tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      };
+
+      const dbResponse = await fetch('/api/broll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brollData)
+      });
+
+      if (!dbResponse.ok) {
+        throw new Error('Database save failed');
+      }
+
+      const result = await dbResponse.json();
+      
+      setUploadStatus('success');
+      setUploadMessage(`✅ Large iPhone video uploaded successfully! (${fileSizeMB.toFixed(1)}MB)`);
+      
+      // Reset form
+      setMetadata({ name: '', description: '', category: '', tags: '' });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+    } catch (error) {
+      console.error('Client-side upload failed:', error);
+      setUploadStatus('error');
+      setUploadMessage(`❌ Large file upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   const categories = [
     { value: 'personal', label: 'Personal/Creator', desc: 'Videos of yourself, talking head shots' },
