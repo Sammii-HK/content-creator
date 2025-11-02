@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { r2Storage } from '@/lib/r2-storage';
+import { ClientR2Uploader } from '@/lib/r2-storage';
 import { z } from 'zod';
 
 const UploadBrollSchema = z.object({
@@ -85,10 +85,14 @@ export async function POST(request: NextRequest) {
     console.log('Starting R2 upload...');
     
     // Upload to Cloudflare R2 - handles ANY file size reliably
-    const uploadResult = await r2Storage.uploadFile(
+    const uploader = new ClientR2Uploader(
+      process.env.CLOUDFLARE_ACCOUNT_ID!,
+      process.env.CLOUDFLARE_R2_BUCKET_NAME!
+    );
+    
+    const uploadResult = await uploader.uploadFile(
       file, 
-      `videos/${Date.now()}-${file.name}`,
-      file.type || 'video/quicktime'
+      process.env.CLOUDFLARE_R2_API_TOKEN!
     );
     
     console.log('✅ R2 upload successful:', uploadResult.url);

@@ -56,38 +56,9 @@ export class ClientR2Uploader {
   }
 
   /**
-   * Generate simple auth header for R2
-   */
-  private async generateAuth(method: string, key: string): Promise<string> {
-    // For now, use simple API key auth (you can upgrade to AWS4 signatures later)
-    const credentials = btoa(`${this.accessKeyId}:${this.secretAccessKey}`);
-    return `Basic ${credentials}`;
-  }
-
-  /**
    * Generate public URL for uploaded file
    */
   getPublicUrl(key: string): string {
     return `${this.bucketUrl}/${key}`;
   }
-
-  /**
-   * Delete file from R2
-   */
-  async deleteFile(key: string): Promise<void> {
-    const url = `${this.bucketUrl}/${key}`;
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': await this.generateAuth('DELETE', key),
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`R2 delete failed: ${response.status}`);
-    }
-  }
 }
-
-export const r2Storage = new R2Storage();
