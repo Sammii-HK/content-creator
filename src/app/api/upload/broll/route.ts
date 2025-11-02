@@ -13,9 +13,18 @@ const UploadBrollSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  console.log('=== B-roll Upload Request Started ===');
+  
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    
+    console.log('File received:', {
+      name: file?.name,
+      type: file?.type,
+      size: file?.size,
+      lastModified: file?.lastModified
+    });
     
     // Safe metadata parsing
     let metadata;
@@ -28,12 +37,15 @@ export async function POST(request: NextRequest) {
         );
       }
       metadata = JSON.parse(metadataString);
+      console.log('Metadata parsed successfully:', metadata);
     } catch (parseError) {
+      console.error('Metadata parsing failed:', parseError);
       return NextResponse.json(
         { 
           error: 'Invalid metadata format', 
           details: 'Metadata must be valid JSON',
-          received: formData.get('metadata')
+          received: formData.get('metadata'),
+          parseError: parseError instanceof Error ? parseError.message : 'Unknown parse error'
         },
         { status: 400 }
       );
@@ -70,11 +82,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('Starting Vercel Blob upload...');
+    
     // Upload to Vercel Blob
     const blob = await put(`broll/${Date.now()}-${file.name}`, file, {
       access: 'public',
-      contentType: file.type,
+      contentType: file.type || 'video/mp4',
     });
+    
+    console.log('Blob upload successful:', blob.url);
 
     // Detect video duration using file size estimation (serverless-friendly)
     const fileSizeMB = file.size / (1024 * 1024);
@@ -84,10 +100,13 @@ export async function POST(request: NextRequest) {
     let autoTags = tags;
     if (description && description.length > 10) {
       try {
+        console.log('Generating AI tags for:', { description, name });
         const tagSuggestions = await llmService.generateVideoTags(description, name);
         autoTags = [...tags, ...tagSuggestions].filter((tag, index, arr) => arr.indexOf(tag) === index); // Remove duplicates
+        console.log('AI tags generated:', tagSuggestions);
       } catch (error) {
-        console.log('Tag generation failed, using provided tags:', error);
+        console.error('Tag generation failed:', error);
+        // Continue without AI tags - don't fail the upload
       }
     }
 
@@ -131,8 +150,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Provide helpful error message for iPhone users
+    let errorMessage = 'Upload failed';
+    if (error instanceof Error) {
+      if (error.message.includes('string did not match') || error.message.includes('pattern')) {
+        errorMessage = 'iPhone video format issue. Try: 1) Open video in Photos app 2) Tap Edit → Done 3) Upload again';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Upload failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: errorMessage,
+        details: error instanceof Error ? error.message : 'Unknown error',
+        suggestion: 'If iPhone video: Edit in Photos app first, then upload'
+      },
       { status: 500 }
     );
   }

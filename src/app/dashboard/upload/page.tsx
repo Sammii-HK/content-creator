@@ -7,6 +7,7 @@ import { ArrowLeftIcon, PlayIcon } from '@heroicons/react/24/outline';
 
 export default function UploadBroll() {
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (file: File, metadata: any) => {
     const uploadFormData = new FormData();
@@ -28,6 +29,7 @@ export default function UploadBroll() {
     
     return result;
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
