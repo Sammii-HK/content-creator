@@ -196,7 +196,6 @@ Adjust the content to maximize performance on ${platform} while maintaining the 
 
     return result.object;
   }
-}
 
   /**
    * Generate relevant tags for B-roll video based on description

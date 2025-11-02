@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Detect video duration using file size estimation (serverless-friendly)
     const fileSizeMB = file.size / (1024 * 1024);
-    let detectedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8))); // ~8 seconds per MB for mobile video
+    const detectedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8))); // ~8 seconds per MB for mobile video
 
     // Auto-generate tags using AI if description is provided
     let autoTags = tags;

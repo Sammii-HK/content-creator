@@ -1,12 +1,51 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { PlayIcon, StopIcon, DownloadIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { useState, useRef } from 'react';
+import { PlayIcon, EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+
+// Helper functions
+const renderTextOverlay = (
+  ctx: CanvasRenderingContext2D,
+  scene: Record<string, unknown>,
+  content: Record<string, string>
+) => {
+  const text = replaceVariables((scene.text as any).content, content);
+  const style = (scene.text as any).style;
+  const pos = (scene.text as any).position;
+
+  // Calculate position in pixels
+  const x = (pos.x / 100) * ctx.canvas.width;
+  const y = (pos.y / 100) * ctx.canvas.height;
+
+  // Set text properties
+  ctx.font = `${style.fontWeight} ${style.fontSize}px Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Add text stroke/outline
+  if (style.stroke && style.strokeWidth) {
+    ctx.strokeStyle = style.stroke;
+    ctx.lineWidth = style.strokeWidth;
+    ctx.strokeText(text, x, y);
+  }
+
+  // Fill text
+  ctx.fillStyle = style.color;
+  ctx.fillText(text, x, y);
+};
+
+const replaceVariables = (text: string, content: Record<string, string>): string => {
+  let result = text;
+  Object.entries(content).forEach(([key, value]) => {
+    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  });
+  return result;
+};
 
 interface VideoGeneratorProps {
   videoUrl: string;
-  template: any;
+  template: Record<string, unknown>;
   content: Record<string, string>;
   onComplete?: (videoBlob: Blob) => void;
 }
@@ -65,7 +104,7 @@ export default function VideoGenerator({
 
       // Render loop
       const startTime = Date.now();
-      const duration = template.duration * 1000; // Convert to milliseconds
+      const duration = ((template.duration as number) || 10) * 1000; // Convert to milliseconds
 
       const renderFrame = () => {
         const elapsed = Date.now() - startTime;
@@ -105,7 +144,7 @@ export default function VideoGenerator({
         ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
 
         // Apply filters for current scene
-        const currentScene = template.scenes.find((scene: any) => 
+        const currentScene = (template.scenes as any[])?.find((scene: any) => 
           videoTime >= scene.start && videoTime < scene.end
         );
 
@@ -120,8 +159,8 @@ export default function VideoGenerator({
           }
 
           // Render text overlay
-          this.renderTextOverlay(ctx, currentScene, content);
-          setCurrentScene(template.scenes.indexOf(currentScene));
+          renderTextOverlay(ctx, currentScene, content);
+          setCurrentScene((template.scenes as any[])?.indexOf(currentScene) || 0);
         }
 
         requestAnimationFrame(renderFrame);
@@ -147,43 +186,6 @@ export default function VideoGenerator({
     }
   };
 
-  const renderTextOverlay = (
-    ctx: CanvasRenderingContext2D,
-    scene: any,
-    content: Record<string, string>
-  ) => {
-    const text = this.replaceVariables(scene.text.content, content);
-    const style = scene.text.style;
-    const pos = scene.text.position;
-
-    // Calculate position in pixels
-    const x = (pos.x / 100) * ctx.canvas.width;
-    const y = (pos.y / 100) * ctx.canvas.height;
-
-    // Set text properties
-    ctx.font = `${style.fontWeight} ${style.fontSize}px Arial, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    // Add text stroke/outline
-    if (style.stroke && style.strokeWidth) {
-      ctx.strokeStyle = style.stroke;
-      ctx.lineWidth = style.strokeWidth;
-      ctx.strokeText(text, x, y);
-    }
-
-    // Fill text
-    ctx.fillStyle = style.color;
-    ctx.fillText(text, x, y);
-  };
-
-  const replaceVariables = (text: string, content: Record<string, string>): string => {
-    let result = text;
-    Object.entries(content).forEach(([key, value]) => {
-      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
-    });
-    return result;
-  };
 
   const downloadVideo = () => {
     if (!generatedVideo) return;
@@ -252,17 +254,17 @@ export default function VideoGenerator({
                 <div 
                   className="text-white font-bold absolute"
                   style={{
-                    fontSize: `${(template.scenes[currentScene]?.text.style.fontSize || 48) / 6}px`,
-                    left: `${template.scenes[currentScene]?.text.position.x || 50}%`,
-                    top: `${template.scenes[currentScene]?.text.position.y || 50}%`,
+                    fontSize: `${((template.scenes as any[])?.[currentScene]?.text.style.fontSize || 48) / 6}px`,
+                    left: `${(template.scenes as any[])?.[currentScene]?.text.position.x || 50}%`,
+                    top: `${(template.scenes as any[])?.[currentScene]?.text.position.y || 50}%`,
                     transform: 'translate(-50%, -50%)',
                     textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
                     maxWidth: '80%',
                     wordWrap: 'break-word'
                   }}
                 >
-                  {this.replaceVariables(
-                    template.scenes[currentScene]?.text.content || '',
+                  {replaceVariables(
+                    (template.scenes as any[])?.[currentScene]?.text.content || '',
                     content
                   )}
                 </div>
@@ -318,7 +320,7 @@ export default function VideoGenerator({
             onClick={downloadVideo}
             className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
           >
-            <DownloadIcon className="h-4 w-4" />
+            <ArrowDownTrayIcon className="h-4 w-4" />
             <span>Download</span>
           </button>
         )}
@@ -326,10 +328,10 @@ export default function VideoGenerator({
 
       {/* Template Info */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-gray-900 mb-2">Template: {template.name || 'Custom'}</h4>
+        <h4 className="font-medium text-gray-900 mb-2">Template: {(template.name as string) || 'Custom'}</h4>
         <div className="text-sm text-gray-600 space-y-1">
-          <p>Duration: {template.duration}s</p>
-          <p>Scenes: {template.scenes?.length || 0}</p>
+          <p>Duration: {(template.duration as number) || 10}s</p>
+          <p>Scenes: {(template.scenes as any[])?.length || 0}</p>
           <p>Content: {Object.entries(content).map(([k, v]) => `${k}: "${v.slice(0, 30)}..."`).join(', ')}</p>
         </div>
       </div>
