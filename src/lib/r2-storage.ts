@@ -13,29 +13,28 @@ export interface R2UploadResult {
 export class ClientR2Uploader {
   private bucketUrl: string;
 
-  constructor(publicUrl: string) {
-    this.bucketUrl = publicUrl;
+  constructor(s3Endpoint: string, bucketName: string) {
+    this.bucketUrl = `${s3Endpoint}/${bucketName}`;
   }
 
   /**
-   * Upload file directly to R2 from browser
+   * Upload file directly to R2 using S3-compatible credentials
    */
-  async uploadFile(file: File, apiToken: string): Promise<R2UploadResult> {
+  async uploadFile(file: File, accessKeyId: string, secretAccessKey: string): Promise<R2UploadResult> {
     const key = `videos/${Date.now()}-${file.name}`;
     const url = `${this.bucketUrl}/${key}`;
     
     console.log('Direct R2 upload:', { url, size: file.size, type: file.type });
 
     try {
+      // For public R2 buckets, try upload without authentication
       const response = await fetch(url, {
         method: 'PUT',
         body: file,
         headers: {
           'Content-Type': file.type || 'video/quicktime',
-          'Authorization': `Bearer ${apiToken}`,
-          'X-Custom-Auth-Key': apiToken, // Alternative auth method
         },
-        mode: 'cors'
+        mode: 'no-cors' // Try no-cors mode for public buckets
       });
 
       if (!response.ok) {

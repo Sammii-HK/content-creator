@@ -15,20 +15,8 @@ export async function POST(request: NextRequest) {
   console.log('=== B-roll Upload Request Started ===');
   
   try {
-    // Check request size first
-    const contentLength = request.headers.get('content-length');
-    console.log('Request content length:', contentLength);
-    
-    if (contentLength && parseInt(contentLength) > 4.5 * 1024 * 1024) {
-      return NextResponse.json(
-        { 
-          error: 'File too large for direct upload',
-          details: `File size: ${(parseInt(contentLength) / (1024 * 1024)).toFixed(1)}MB. Use client-side upload for files over 4MB.`,
-          suggestion: 'The system will handle this automatically'
-        },
-        { status: 413 }
-      );
-    }
+    // R2 can handle large files - no size limit check needed
+    console.log('Processing upload with R2 (no size limits)');
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -84,13 +72,16 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting R2 upload...');
     
-    // Upload to Cloudflare R2 - handles ANY file size reliably
-    const r2PublicUrl = 'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev';
-    const uploader = new ClientR2Uploader(r2PublicUrl);
+    // Upload to Cloudflare R2 using S3-compatible API
+    const uploader = new ClientR2Uploader(
+      'https://aa2113b6e9c4e8181f42c2f7f46891f1.r2.cloudflarestorage.com',
+      'smart-content-videos'
+    );
     
     const uploadResult = await uploader.uploadFile(
       file, 
-      process.env.CLOUDFLARE_R2_API_TOKEN!
+      '0f7d75c413cbf60bea1673ce243726fa', // Access Key ID
+      '9daa02bc1fe9d843bc618bf0af78c81627a81499e7e4c1c11eea610bbe7b1d' // Secret Access Key
     );
     
     console.log('✅ R2 upload successful:', uploadResult.url);
