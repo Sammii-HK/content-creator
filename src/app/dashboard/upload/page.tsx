@@ -10,22 +10,44 @@ export default function UploadBroll() {
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (file: File, metadata: any) => {
-    const uploadFormData = new FormData();
-    uploadFormData.append('file', file);
-    uploadFormData.append('metadata', JSON.stringify(metadata));
+    // PURE CLIENT-SIDE R2 UPLOAD - NO API ENDPOINTS
+    console.log('Starting pure client-side R2 upload...');
+    
+    const { ClientR2Uploader } = await import('@/lib/r2-storage');
+    const uploader = new ClientR2Uploader(
+      'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev'
+    );
 
-    const response = await fetch('/api/upload/broll', {
+    // Upload directly to R2
+    const uploadResult = await uploader.uploadFile(
+      file, 
+      '0f7d75c413cbf60bea1673ce243726fa', // Access Key ID
+      '9daa02bc1fe9d843bc618bf0af78c81627a81499e7e4c1c11eea610bbe7b1d' // Secret Access Key
+    );
+
+    // Save to database (small payload)
+    const fileSizeMB = file.size / (1024 * 1024);
+    const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+    
+    const dbResponse = await fetch('/api/broll/add', {
       method: 'POST',
-      body: uploadFormData
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: metadata.name || file.name.replace(/\.[^/.]+$/, ""),
+        description: metadata.description || `iPhone video: ${file.name}`,
+        fileUrl: uploadResult.url,
+        duration: estimatedDuration,
+        category: metadata.category || 'personal',
+        tags: metadata.tags || []
+      })
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+    if (!dbResponse.ok) {
+      throw new Error('Database save failed');
     }
 
-    const result = await response.json();
-    setRecentUploads(prev => [result.broll, ...prev].slice(0, 5)); // Keep last 5
+    const result = await dbResponse.json();
+    setRecentUploads(prev => [result.broll, ...prev].slice(0, 5));
     
     return result;
   };
