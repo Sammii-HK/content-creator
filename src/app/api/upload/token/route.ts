@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
+
+export const runtime = 'edge'; // Use Edge Runtime for larger payloads
 
 /**
  * SIMPLE iPhone video upload that actually works
- * Handles the upload server-side with streaming
+ * Uses Edge Runtime to handle larger iPhone videos
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     console.log('=== Streaming iPhone Upload ===');
     
@@ -46,21 +47,23 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({
+    return new Response(JSON.stringify({
       success: true,
       broll: brollEntry,
       message: `✅ iPhone video streamed successfully (${fileSizeMB.toFixed(1)}MB)`,
-      method: 'streaming'
+      method: 'edge-runtime-streaming'
+    }), {
+      headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
     console.error('Streaming upload failed:', error);
-    return NextResponse.json(
-      { 
-        error: 'Streaming upload failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({
+      error: 'Streaming upload failed',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
