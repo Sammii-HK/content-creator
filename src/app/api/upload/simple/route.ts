@@ -1,12 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { db } from '@/lib/db';
+
+export const runtime = 'edge'; // Edge Runtime supports larger payloads
 
 /**
  * Simple upload endpoint for iPhone compatibility
  * Minimal validation, maximum compatibility
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;

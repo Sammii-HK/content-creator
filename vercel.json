@@ -7,8 +7,10 @@
       "maxDuration": 300
     },
     "src/app/api/upload/simple/route.ts": {
-      "maxDuration": 60,
-      "maxRequestBodySize": "50mb"
+      "maxDuration": 60
+    },
+    "src/app/api/blob/upload/route.ts": {
+      "maxDuration": 60
     }
   }
 }
