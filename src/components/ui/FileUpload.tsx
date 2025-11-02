@@ -66,15 +66,31 @@ export default function FileUpload({
       return;
     }
 
-    // Validate file type (iPhone compatible)
-    const validExtensions = ['.mp4', '.mov', '.avi', '.webm', '.m4v'];
+    // Validate file type (very permissive for iPhone)
+    const validExtensions = ['.mp4', '.mov', '.avi', '.webm', '.m4v', '.heic', '.hevc'];
     const hasValidExtension = validExtensions.some(ext => 
       file.name.toLowerCase().endsWith(ext)
     );
     
-    if (!file.type.startsWith('video/') && !hasValidExtension) {
+    const validMimeTypes = [
+      'video/mp4', 'video/mov', 'video/quicktime', 'video/x-msvideo',
+      'video/webm', 'video/avi', 'video/hevc', 'video/h264', 'video/m4v'
+    ];
+    
+    const hasValidMimeType = validMimeTypes.includes(file.type) || file.type.startsWith('video/');
+    
+    // Be very permissive - if it's from iPhone and looks like video, try it
+    if (!hasValidMimeType && !hasValidExtension && file.size > 0) {
       setUploadStatus('error');
-      setUploadMessage(`Invalid file type: ${file.type}. Please select a video file.`);
+      setUploadMessage(`⚠️ iPhone format detected: ${file.type}. 
+      
+Try this:
+1. Open video in iPhone Photos app
+2. Tap Edit → Done (this converts to compatible format)
+3. Or use a video converter app
+4. Then try uploading again
+
+File info: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
       return;
     }
 

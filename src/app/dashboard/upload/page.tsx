@@ -130,6 +130,20 @@ export default function UploadBroll() {
               </div>
             </div>
 
+            {/* iPhone Conversion Help */}
+            <div className="bg-orange-50 rounded-xl border border-orange-200 p-6">
+              <h3 className="text-lg font-semibold text-orange-900 mb-3">📱 iPhone Upload Issues?</h3>
+              <div className="space-y-2 text-sm text-orange-800">
+                <p className="font-medium">If upload fails with "format issue":</p>
+                <p>1. 📱 Open video in iPhone Photos app</p>
+                <p>2. ✏️ Tap "Edit" → Tap "Done" (converts format)</p>
+                <p>3. 🔄 Try uploading again</p>
+                <p className="text-xs text-orange-600 mt-2">
+                  This converts HEVC/HEIC to MP4 automatically
+                </p>
+              </div>
+            </div>
+
             {/* Next Steps */}
             <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-6">
               <h3 className="text-lg font-semibold text-indigo-900 mb-3">After Upload</h3>
