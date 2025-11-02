@@ -86,8 +86,12 @@ export default function FileUpload({
         'smart-content-videos' // Your bucket name
       );
 
-      // Upload to R2 (you'll need to add the API token to env vars)
-      const apiToken = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_API_TOKEN || 'your-token-here';
+      // Get API token from environment
+      const apiToken = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_API_TOKEN;
+      if (!apiToken) {
+        throw new Error('R2 API token not configured. Add NEXT_PUBLIC_CLOUDFLARE_R2_API_TOKEN to Vercel environment variables.');
+      }
+      
       const uploadResult = await uploader.uploadFile(file, apiToken);
 
       setUploadMessage('🔄 Saving to database...');
@@ -105,7 +109,7 @@ export default function FileUpload({
         tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
       };
 
-      const dbResponse = await fetch('/api/broll', {
+      const dbResponse = await fetch('/api/broll/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(brollData)
@@ -210,7 +214,7 @@ export default function FileUpload({
         tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
       };
 
-      const dbResponse = await fetch('/api/broll', {
+      const dbResponse = await fetch('/api/broll/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(brollData)
