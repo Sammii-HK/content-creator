@@ -6,11 +6,9 @@
     "src/app/api/ml/retrain/route.ts": {
       "maxDuration": 300
     },
-    "src/app/api/upload/broll/route.ts": {
-      "maxDuration": 60
-    },
     "src/app/api/upload/simple/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "maxRequestBodySize": "50mb"
     }
   }
 }

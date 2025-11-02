@@ -70,9 +70,50 @@ export default function FileUpload({
 
     console.log('✅ File validation passed - uploading iPhone video');
 
-    // ALL iPhone videos use the simple streaming upload
-    console.log(`🔄 iPhone video detected (${fileSizeMB.toFixed(1)}MB), using streaming upload`);
-    await handleStreamingUpload(file);
+    // Use the simple upload endpoint with increased payload limit
+    console.log(`🔄 iPhone video detected (${fileSizeMB.toFixed(1)}MB), using simple upload`);
+    
+    setUploading(true);
+    setUploadStatus('idle');
+    
+    try {
+      setUploadMessage('🔄 Uploading iPhone video...');
+
+      // Use simple upload endpoint with 50MB limit
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('name', metadata.name || file.name);
+      formData.append('description', metadata.description || `iPhone video: ${file.name}`);
+
+      const response = await fetch('/api/upload/simple', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      
+      setUploadStatus('success');
+      setUploadMessage(`✅ iPhone video uploaded successfully! (${fileSizeMB.toFixed(1)}MB)`);
+      
+      // Reset form
+      setMetadata({ name: '', description: '', category: '', tags: '' });
+      if (fileInputRef.current) {
+        fileInputRef.current!.value = '';
+      }
+
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      setUploadStatus('error');
+      setUploadMessage(`❌ Upload failed: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setUploading(false);
+    }
+    
     return;
 
     // Auto-fill name if empty
@@ -110,33 +151,61 @@ export default function FileUpload({
     }
   };
 
-  const handleStreamingUpload = async (file: File) => {
+  const handleSimpleUpload = async (file: File) => {
     setUploading(true);
     setUploadStatus('idle');
     
     try {
-      setUploadMessage('🔄 Uploading iPhone video with streaming...');
+      setUploadMessage('🔄 Uploading iPhone video directly to storage...');
 
-      // Use the simple streaming endpoint
-      const response = await fetch('/api/upload/token', {
+      // Direct upload to Vercel Blob using Edge Runtime
+      console.log('Starting direct blob upload...');
+      
+      const response = await fetch('/api/blob/upload', {
         method: 'POST',
         body: file,
         headers: {
-          'Content-Type': 'application/octet-stream',
           'X-Filename': file.name,
           'X-Content-Type': file.type || 'video/quicktime'
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Streaming upload failed');
+        throw new Error(`Upload failed: ${response.status}`);
       }
 
-      const result = await response.json();
+      const uploadResult = await response.json();
+      console.log('✅ iPhone video uploaded:', uploadResult.url);
+
+      setUploadMessage('🔄 Saving to database...');
+
+      // Save to database
+      const fileSizeMB = file.size / (1024 * 1024);
+      const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+      
+      const brollData = {
+        name: metadata.name || file.name.replace(/\.[^/.]+$/, ""),
+        description: metadata.description || `iPhone video: ${file.name}`,
+        fileUrl: uploadResult.url,
+        duration: estimatedDuration,
+        category: metadata.category || 'personal',
+        tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      };
+
+      const dbResponse = await fetch('/api/broll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brollData)
+      });
+
+      if (!dbResponse.ok) {
+        throw new Error('Database save failed');
+      }
+
+      const result = await dbResponse.json();
       
       setUploadStatus('success');
-      setUploadMessage(`✅ iPhone video uploaded successfully! (${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
+      setUploadMessage(`✅ iPhone video uploaded successfully! (${fileSizeMB.toFixed(1)}MB)`);
       
       // Reset form
       setMetadata({ name: '', description: '', category: '', tags: '' });
@@ -145,9 +214,9 @@ export default function FileUpload({
       }
 
     } catch (error: any) {
-      console.error('Streaming upload failed:', error);
+      console.error('Direct upload failed:', error);
       setUploadStatus('error');
-      setUploadMessage(`❌ Upload failed: ${error?.message || 'Unknown error'}`);
+      setUploadMessage(`❌ Direct upload failed: ${error?.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
