@@ -70,13 +70,10 @@ export default function FileUpload({
 
     console.log('✅ File validation passed - uploading iPhone video');
 
-    // Check if we need to use client-side upload for large files
-    const isLargeFile = fileSizeMB > 4;
-    if (isLargeFile) {
-      console.log(`🔄 Large iPhone video detected (${fileSizeMB.toFixed(1)}MB), using client-side upload`);
-      await handleClientSideUpload(file);
-      return;
-    }
+    // ALL iPhone videos use the simple streaming upload
+    console.log(`🔄 iPhone video detected (${fileSizeMB.toFixed(1)}MB), using streaming upload`);
+    await handleStreamingUpload(file);
+    return;
 
     // Auto-fill name if empty
     if (!metadata.name) {
@@ -123,71 +120,33 @@ export default function FileUpload({
     }
   };
 
-  const handleClientSideUpload = async (file: File) => {
+  const handleStreamingUpload = async (file: File) => {
+    setUploading(true);
+    setUploadStatus('idle');
+    
     try {
-      setUploadMessage('🔄 Preparing large iPhone video...');
+      setUploadMessage('🔄 Uploading iPhone video with streaming...');
 
-      // Get upload token
-      const tokenResponse = await fetch('/api/upload/token', {
+      // Use the simple streaming endpoint
+      const response = await fetch('/api/upload/token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type || 'video/quicktime'
-        })
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to get upload token');
-      }
-
-      const { uploadToken } = await tokenResponse.json();
-      
-      setUploadMessage('🔄 Uploading large iPhone video directly...');
-
-      // Upload directly to blob storage
-      const uploadResponse = await fetch(uploadToken.url, {
-        method: 'PUT',
+        body: file,
         headers: {
-          'Authorization': `Bearer ${uploadToken.token}`,
-          'Content-Type': uploadToken.contentType
-        },
-        body: file
+          'Content-Type': 'application/octet-stream',
+          'X-Filename': file.name,
+          'X-Content-Type': file.type || 'video/quicktime'
+        }
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Streaming upload failed');
       }
 
-      setUploadMessage('🔄 Saving to database...');
-
-      // Save to database
-      const fileSizeMB = file.size / (1024 * 1024);
-      const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
-      
-      const brollData = {
-        name: metadata.name || file.name.replace(/\.[^/.]+$/, ""),
-        description: metadata.description || `iPhone video: ${file.name}`,
-        fileUrl: `${uploadToken.url}/${uploadToken.pathname}`,
-        duration: estimatedDuration,
-        category: metadata.category || 'personal',
-        tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
-      };
-
-      const dbResponse = await fetch('/api/broll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brollData)
-      });
-
-      if (!dbResponse.ok) {
-        throw new Error('Database save failed');
-      }
-
-      const result = await dbResponse.json();
+      const result = await response.json();
       
       setUploadStatus('success');
-      setUploadMessage(`✅ Large iPhone video uploaded successfully! (${fileSizeMB.toFixed(1)}MB)`);
+      setUploadMessage(`✅ iPhone video uploaded successfully! (${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
       
       // Reset form
       setMetadata({ name: '', description: '', category: '', tags: '' });
@@ -196,9 +155,11 @@ export default function FileUpload({
       }
 
     } catch (error) {
-      console.error('Client-side upload failed:', error);
+      console.error('Streaming upload failed:', error);
       setUploadStatus('error');
-      setUploadMessage(`❌ Large file upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setUploadMessage(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setUploading(false);
     }
   };
 
