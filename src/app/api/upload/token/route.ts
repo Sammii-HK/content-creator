@@ -14,6 +14,13 @@ export async function POST(request: NextRequest) {
     
     console.log('Upload headers:', { filename, contentType });
 
+    // Get content length for file size
+    const contentLength = request.headers.get('content-length');
+    const fileSize = contentLength ? parseInt(contentLength) : 10 * 1024 * 1024; // 10MB default
+    const fileSizeMB = fileSize / (1024 * 1024);
+
+    console.log('File size from headers:', `${fileSizeMB.toFixed(1)}MB`);
+
     // Stream the body directly to Vercel Blob
     const uploadResult = await put(`iphone/${Date.now()}-${filename}`, request.body!, {
       access: 'public',
@@ -22,8 +29,7 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Streaming upload successful:', uploadResult.url);
 
-    // Get file size from the uploaded blob
-    const fileSizeMB = (uploadResult.size || 10 * 1024 * 1024) / (1024 * 1024);
+    // Calculate duration
     const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
 
     // Save to database

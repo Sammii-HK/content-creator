@@ -98,23 +98,13 @@ export default function FileUpload({
       // Reset form
       setMetadata({ name: '', description: '', category: '', tags: '' });
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current!.value = '';
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
       setUploadStatus('error');
-      
-      let errorMessage = 'Upload failed';
-      if (error instanceof Error) {
-        if (error.message.includes('string did not match')) {
-          errorMessage = 'iPhone video format issue. Try converting to MP4 first, or use a different video.';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      setUploadMessage(errorMessage);
+      setUploadMessage(error?.message || 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -151,13 +141,13 @@ export default function FileUpload({
       // Reset form
       setMetadata({ name: '', description: '', category: '', tags: '' });
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current!.value = '';
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Streaming upload failed:', error);
       setUploadStatus('error');
-      setUploadMessage(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setUploadMessage(`❌ Upload failed: ${error?.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
