@@ -96,19 +96,21 @@ export async function POST(request: NextRequest) {
     const fileSizeMB = file.size / (1024 * 1024);
     const detectedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8))); // ~8 seconds per MB for mobile video
 
-    // Auto-generate tags using AI if description is provided
+    // Auto-generate tags using AI if description is provided (skip for now to avoid issues)
     let autoTags = tags;
-    if (description && description.length > 10) {
-      try {
-        console.log('Generating AI tags for:', { description, name });
-        const tagSuggestions = await llmService.generateVideoTags(description, name);
-        autoTags = [...tags, ...tagSuggestions].filter((tag, index, arr) => arr.indexOf(tag) === index); // Remove duplicates
-        console.log('AI tags generated:', tagSuggestions);
-      } catch (error) {
-        console.error('Tag generation failed:', error);
-        // Continue without AI tags - don't fail the upload
-      }
-    }
+    console.log('Using basic tags for now:', tags);
+    
+    // TODO: Re-enable AI tag generation after upload works
+    // if (description && description.length > 10) {
+    //   try {
+    //     console.log('Generating AI tags for:', { description, name });
+    //     const tagSuggestions = await llmService.generateVideoTags(description, name);
+    //     autoTags = [...tags, ...tagSuggestions].filter((tag, index, arr) => arr.indexOf(tag) === index);
+    //     console.log('AI tags generated:', tagSuggestions);
+    //   } catch (error) {
+    //     console.error('Tag generation failed:', error);
+    //   }
+    // }
 
     // Auto-categorize based on name and tags
     const autoCategory = category || detectCategory(name, autoTags);
