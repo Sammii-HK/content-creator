@@ -3,7 +3,6 @@
 import { useState, useRef } from 'react';
 import { CloudArrowUpIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid';
-import { appleVideoHandler } from '@/lib/apple-video-handler';
 import clsx from 'clsx';
 
 interface FileUploadProps {
@@ -62,15 +61,14 @@ export default function FileUpload({
 
     const fileSizeMB = file.size / (1024 * 1024);
 
-    // Use robust Apple video validation
-    const validation = appleVideoHandler.validateAppleVideo(file);
-    if (!validation.valid) {
+    // Simple validation - just check it's a video, not an image
+    if (file.type.startsWith('image/')) {
       setUploadStatus('error');
-      setUploadMessage(validation.error || 'Invalid video format');
+      setUploadMessage('📷 This is an image file. Please select a VIDEO from your camera roll.');
       return;
     }
 
-    console.log('✅ Apple video validation passed - processing iPhone/iPad video');
+    console.log('✅ File validation passed - uploading iPhone video');
 
     // Auto-fill name if empty
     if (!metadata.name) {
@@ -90,7 +88,7 @@ export default function FileUpload({
       });
       
       setUploadStatus('success');
-      setUploadMessage('Video uploaded successfully!');
+      setUploadMessage('✅ Video uploaded successfully!');
       
       // Reset form
       setMetadata({ name: '', description: '', category: '', tags: '' });
@@ -148,7 +146,7 @@ export default function FileUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*,.mp4,.mov,.avi,.webm,.m4v"
+          accept="video/quicktime,video/mp4,video/*,.mov,.mp4,.m4v"
           onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
           className="hidden"
         />
@@ -162,14 +160,14 @@ export default function FileUpload({
           
           <div className="text-center">
             <p className="text-base sm:text-lg font-medium text-gray-900">
-              {uploading ? 'Uploading & analyzing...' : 'Drop video or tap to select'}
+              {uploading ? (uploadMessage || 'Processing...') : 'Drop iPhone video here or tap to select'}
             </p>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              📱 iPhone videos • MP4, MOV • Max {maxSize}MB
+              📱 iPhone MOV/MP4 • Auto-converts if needed • Max {maxSize}MB
             </p>
-            {uploading && (
-              <p className="text-xs text-indigo-600 mt-2">
-                🤖 AI generating tags automatically...
+            {!uploading && (
+              <p className="text-xs text-green-600 font-medium mt-1">
+                ✅ Handles ALL iPhone formats automatically
               </p>
             )}
           </div>

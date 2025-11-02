@@ -97,6 +97,26 @@ export default function UploadBroll() {
               </div>
             )}
 
+            {/* Desktop iPhone Video Instructions */}
+            <div className="bg-blue-50 rounded-xl border border-blue-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">🖥️ Using iPhone Videos on Desktop?</h3>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p className="font-medium">Don't drag from Photos app directly!</p>
+                <div className="bg-white rounded p-3 border border-blue-200">
+                  <p className="font-medium text-blue-900 mb-1">✅ Correct Method:</p>
+                  <ol className="space-y-1 text-blue-800">
+                    <li>1. Open Photos app → Select your video</li>
+                    <li>2. File → Export → Export Unmodified Original</li>
+                    <li>3. Save to Downloads folder</li>
+                    <li>4. Drag the .MOV file from Downloads here</li>
+                  </ol>
+                </div>
+                <p className="text-xs text-blue-600">
+                  💡 AirDrop from iPhone is even easier!
+                </p>
+              </div>
+            </div>
+
             {/* Enhanced Categories Info */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Smart Categories</h3>

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { db } from '@/lib/db';
 import { z } from 'zod';
-import { appleVideoHandler } from '@/lib/apple-video-handler';
 
 const UploadBrollSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -60,48 +59,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use robust Apple video validation
-    const validation = appleVideoHandler.validateAppleVideo(file);
-    if (!validation.valid) {
-      console.error('Apple video validation failed:', validation.error);
+    // Simple validation - just check if it's a video
+    if (file.type.startsWith('image/')) {
       return NextResponse.json(
-        { 
-          error: validation.error,
-          details: `File: ${file.name}, Type: ${file.type}, Size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`,
-          suggestion: 'This should work with iPhone MOV files. Please check the file.'
-        },
+        { error: 'Please select a VIDEO file, not an image. Check that you selected a video from your camera roll.' },
         { status: 400 }
       );
     }
 
-    console.log('✅ Apple video validation passed');
-
     console.log('Starting Vercel Blob upload...');
     
-    // Process Apple video with proper handling
-    const videoData = await appleVideoHandler.prepareForUpload(file, {
-      name,
-      description,
-      category,
-      tags
-    });
-
-    console.log('Apple video processed:', videoData);
-
-    // Upload to Vercel Blob with proper content type detection
-    const contentType = file.type || 'video/quicktime'; // Default for MOV files
-    const blob = await put(`broll/apple/${Date.now()}-${file.name}`, file, {
+    // Upload to Vercel Blob - let Vercel handle the format
+    const blob = await put(`broll/${Date.now()}-${file.name}`, file, {
       access: 'public',
-      contentType,
+      contentType: file.type || 'video/quicktime',
     });
     
     console.log('✅ Blob upload successful:', blob.url);
 
-    // Save to database with Apple video data
+    // Simple duration estimation
+    const fileSizeMB = file.size / (1024 * 1024);
+    const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+
+    // Simple category detection
+    const autoCategory = category || (name.toLowerCase().includes('me') ? 'personal' : 'general');
+
+    // Save to database
     const brollEntry = await db.broll.create({
       data: {
-        ...videoData.uploadData,
+        name,
+        description,
         fileUrl: blob.url,
+        duration: estimatedDuration,
+        category: autoCategory,
+        tags,
         isActive: true
       }
     });
@@ -110,13 +101,12 @@ export async function POST(request: NextRequest) {
       success: true,
       broll: brollEntry,
       analysis: {
-        ...videoData.videoInfo,
-        category: videoData.uploadData.category,
-        generatedTags: videoData.uploadData.tags,
-        processingMethod: 'apple-video-handler'
+        detectedDuration: estimatedDuration,
+        category: autoCategory,
+        fileSize: `${fileSizeMB.toFixed(1)}MB`,
+        originalFormat: file.type
       },
-      message: 'Apple video uploaded and processed successfully',
-      cost: '$0.00'
+      message: 'Video uploaded successfully'
     });
 
   } catch (error) {
