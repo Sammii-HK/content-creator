@@ -16,9 +16,30 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const metadata = JSON.parse(formData.get('metadata') as string);
     
-    const { name, description, category, tags } = UploadBrollSchema.parse(metadata);
+    // Safe metadata parsing
+    let metadata;
+    try {
+      const metadataString = formData.get('metadata') as string;
+      if (!metadataString) {
+        return NextResponse.json(
+          { error: 'No metadata provided' },
+          { status: 400 }
+        );
+      }
+      metadata = JSON.parse(metadataString);
+    } catch (parseError) {
+      return NextResponse.json(
+        { 
+          error: 'Invalid metadata format', 
+          details: 'Metadata must be valid JSON',
+          received: formData.get('metadata')
+        },
+        { status: 400 }
+      );
+    }
+    
+    const { name, description = '', category = '', tags = [] } = UploadBrollSchema.parse(metadata);
 
     if (!file) {
       return NextResponse.json(
@@ -27,10 +48,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    if (!file.type.startsWith('video/')) {
+    // Validate file type (iPhone compatible)
+    const validVideoTypes = [
+      'video/mp4', 'video/mov', 'video/quicktime', 
+      'video/x-msvideo', 'video/webm', 'video/avi',
+      'video/hevc', 'video/h264' // iPhone formats
+    ];
+    
+    const isValidVideo = file.type.startsWith('video/') || 
+                        validVideoTypes.includes(file.type) ||
+                        file.name.toLowerCase().match(/\.(mp4|mov|avi|webm|m4v)$/);
+    
+    if (!isValidVideo) {
       return NextResponse.json(
-        { error: 'File must be a video' },
+        { 
+          error: 'Invalid video format', 
+          details: `Received: ${file.type}. Supported: MP4, MOV, AVI, WebM`,
+          fileName: file.name
+        },
         { status: 400 }
       );
     }

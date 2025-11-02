@@ -52,17 +52,29 @@ export default function FileUpload({
   };
 
   const handleFileSelect = async (file: File) => {
+    console.log('File selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    });
+
     // Validate file size
     if (file.size > maxSize * 1024 * 1024) {
       setUploadStatus('error');
-      setUploadMessage(`File too large. Maximum size is ${maxSize}MB`);
+      setUploadMessage(`File too large: ${(file.size / (1024 * 1024)).toFixed(1)}MB. Maximum is ${maxSize}MB`);
       return;
     }
 
-    // Validate file type
-    if (!file.type.startsWith('video/')) {
+    // Validate file type (iPhone compatible)
+    const validExtensions = ['.mp4', '.mov', '.avi', '.webm', '.m4v'];
+    const hasValidExtension = validExtensions.some(ext => 
+      file.name.toLowerCase().endsWith(ext)
+    );
+    
+    if (!file.type.startsWith('video/') && !hasValidExtension) {
       setUploadStatus('error');
-      setUploadMessage('Please select a video file');
+      setUploadMessage(`Invalid file type: ${file.type}. Please select a video file.`);
       return;
     }
 
@@ -93,8 +105,19 @@ export default function FileUpload({
       }
       
     } catch (error) {
+      console.error('Upload error:', error);
       setUploadStatus('error');
-      setUploadMessage(error instanceof Error ? error.message : 'Upload failed');
+      
+      let errorMessage = 'Upload failed';
+      if (error instanceof Error) {
+        if (error.message.includes('string did not match')) {
+          errorMessage = 'iPhone video format issue. Try converting to MP4 first, or use a different video.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setUploadMessage(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -130,7 +153,8 @@ export default function FileUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept={accept}
+          accept="video/*,.mp4,.mov,.avi,.webm,.m4v"
+          capture="environment"
           onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
           className="hidden"
         />
