@@ -13,8 +13,8 @@ export interface R2UploadResult {
 export class ClientR2Uploader {
   private bucketUrl: string;
 
-  constructor(accountId: string, bucketName: string) {
-    this.bucketUrl = `https://${bucketName}.${accountId}.r2.cloudflarestorage.com`;
+  constructor(publicUrl: string) {
+    this.bucketUrl = publicUrl;
   }
 
   /**

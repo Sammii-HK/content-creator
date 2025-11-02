@@ -82,8 +82,7 @@ export default function FileUpload({
       // Direct R2 upload from browser (no Vercel limits!)
       const { ClientR2Uploader } = await import('@/lib/r2-storage');
       const uploader = new ClientR2Uploader(
-        'aa2113b6e9c4e8181f42c2f7f46891f1', // Your account ID
-        'smart-content-videos' // Your bucket name
+        'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev' // Your public R2 URL
       );
 
       // Get API token from environment
