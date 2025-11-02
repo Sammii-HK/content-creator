@@ -72,10 +72,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting R2 upload...');
     
-    // Upload to Cloudflare R2 using S3-compatible API
+    // Upload to Cloudflare R2 using public development URL
     const uploader = new ClientR2Uploader(
-      'https://aa2113b6e9c4e8181f42c2f7f46891f1.r2.cloudflarestorage.com',
-      'smart-content-videos'
+      'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev'
     );
     
     const uploadResult = await uploader.uploadFile(

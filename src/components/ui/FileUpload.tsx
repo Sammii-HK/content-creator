@@ -79,11 +79,10 @@ export default function FileUpload({
     try {
       setUploadMessage('🔄 Uploading directly to Cloudflare R2...');
 
-      // Direct R2 upload using S3-compatible API
+      // Direct R2 upload using public development URL
       const { ClientR2Uploader } = await import('@/lib/r2-storage');
       const uploader = new ClientR2Uploader(
-        'https://aa2113b6e9c4e8181f42c2f7f46891f1.r2.cloudflarestorage.com', // S3 API endpoint
-        'smart-content-videos' // Bucket name
+        'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev' // Public development URL
       );
 
       // Get R2 configuration from server
