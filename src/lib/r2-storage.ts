@@ -33,12 +33,20 @@ export class ClientR2Uploader {
         headers: {
           'Content-Type': file.type || 'video/quicktime',
           'Authorization': `Bearer ${apiToken}`,
-        }
+          'X-Custom-Auth-Key': apiToken, // Alternative auth method
+        },
+        mode: 'cors'
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`R2 upload failed: ${response.status} ${response.statusText} - ${errorText}`);
+        const errorText = await response.text().catch(() => 'No error details');
+        console.error('R2 upload error details:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          errorText
+        });
+        throw new Error(`R2 upload failed: ${response.status} ${response.statusText}. Check CORS settings and API token.`);
       }
 
       console.log('✅ Direct R2 upload successful');
