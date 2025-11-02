@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
 import { db } from '@/lib/db';
+import { r2Storage } from '@/lib/r2-storage';
 import { z } from 'zod';
 
 const UploadBrollSchema = z.object({
@@ -82,15 +82,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Starting Vercel Blob upload...');
+    console.log('Starting R2 upload...');
     
-    // Upload to Vercel Blob - let Vercel handle the format
-    const blob = await put(`broll/${Date.now()}-${file.name}`, file, {
-      access: 'public',
-      contentType: file.type || 'video/quicktime',
-    });
+    // Upload to Cloudflare R2 - handles ANY file size reliably
+    const uploadResult = await r2Storage.uploadFile(
+      file, 
+      `videos/${Date.now()}-${file.name}`,
+      file.type || 'video/quicktime'
+    );
     
-    console.log('✅ Blob upload successful:', blob.url);
+    console.log('✅ R2 upload successful:', uploadResult.url);
 
     // Simple duration estimation
     const fileSizeMB = file.size / (1024 * 1024);
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description,
-        fileUrl: blob.url,
+        fileUrl: uploadResult.url,
         duration: estimatedDuration,
         category: autoCategory,
         tags,

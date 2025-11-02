@@ -70,35 +70,53 @@ export default function FileUpload({
 
     console.log('✅ File validation passed - uploading iPhone video');
 
-    // Use the simple upload endpoint with increased payload limit
-    console.log(`🔄 iPhone video detected (${fileSizeMB.toFixed(1)}MB), using simple upload`);
+    // Use ONE reliable R2 upload endpoint
+    console.log(`🔄 iPhone video detected (${fileSizeMB.toFixed(1)}MB), uploading to R2`);
     
     setUploading(true);
     setUploadStatus('idle');
     
     try {
-      setUploadMessage('🔄 Uploading iPhone video...');
+      setUploadMessage('🔄 Uploading directly to Cloudflare R2...');
 
-      // Use simple upload endpoint with 50MB limit
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('name', metadata.name || file.name);
-      formData.append('description', metadata.description || `iPhone video: ${file.name}`);
+      // Direct R2 upload from browser (no Vercel limits!)
+      const { ClientR2Uploader } = await import('@/lib/r2-storage');
+      const uploader = new ClientR2Uploader(
+        'aa2113b6e9c4e8181f42c2f7f46891f1', // Your account ID
+        'smart-content-videos' // Your bucket name
+      );
 
-      const response = await fetch('/api/upload/simple', {
+      // Upload to R2 (you'll need to add the API token to env vars)
+      const apiToken = process.env.NEXT_PUBLIC_CLOUDFLARE_R2_API_TOKEN || 'your-token-here';
+      const uploadResult = await uploader.uploadFile(file, apiToken);
+
+      setUploadMessage('🔄 Saving to database...');
+
+      // Save to database
+      const fileSizeMB = file.size / (1024 * 1024);
+      const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+      
+      const brollData = {
+        name: metadata.name || file.name.replace(/\.[^/.]+$/, ""),
+        description: metadata.description || `iPhone video: ${file.name}`,
+        fileUrl: uploadResult.url,
+        duration: estimatedDuration,
+        category: metadata.category || 'personal',
+        tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      };
+
+      const dbResponse = await fetch('/api/broll', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brollData)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      if (!dbResponse.ok) {
+        throw new Error('Database save failed');
       }
-
-      const result = await response.json();
       
       setUploadStatus('success');
-      setUploadMessage(`✅ iPhone video uploaded successfully! (${fileSizeMB.toFixed(1)}MB)`);
+      setUploadMessage(`✅ iPhone video uploaded to R2! (${fileSizeMB.toFixed(1)}MB)`);
       
       // Reset form
       setMetadata({ name: '', description: '', category: '', tags: '' });
@@ -107,9 +125,9 @@ export default function FileUpload({
       }
 
     } catch (error: any) {
-      console.error('Upload failed:', error);
+      console.error('R2 upload failed:', error);
       setUploadStatus('error');
-      setUploadMessage(`❌ Upload failed: ${error?.message || 'Unknown error'}`);
+      setUploadMessage(`❌ R2 upload failed: ${error?.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
