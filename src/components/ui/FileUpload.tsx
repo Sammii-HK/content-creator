@@ -154,7 +154,6 @@ export default function FileUpload({
           ref={fileInputRef}
           type="file"
           accept="video/*,.mp4,.mov,.avi,.webm,.m4v"
-          capture="environment"
           onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
           className="hidden"
         />
