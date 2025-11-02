@@ -198,4 +198,35 @@ Adjust the content to maximize performance on ${platform} while maintaining the 
   }
 }
 
+  /**
+   * Generate relevant tags for B-roll video based on description
+   */
+  async generateVideoTags(description: string, videoName: string): Promise<string[]> {
+    const prompt = `Analyze this video description and generate 5-8 relevant tags for content organization:
+
+Video: "${videoName}"
+Description: "${description}"
+
+Generate tags that help categorize and find this video later. Include:
+- Content type (e.g., personal, workspace, lifestyle)
+- Mood/vibe (e.g., energetic, calm, professional)
+- Visual elements (e.g., close-up, wide-shot, bright, dark)
+- Subject matter (e.g., coffee, coding, talking, hands)
+
+Return only the tags as a comma-separated list, no explanations.`;
+
+    const result = await generateText({
+      model: this.model,
+      prompt,
+    });
+
+    // Parse the comma-separated tags
+    return result.text
+      .split(',')
+      .map(tag => tag.trim().toLowerCase())
+      .filter(tag => tag.length > 1 && tag.length < 20)
+      .slice(0, 8); // Limit to 8 tags
+  }
+}
+
 export const llmService = new LLMService();

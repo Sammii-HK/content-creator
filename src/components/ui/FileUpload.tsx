@@ -112,14 +112,14 @@ export default function FileUpload({
   ];
 
   return (
-    <div className={clsx("space-y-6", className)}>
+    <div className={clsx("space-y-4 sm:space-y-6", className)}>
       {/* File Drop Area */}
       <div
         className={clsx(
-          "border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer",
+          "border-2 border-dashed rounded-lg sm:rounded-xl p-4 sm:p-8 text-center transition-all duration-200 cursor-pointer",
           isDragOver 
-            ? "border-indigo-500 bg-indigo-50" 
-            : "border-gray-300 hover:border-gray-400",
+            ? "border-indigo-500 bg-indigo-50 scale-105" 
+            : "border-gray-300 hover:border-indigo-300 hover:bg-gray-50",
           uploading && "pointer-events-none opacity-50"
         )}
         onDragOver={handleDragOver}
@@ -135,20 +135,25 @@ export default function FileUpload({
           className="hidden"
         />
         
-        <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col items-center space-y-3 sm:space-y-4">
           {uploading ? (
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-indigo-600"></div>
           ) : (
-            <CloudArrowUpIcon className="h-12 w-12 text-gray-400" />
+            <CloudArrowUpIcon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
           )}
           
-          <div>
-            <p className="text-lg font-medium text-gray-900">
-              {uploading ? 'Uploading...' : 'Drop video here or click to browse'}
+          <div className="text-center">
+            <p className="text-base sm:text-lg font-medium text-gray-900">
+              {uploading ? 'Uploading & analyzing...' : 'Drop video or tap to select'}
             </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Supports iPhone videos, MP4, MOV • Max {maxSize}MB
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">
+              📱 iPhone videos • MP4, MOV • Max {maxSize}MB
             </p>
+            {uploading && (
+              <p className="text-xs text-indigo-600 mt-2">
+                🤖 AI generating tags automatically...
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -168,8 +173,8 @@ export default function FileUpload({
         </div>
       )}
 
-      {/* Metadata Form */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      {/* Metadata Form - Mobile Optimized */}
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Video Details</h3>
         
         <div className="space-y-4">
@@ -181,73 +186,79 @@ export default function FileUpload({
               type="text"
               value={metadata.name}
               onChange={(e) => setMetadata({ ...metadata, name: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              placeholder="e.g., Morning coffee routine, City walk"
+              className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="e.g., Me talking about productivity"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={metadata.category}
-              onChange={(e) => setMetadata({ ...metadata, category: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-            >
-              <option value="">Auto-detect category</option>
-              {categories.map(cat => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label} - {cat.desc}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description (Optional)
+              What's in this video? 🤖
             </label>
             <textarea
               value={metadata.description}
               onChange={(e) => setMetadata({ ...metadata, description: e.target.value })}
               rows={3}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              placeholder="What happens in this video? What mood or vibe does it have?"
+              className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="Describe what happens: 'Me talking about morning routine with coffee in my kitchen' - AI will auto-generate tags!"
             />
+            <p className="text-xs text-indigo-600 mt-1 font-medium">
+              💡 AI analyzes your description to generate tags automatically (costs ~$0.0001)
+            </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tags (comma-separated)
+              Category (Optional)
+            </label>
+            <select
+              value={metadata.category}
+              onChange={(e) => setMetadata({ ...metadata, category: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            >
+              <option value="">🤖 Auto-detect from description</option>
+              {categories.map(cat => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Leave blank for smart auto-categorization
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Tags (Optional)
             </label>
             <input
               type="text"
               value={metadata.tags}
               onChange={(e) => setMetadata({ ...metadata, tags: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              placeholder="e.g., energetic, close-up, bright, fast, me, talking"
+              className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="Add extra tags if needed"
             />
             <p className="text-xs text-gray-500 mt-1">
-              💡 Use descriptive tags like: energetic, calm, close-up, wide-shot, bright, dark, me, hands, face
+              AI will generate most tags automatically from your description
             </p>
           </div>
         </div>
       </div>
 
-      {/* iPhone Upload Tips */}
-      <div className="bg-blue-50 rounded-lg p-4">
+      {/* iPhone Upload Tips - Mobile Optimized */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
         <div className="flex items-start space-x-3">
-          <VideoCameraIcon className="h-6 w-6 text-blue-600 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-blue-900">📱 iPhone Upload Tips:</h4>
-            <ul className="text-sm text-blue-800 mt-2 space-y-1">
-              <li>• Record in vertical (portrait) mode for best results</li>
-              <li>• Good lighting makes a huge difference</li>
-              <li>• Keep videos under 60 seconds for faster processing</li>
-              <li>• Videos upload directly from your iPhone camera roll</li>
-              <li>• Duration is detected automatically</li>
-            </ul>
+          <VideoCameraIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div className="min-w-0">
+            <h4 className="font-medium text-blue-900 text-sm sm:text-base">📱 iPhone Upload:</h4>
+            <div className="text-xs sm:text-sm text-blue-800 mt-2 space-y-1">
+              <p>• 📱 Direct from camera roll</p>
+              <p>• ⏱️ Duration auto-detected</p>
+              <p>• 🤖 AI generates tags from description</p>
+              <p>• 📊 Smart categorization</p>
+              <p>• 💰 Cost: ~$0.0001 per video</p>
+            </div>
           </div>
         </div>
       </div>

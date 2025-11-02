@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { db } from '@/lib/db';
 import { z } from 'zod';
-import ffmpeg from 'fluent-ffmpeg';
+import { llmService } from '@/lib/llm';
 
 const UploadBrollSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -41,23 +41,23 @@ export async function POST(request: NextRequest) {
       contentType: file.type,
     });
 
-    // Detect video duration automatically
-    let detectedDuration = 30; // fallback
-    try {
-      // Convert file to buffer for ffmpeg analysis
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      
-      // For now, use a simple estimation (in production, you'd use ffprobe)
-      // File size estimation: ~1MB per 10 seconds for typical mobile video
-      detectedDuration = Math.max(5, Math.min(300, Math.round(buffer.length / (1024 * 1024) * 10)));
-      
-    } catch (error) {
-      console.log('Duration detection failed, using default:', error);
+    // Detect video duration using file size estimation (serverless-friendly)
+    const fileSizeMB = file.size / (1024 * 1024);
+    let detectedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8))); // ~8 seconds per MB for mobile video
+
+    // Auto-generate tags using AI if description is provided
+    let autoTags = tags;
+    if (description && description.length > 10) {
+      try {
+        const tagSuggestions = await llmService.generateVideoTags(description, name);
+        autoTags = [...tags, ...tagSuggestions].filter((tag, index, arr) => arr.indexOf(tag) === index); // Remove duplicates
+      } catch (error) {
+        console.log('Tag generation failed, using provided tags:', error);
+      }
     }
 
-    // Auto-categorize based on common video types
-    const autoCategory = category || detectCategory(name, tags);
+    // Auto-categorize based on name and tags
+    const autoCategory = category || detectCategory(name, autoTags);
 
     // Save to database
     const brollEntry = await db.broll.create({
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         fileUrl: blob.url,
         duration: detectedDuration,
         category: autoCategory,
-        tags,
+        tags: autoTags,
         isActive: true
       }
     });
@@ -75,7 +75,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       broll: brollEntry,
-      message: 'B-roll video uploaded successfully'
+      analysis: {
+        detectedDuration,
+        autoCategory,
+        generatedTags: autoTags.length > tags.length ? autoTags.slice(tags.length) : [],
+        originalTags: tags,
+        totalTags: autoTags.length
+      },
+      message: 'Video uploaded and analyzed successfully',
+      cost: autoTags.length > tags.length ? '~$0.0001' : '$0.00'
     });
 
   } catch (error) {

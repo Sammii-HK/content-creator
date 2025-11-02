@@ -50,18 +50,18 @@ export default function UploadBroll() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-8">
           {/* Upload Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center space-x-3 mb-6">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div className="flex items-center space-x-3 mb-4 sm:mb-6">
                 <div className="bg-indigo-100 rounded-lg p-2">
-                  <PlayIcon className="h-6 w-6 text-indigo-600" />
+                  <PlayIcon className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Upload Video</h2>
-                  <p className="text-gray-600">Duration detected automatically</p>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Upload Video</h2>
+                  <p className="text-sm sm:text-base text-gray-600">Duration & tags auto-detected</p>
                 </div>
               </div>
 
