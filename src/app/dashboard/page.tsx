@@ -374,12 +374,20 @@ export default function Dashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Templates</h3>
-              <Link
-                href="/dashboard/templates/new"
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                Create Template
-              </Link>
+              <div className="flex space-x-3">
+                <Link
+                  href="/dashboard/generate"
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  🎬 Generate Video
+                </Link>
+                <Link
+                  href="/dashboard/templates/new"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Create Template
+                </Link>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {data?.templates.map((template) => (
