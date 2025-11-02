@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { CloudArrowUpIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/20/solid';
+import { appleVideoHandler } from '@/lib/apple-video-handler';
 import clsx from 'clsx';
 
 interface FileUploadProps {
@@ -61,43 +62,15 @@ export default function FileUpload({
 
     const fileSizeMB = file.size / (1024 * 1024);
 
-    // Log file size for debugging
-    console.log(`File size: ${fileSizeMB.toFixed(1)}MB`);
-
-    // Validate file size for regular upload
-    if (file.size > maxSize * 1024 * 1024) {
+    // Use robust Apple video validation
+    const validation = appleVideoHandler.validateAppleVideo(file);
+    if (!validation.valid) {
       setUploadStatus('error');
-      setUploadMessage(`File too large: ${fileSizeMB.toFixed(1)}MB. Maximum is ${maxSize}MB`);
+      setUploadMessage(validation.error || 'Invalid video format');
       return;
     }
 
-    // Validate file type (very permissive for iPhone)
-    const validExtensions = ['.mp4', '.mov', '.avi', '.webm', '.m4v', '.heic', '.hevc'];
-    const hasValidExtension = validExtensions.some(ext => 
-      file.name.toLowerCase().endsWith(ext)
-    );
-    
-    const validMimeTypes = [
-      'video/mp4', 'video/mov', 'video/quicktime', 'video/x-msvideo',
-      'video/webm', 'video/avi', 'video/hevc', 'video/h264', 'video/m4v'
-    ];
-    
-    const hasValidMimeType = validMimeTypes.includes(file.type) || file.type.startsWith('video/');
-    
-    // Be very permissive - if it's from iPhone and looks like video, try it
-    if (!hasValidMimeType && !hasValidExtension && file.size > 0) {
-      setUploadStatus('error');
-      setUploadMessage(`⚠️ iPhone format detected: ${file.type}. 
-      
-Try this:
-1. Open video in iPhone Photos app
-2. Tap Edit → Done (this converts to compatible format)
-3. Or use a video converter app
-4. Then try uploading again
-
-File info: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
-      return;
-    }
+    console.log('✅ Apple video validation passed - processing iPhone/iPad video');
 
     // Auto-fill name if empty
     if (!metadata.name) {

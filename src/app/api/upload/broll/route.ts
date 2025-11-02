@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { db } from '@/lib/db';
 import { z } from 'zod';
-import { llmService } from '@/lib/llm';
+import { appleVideoHandler } from '@/lib/apple-video-handler';
 
 const UploadBrollSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -60,70 +60,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type (iPhone compatible)
-    const validVideoTypes = [
-      'video/mp4', 'video/mov', 'video/quicktime', 
-      'video/x-msvideo', 'video/webm', 'video/avi',
-      'video/hevc', 'video/h264' // iPhone formats
-    ];
-    
-    const isValidVideo = file.type.startsWith('video/') || 
-                        validVideoTypes.includes(file.type) ||
-                        file.name.toLowerCase().match(/\.(mp4|mov|avi|webm|m4v)$/);
-    
-    if (!isValidVideo) {
+    // Use robust Apple video validation
+    const validation = appleVideoHandler.validateAppleVideo(file);
+    if (!validation.valid) {
+      console.error('Apple video validation failed:', validation.error);
       return NextResponse.json(
         { 
-          error: 'Invalid video format', 
-          details: `Received: ${file.type}. Supported: MP4, MOV, AVI, WebM`,
-          fileName: file.name
+          error: validation.error,
+          details: `File: ${file.name}, Type: ${file.type}, Size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`,
+          suggestion: 'This should work with iPhone MOV files. Please check the file.'
         },
         { status: 400 }
       );
     }
 
+    console.log('✅ Apple video validation passed');
+
     console.log('Starting Vercel Blob upload...');
     
-    // Upload to Vercel Blob
-    const blob = await put(`broll/${Date.now()}-${file.name}`, file, {
+    // Process Apple video with proper handling
+    const videoData = await appleVideoHandler.prepareForUpload(file, {
+      name,
+      description,
+      category,
+      tags
+    });
+
+    console.log('Apple video processed:', videoData);
+
+    // Upload to Vercel Blob with proper content type detection
+    const contentType = file.type || 'video/quicktime'; // Default for MOV files
+    const blob = await put(`broll/apple/${Date.now()}-${file.name}`, file, {
       access: 'public',
-      contentType: file.type || 'video/mp4',
+      contentType,
     });
     
-    console.log('Blob upload successful:', blob.url);
+    console.log('✅ Blob upload successful:', blob.url);
 
-    // Detect video duration using file size estimation (serverless-friendly)
-    const fileSizeMB = file.size / (1024 * 1024);
-    const detectedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8))); // ~8 seconds per MB for mobile video
-
-    // Auto-generate tags using AI if description is provided (skip for now to avoid issues)
-    let autoTags = tags;
-    console.log('Using basic tags for now:', tags);
-    
-    // TODO: Re-enable AI tag generation after upload works
-    // if (description && description.length > 10) {
-    //   try {
-    //     console.log('Generating AI tags for:', { description, name });
-    //     const tagSuggestions = await llmService.generateVideoTags(description, name);
-    //     autoTags = [...tags, ...tagSuggestions].filter((tag, index, arr) => arr.indexOf(tag) === index);
-    //     console.log('AI tags generated:', tagSuggestions);
-    //   } catch (error) {
-    //     console.error('Tag generation failed:', error);
-    //   }
-    // }
-
-    // Auto-categorize based on name and tags
-    const autoCategory = category || detectCategory(name, autoTags);
-
-    // Save to database
+    // Save to database with Apple video data
     const brollEntry = await db.broll.create({
       data: {
-        name,
-        description,
+        ...videoData.uploadData,
         fileUrl: blob.url,
-        duration: detectedDuration,
-        category: autoCategory,
-        tags: autoTags,
         isActive: true
       }
     });
@@ -132,14 +110,13 @@ export async function POST(request: NextRequest) {
       success: true,
       broll: brollEntry,
       analysis: {
-        detectedDuration,
-        autoCategory,
-        generatedTags: autoTags.length > tags.length ? autoTags.slice(tags.length) : [],
-        originalTags: tags,
-        totalTags: autoTags.length
+        ...videoData.videoInfo,
+        category: videoData.uploadData.category,
+        generatedTags: videoData.uploadData.tags,
+        processingMethod: 'apple-video-handler'
       },
-      message: 'Video uploaded and analyzed successfully',
-      cost: autoTags.length > tags.length ? '~$0.0001' : '$0.00'
+      message: 'Apple video uploaded and processed successfully',
+      cost: '$0.00'
     });
 
   } catch (error) {

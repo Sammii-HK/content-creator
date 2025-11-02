@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.58",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.18.0",
