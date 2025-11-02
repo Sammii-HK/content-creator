@@ -22,15 +22,17 @@ export class ClientR2Uploader {
    */
   async uploadFile(file: File, accessKeyId: string, secretAccessKey: string): Promise<R2UploadResult> {
     const key = `videos/${Date.now()}-${file.name}`;
-    const url = `${this.bucketUrl}/${key}`;
     
-    console.log('R2 upload with S3 auth:', { url, size: file.size, type: file.type });
+    // Use S3 API endpoint instead of public URL
+    const s3Url = `https://aa2113b6e9c4e8181f42c2f7f46891f1.r2.cloudflarestorage.com/smart-content-videos/${key}`;
+    
+    console.log('R2 S3 API upload:', { url: s3Url, size: file.size, type: file.type });
 
     try {
-      // Use simple basic auth with S3 credentials (works for many S3-compatible services)
+      // Use AWS S3 style authentication
       const credentials = btoa(`${accessKeyId}:${secretAccessKey}`);
       
-      const response = await fetch(url, {
+      const response = await fetch(s3Url, {
         method: 'PUT',
         body: file,
         headers: {
@@ -54,7 +56,7 @@ export class ClientR2Uploader {
       console.log('✅ Direct R2 upload successful');
 
       return {
-        url: `${this.bucketUrl}/${key}`,
+        url: `https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev/${key}`, // Return public URL for access
         key,
         size: file.size
       };
