@@ -59,10 +59,21 @@ export default function FileUpload({
       lastModified: file.lastModified
     });
 
-    // Validate file size
+    const fileSizeMB = file.size / (1024 * 1024);
+
+    // Check if file is too large for serverless function (>4MB)
+    const useDirectUpload = fileSizeMB > 4;
+    
+    if (useDirectUpload) {
+      console.log(`Large file detected (${fileSizeMB.toFixed(1)}MB), using direct blob upload`);
+      await handleLargeFileUpload(file);
+      return;
+    }
+
+    // Validate file size for regular upload
     if (file.size > maxSize * 1024 * 1024) {
       setUploadStatus('error');
-      setUploadMessage(`File too large: ${(file.size / (1024 * 1024)).toFixed(1)}MB. Maximum is ${maxSize}MB`);
+      setUploadMessage(`File too large: ${fileSizeMB.toFixed(1)}MB. Maximum is ${maxSize}MB`);
       return;
     }
 
@@ -134,6 +145,66 @@ File info: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)}MB)`);
       }
       
       setUploadMessage(errorMessage);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleLargeFileUpload = async (file: File) => {
+    setUploading(true);
+    setUploadStatus('idle');
+    
+    try {
+      // Use direct blob upload for large files
+      const { upload } = await import('@vercel/blob/client');
+      
+      console.log('Starting direct blob upload...');
+      
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload/presigned',
+      });
+
+      console.log('Direct upload successful:', blob.url);
+      
+      // Create database entry
+      const fileSizeMB = file.size / (1024 * 1024);
+      const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+      
+      const brollData = {
+        name: metadata.name || file.name.replace(/\.[^/.]+$/, ""),
+        description: metadata.description || `iPhone upload: ${file.name}`,
+        fileUrl: blob.url,
+        duration: estimatedDuration,
+        category: metadata.category || 'mobile-upload',
+        tags: metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      };
+
+      // Save to database
+      const dbResponse = await fetch('/api/broll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brollData)
+      });
+
+      if (dbResponse.ok) {
+        const result = await dbResponse.json();
+        setUploadStatus('success');
+        setUploadMessage(`✅ Large file uploaded successfully: ${result.broll.name}`);
+        
+        // Reset form
+        setMetadata({ name: '', description: '', category: '', tags: '' });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        throw new Error('Database save failed after upload');
+      }
+
+    } catch (error) {
+      console.error('Large file upload failed:', error);
+      setUploadStatus('error');
+      setUploadMessage(`Large file upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
