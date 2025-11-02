@@ -85,14 +85,8 @@ export default function FileUpload({
         'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev' // Public development URL
       );
 
-      // Get R2 configuration from server
-      const configResponse = await fetch('/api/r2-config');
-      if (!configResponse.ok) {
-        throw new Error('R2 not configured. Add CLOUDFLARE_R2_API_TOKEN to environment variables.');
-      }
-      
-      const { token: apiToken } = await configResponse.json();
-      console.log('Got R2 API token:', apiToken.substring(0, 10) + '...');
+      // Use S3 credentials directly (no API calls needed)
+      console.log('Using S3 credentials for R2 upload...');
       
       const uploadResult = await uploader.uploadFile(
         file, 
