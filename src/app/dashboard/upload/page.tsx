@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import FileUpload from '@/components/ui/FileUpload';
-import { ArrowLeftIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, PlayIcon, VideoCameraIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 export default function UploadBroll() {
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
@@ -48,43 +48,74 @@ export default function UploadBroll() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center py-6">
             <Link 
               href="/dashboard" 
-              className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-800 transition-colors mr-6"
+              className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors mr-6"
             >
               <ArrowLeftIcon className="h-5 w-5" />
               <span className="font-medium">Back to Dashboard</span>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Upload B-roll Content</h1>
-              <p className="text-gray-600 mt-1">Add video files from your iPhone or computer</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Upload Content</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Add videos to your library</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Upload Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              <div className="flex items-center space-x-3 mb-4 sm:mb-6">
-                <div className="bg-indigo-100 rounded-lg p-2">
-                  <PlayIcon className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="bg-indigo-100 dark:bg-indigo-900 rounded-lg p-2">
+                  <VideoCameraIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Upload Video</h2>
-                  <p className="text-sm sm:text-base text-gray-600">Duration & tags auto-detected</p>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Upload Video</h2>
+                  <p className="text-gray-600 dark:text-gray-400">Drag & drop or click to select</p>
                 </div>
               </div>
 
               <FileUpload onUpload={handleUpload} maxSize={200} />
             </div>
+
+            {/* Recent Uploads */}
+            {recentUploads.length > 0 && (
+              <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Uploads</h3>
+                  <Link
+                    href="/dashboard/content"
+                    className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium"
+                  >
+                    View All →
+                  </Link>
+                </div>
+                <div className="space-y-3">
+                  {recentUploads.slice(0, 3).map((upload, index) => (
+                    <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="bg-green-100 dark:bg-green-900 rounded-full p-1">
+                        <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-gray-900 dark:text-white font-medium">{upload.name}</p>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">{upload.duration}s • {upload.category}</p>
+                      </div>
+                      <button className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium">
+                        Process →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Recent Uploads & Info */}

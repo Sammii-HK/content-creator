@@ -1,84 +1,149 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { z } from 'zod';
 
-const UpdateSegmentSchema = z.object({
-  name: z.string().optional(),
-  startTime: z.number().min(0).optional(),
-  endTime: z.number().min(0).optional(),
-  quality: z.number().min(1).max(10).optional(),
-  mood: z.string().optional(),
-  description: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  isUsable: z.boolean().optional()
-});
-
-export async function PATCH(
+// Update a specific segment
+export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
     const body = await request.json();
-    const data = UpdateSegmentSchema.parse(body);
-
-    // Validate timing if both start and end are provided
-    if (data.startTime !== undefined && data.endTime !== undefined) {
-      if (data.endTime <= data.startTime) {
-        return NextResponse.json(
-          { error: 'End time must be after start time' },
-          { status: 400 }
-        );
-      }
-    }
-
-    const segment = await db.brollSegment.update({
-      where: { id },
-      data
-    });
-
-    return NextResponse.json({
-      success: true,
-      segment
-    });
-
-  } catch (error) {
-    console.error('Segment update failed:', error);
     
-    if (error instanceof z.ZodError) {
+    const {
+      startTime,
+      endTime,
+      description,
+      qualityRating,
+      tags,
+      isUsable
+    } = body;
+
+    // Validate quality rating if provided
+    if (qualityRating !== undefined && (qualityRating < 1 || qualityRating > 10)) {
       return NextResponse.json(
-        { error: 'Invalid segment data', details: error.issues },
+        { error: 'qualityRating must be between 1 and 10' },
         { status: 400 }
       );
     }
 
+    // Validate times if provided
+    if (startTime !== undefined && endTime !== undefined && startTime >= endTime) {
+      return NextResponse.json(
+        { error: 'startTime must be less than endTime' },
+        { status: 400 }
+      );
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (startTime !== undefined) updateData.startTime = startTime;
+    if (endTime !== undefined) updateData.endTime = endTime;
+    if (startTime !== undefined && endTime !== undefined) {
+      updateData.duration = endTime - startTime;
+    }
+    if (description !== undefined) updateData.description = description;
+    if (qualityRating !== undefined) updateData.qualityRating = qualityRating;
+    if (tags !== undefined) updateData.tags = tags;
+    if (isUsable !== undefined) updateData.isUsable = isUsable;
+
+    const segment = await db.brollSegment.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      success: true,
+      segment,
+      message: 'Segment updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Failed to update segment:', error);
+    
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Segment not found' },
+        { status: 404 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to update segment' },
       { status: 500 }
     );
   }
 }
 
+// Delete a specific segment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const { id } = params;
 
     await db.brollSegment.delete({
-      where: { id }
+      where: { id },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Segment deleted successfully'
+      message: 'Segment deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('Failed to delete segment:', error);
+    
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Segment not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to delete segment' },
+      { status: 500 }
+    );
+  }
+}
+
+// Get a specific segment
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    const segment = await db.brollSegment.findUnique({
+      where: { id },
+      include: {
+        broll: {
+          select: {
+            id: true,
+            name: true,
+            fileUrl: true,
+            duration: true,
+          },
+        },
+      },
     });
 
+    if (!segment) {
+      return NextResponse.json(
+        { error: 'Segment not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      segment,
+    });
   } catch (error) {
-    console.error('Segment deletion failed:', error);
+    console.error('Failed to fetch segment:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch segment' },
       { status: 500 }
     );
   }
