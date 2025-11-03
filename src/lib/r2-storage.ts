@@ -1,6 +1,5 @@
 /**
- * CLIENT-SIDE R2 Upload - No serverless functions needed!
- * Upload directly from browser to R2 using presigned URLs
+ * R2 Upload using presigned URLs - Secure and reliable
  */
 
 export interface R2UploadResult {
@@ -9,68 +8,56 @@ export interface R2UploadResult {
   size: number;
 }
 
-// Client-side R2 uploader that bypasses ALL Vercel limits
+/**
+ * Client-side R2 uploader using server-side upload (no CORS issues)
+ */
 export class ClientR2Uploader {
-  private bucketUrl: string;
-
-  constructor(publicUrl: string) {
-    this.bucketUrl = publicUrl.replace(/\/$/, ''); // Remove trailing slash
-  }
-
   /**
-   * Upload file directly to R2 using proper S3 authentication
+   * Upload file to R2 via server-side endpoint (bypasses CORS completely)
    */
-  async uploadFile(file: File, accessKeyId: string, secretAccessKey: string): Promise<R2UploadResult> {
-    const key = `videos/${Date.now()}-${file.name}`;
-    
-    // Use S3 API endpoint instead of public URL
-    const s3Url = `https://aa2113b6e9c4e8181f42c2f7f46891f1.r2.cloudflarestorage.com/smart-content-videos/${key}`;
-    
-    console.log('R2 S3 API upload:', { url: s3Url, size: file.size, type: file.type });
+  async uploadFile(file: File): Promise<R2UploadResult> {
+    console.log('Starting R2 upload via server:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
 
     try {
-      // Use AWS S3 style authentication
-      const credentials = btoa(`${accessKeyId}:${secretAccessKey}`);
-      
-      const response = await fetch(s3Url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type || 'video/quicktime',
-          'Authorization': `Basic ${credentials}`,
-        },
-        mode: 'cors'
+      // Upload via server endpoint (no CORS issues)
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', file.name);
+
+      const uploadResponse = await fetch('/api/r2/upload-direct', {
+        method: 'POST',
+        body: formData,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'No error details');
-        console.error('R2 upload error details:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
-          errorText
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json().catch(() => ({ error: 'Upload failed' }));
+        console.error('R2 upload error:', {
+          status: uploadResponse.status,
+          statusText: uploadResponse.statusText,
+          error
         });
-        throw new Error(`R2 upload failed: ${response.status} ${response.statusText}. Check CORS settings and API token.`);
+        throw new Error(`Upload failed: ${error.error || uploadResponse.statusText}`);
       }
 
-      console.log('✅ Direct R2 upload successful');
+      const result = await uploadResponse.json();
+      console.log('✅ R2 upload successful');
 
       return {
-        url: `https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev/${key}`, // Return public URL for access
-        key,
-        size: file.size
+        url: result.url,
+        key: result.key,
+        size: result.size
       };
 
     } catch (error) {
-      console.error('Direct R2 upload failed:', error);
+      console.error('R2 upload failed:', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('R2 upload failed: Network connection error. Please check your internet connection and try again.');
+      }
       throw error;
     }
-  }
-
-  /**
-   * Generate public URL for uploaded file
-   */
-  getPublicUrl(key: string): string {
-    return `${this.bucketUrl}/${key}`;
   }
 }
