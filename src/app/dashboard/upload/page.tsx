@@ -14,16 +14,10 @@ export default function UploadBroll() {
     console.log('Starting pure client-side R2 upload...');
     
     const { ClientR2Uploader } = await import('@/lib/r2-storage');
-    const uploader = new ClientR2Uploader(
-      'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev'
-    );
+    const uploader = new ClientR2Uploader();
 
-    // Upload directly to R2
-    const uploadResult = await uploader.uploadFile(
-      file, 
-      '0f7d75c413cbf60bea1673ce243726fa', // Access Key ID
-      '9daa02bc1fe9d843bc618bf0af78c81627a81499e7e4c1c11eea610bbe7b1d' // Secret Access Key
-    );
+    // Upload directly to R2 using presigned URL
+    const uploadResult = await uploader.uploadFile(file);
 
     // Save to database (small payload)
     const fileSizeMB = file.size / (1024 * 1024);

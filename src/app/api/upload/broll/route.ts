@@ -72,16 +72,10 @@ export async function POST(request: NextRequest) {
 
     console.log('Starting R2 upload...');
     
-    // Upload to Cloudflare R2 using public development URL
-    const uploader = new ClientR2Uploader(
-      'https://pub-8b8b71f14a6347adbfbed072ddad9828.r2.dev'
-    );
+    // Upload to Cloudflare R2 using presigned URL
+    const uploader = new ClientR2Uploader();
     
-    const uploadResult = await uploader.uploadFile(
-      file, 
-      '0f7d75c413cbf60bea1673ce243726fa', // Access Key ID
-      '9daa02bc1fe9d843bc618bf0af78c81627a81499e7e4c1c11eea610bbe7b1d' // Secret Access Key
-    );
+    const uploadResult = await uploader.uploadFile(file);
     
     console.log('✅ R2 upload successful:', uploadResult.url);
 
