@@ -4,10 +4,10 @@ import { db } from '@/lib/db';
 // Get segments for a specific broll video
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const segments = await db.brollSegment.findMany({
       where: {
@@ -34,19 +34,20 @@ export async function GET(
 // Create new segment for a broll video
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     
     const {
       startTime,
       endTime,
       description,
-      qualityRating,
+      quality,
       tags,
-      isUsable
+      isUsable,
+      name
     } = body;
 
     // Validate required fields
@@ -80,11 +81,11 @@ export async function POST(
     const segment = await db.brollSegment.create({
       data: {
         brollId: id,
+        name: name || `Segment ${startTime.toFixed(1)}s-${endTime.toFixed(1)}s`,
         startTime,
         endTime,
-        duration: endTime - startTime,
-        description: description || `Segment ${startTime}s-${endTime}s`,
-        qualityRating: qualityRating || 5,
+        description: description || `Segment from ${startTime.toFixed(1)}s to ${endTime.toFixed(1)}s`,
+        quality: quality || 5,
         tags: tags || [],
         isUsable: isUsable !== false, // Default to true
       },

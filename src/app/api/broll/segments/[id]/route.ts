@@ -4,25 +4,25 @@ import { db } from '@/lib/db';
 // Update a specific segment
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     
     const {
       startTime,
       endTime,
       description,
-      qualityRating,
+      quality,
       tags,
       isUsable
     } = body;
 
     // Validate quality rating if provided
-    if (qualityRating !== undefined && (qualityRating < 1 || qualityRating > 10)) {
+    if (quality !== undefined && (quality < 1 || quality > 10)) {
       return NextResponse.json(
-        { error: 'qualityRating must be between 1 and 10' },
+        { error: 'quality must be between 1 and 10' },
         { status: 400 }
       );
     }
@@ -39,11 +39,8 @@ export async function PUT(
     const updateData: any = {};
     if (startTime !== undefined) updateData.startTime = startTime;
     if (endTime !== undefined) updateData.endTime = endTime;
-    if (startTime !== undefined && endTime !== undefined) {
-      updateData.duration = endTime - startTime;
-    }
     if (description !== undefined) updateData.description = description;
-    if (qualityRating !== undefined) updateData.qualityRating = qualityRating;
+    if (quality !== undefined) updateData.quality = quality;
     if (tags !== undefined) updateData.tags = tags;
     if (isUsable !== undefined) updateData.isUsable = isUsable;
 
@@ -77,10 +74,10 @@ export async function PUT(
 // Delete a specific segment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     await db.brollSegment.delete({
       where: { id },
@@ -110,10 +107,10 @@ export async function DELETE(
 // Get a specific segment
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const segment = await db.brollSegment.findUnique({
       where: { id },

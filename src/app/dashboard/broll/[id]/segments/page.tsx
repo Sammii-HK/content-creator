@@ -16,10 +16,11 @@ interface BrollVideo {
 
 interface VideoSegment {
   id?: string;
+  name: string;
   startTime: number;
   endTime: number;
   description: string;
-  qualityRating: number;
+  quality: number;
   tags: string[];
   isUsable: boolean;
 }
@@ -38,7 +39,7 @@ export default function VideoSegments() {
   const [segmentStart, setSegmentStart] = useState<number | null>(null);
   const [newSegment, setNewSegment] = useState<Partial<VideoSegment>>({
     description: '',
-    qualityRating: 5,
+    quality: 5,
     tags: [],
     isUsable: true,
   });
@@ -105,7 +106,7 @@ export default function VideoSegments() {
     setIsCreatingSegment(true);
     setNewSegment({
       description: '',
-      qualityRating: 5,
+      quality: 5,
       tags: [],
       isUsable: true,
     });
@@ -115,10 +116,11 @@ export default function VideoSegments() {
     if (segmentStart === null) return;
 
     const segmentData = {
+      name: `Segment ${segmentStart.toFixed(1)}s-${currentTime.toFixed(1)}s`,
       startTime: segmentStart,
       endTime: currentTime,
-      description: newSegment.description || `Segment ${segmentStart.toFixed(1)}s-${currentTime.toFixed(1)}s`,
-      qualityRating: newSegment.qualityRating || 5,
+      description: newSegment.description || `Segment from ${segmentStart.toFixed(1)}s to ${currentTime.toFixed(1)}s`,
+      quality: newSegment.quality || 5,
       tags: newSegment.tags || [],
       isUsable: newSegment.isUsable !== false,
     };
@@ -146,12 +148,12 @@ export default function VideoSegments() {
       const response = await fetch(`/api/broll/segments/${segmentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qualityRating: rating }),
+        body: JSON.stringify({ quality: rating }),
       });
 
       if (response.ok) {
         setSegments(segments.map(s => 
-          s.id === segmentId ? { ...s, qualityRating: rating } : s
+          s.id === segmentId ? { ...s, quality: rating } : s
         ));
       }
     } catch (error) {
@@ -239,7 +241,7 @@ export default function VideoSegments() {
                           left: `${(segment.startTime / video.duration) * 100}%`,
                           width: `${((segment.endTime - segment.startTime) / video.duration) * 100}%`,
                         }}
-                        title={`${segment.description} (${segment.qualityRating}/10)`}
+                        title={`${segment.description} (${segment.quality}/10)`}
                       />
                     ))}
                     {segmentStart !== null && (
@@ -324,13 +326,13 @@ export default function VideoSegments() {
                     
                     {/* Quality Rating */}
                     <div className="flex items-center space-x-1">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
                         <button
                           key={rating}
                           onClick={() => segment.id && updateSegmentRating(segment.id, rating)}
                           className="p-1"
                         >
-                          {rating <= segment.qualityRating ? (
+                          {rating <= segment.quality ? (
                             <StarIconSolid className="h-3 w-3 text-yellow-400" />
                           ) : (
                             <StarIcon className="h-3 w-3 text-gray-300 dark:text-gray-600" />
@@ -338,7 +340,7 @@ export default function VideoSegments() {
                         </button>
                       ))}
                       <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                        {segment.qualityRating}/10
+                        {segment.quality}/10
                       </span>
                     </div>
                   </div>
