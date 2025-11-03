@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeftIcon, VideoCameraIcon, ScissorsIcon, SparklesIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, VideoCameraIcon, PlayIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 interface BrollVideo {
   id: string;
@@ -76,66 +76,70 @@ export default function ProcessVideos() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* Processing Steps */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Next Steps</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="bg-blue-100 dark:bg-blue-900 rounded-full p-3 w-12 h-12 mx-auto mb-3">
-                    <ScissorsIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">1. Segment Videos</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Break videos into timestamped clips</p>
-                  <button className="mt-3 text-blue-600 dark:text-blue-400 text-sm font-medium" disabled>
-                    Coming Soon
-                  </button>
-                </div>
-                <div className="text-center">
-                  <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3 w-12 h-12 mx-auto mb-3">
-                    <SparklesIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">2. AI Analysis</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Auto-tag and categorize content</p>
-                  <button className="mt-3 text-purple-600 dark:text-purple-400 text-sm font-medium" disabled>
-                    Coming Soon
-                  </button>
-                </div>
-                <div className="text-center">
-                  <div className="bg-green-100 dark:bg-green-900 rounded-full p-3 w-12 h-12 mx-auto mb-3">
-                    <PlayIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <h3 className="font-medium text-gray-900 dark:text-white">3. Generate Content</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Create videos from segments</p>
-                  <button className="mt-3 text-green-600 dark:text-green-400 text-sm font-medium" disabled>
-                    Coming Soon
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Video Library */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Your Video Library</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-6">
+            {/* Simple Video List */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Your Videos ({videos.length})</h2>
+              
+              <div className="space-y-4">
                 {videos.map((video) => (
-                  <div key={video.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <div className="aspect-video bg-gray-200 dark:bg-gray-600 rounded-lg mb-3 flex items-center justify-center">
-                      <PlayIcon className="h-8 w-8 text-gray-400" />
-                    </div>
-                    <h3 className="font-medium text-gray-900 dark:text-white truncate">{video.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{video.duration}s • {video.category}</p>
-                    <div className="mt-3 flex space-x-2">
-                      <button className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 px-3 rounded font-medium transition-colors" disabled>
-                        Segment
-                      </button>
-                      <button className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm py-2 px-3">
-                        Preview
-                      </button>
+                  <div key={video.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div className="flex items-center space-x-4">
+                      {/* Video Thumbnail */}
+                      <div className="w-24 h-16 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center flex-shrink-0">
+                        <PlayIcon className="h-6 w-6 text-gray-400" />
+                      </div>
+                      
+                      {/* Video Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate">
+                          {video.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Duration: {Math.floor(video.duration / 60)}:{(video.duration % 60).toFixed(0).padStart(2, '0')} • Category: {video.category}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                          Uploaded: {new Date(video.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex flex-col space-y-2">
+                        <a
+                          href={video.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                          <span>Preview</span>
+                        </a>
+                        
+                        <Link
+                          href={`/dashboard/broll/${video.id}/segments`}
+                          className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium"
+                        >
+                          <VideoCameraIcon className="h-4 w-4" />
+                          <span>Segment</span>
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
+              
+              {videos.length === 0 && (
+                <div className="text-center py-8">
+                  <VideoCameraIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400">No videos uploaded yet</p>
+                  <Link
+                    href="/dashboard/upload"
+                    className="inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium"
+                  >
+                    Upload Your First Video
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

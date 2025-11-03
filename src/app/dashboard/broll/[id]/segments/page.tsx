@@ -210,149 +210,114 @@ export default function VideoSegments() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Video Player */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="aspect-video bg-black rounded-lg mb-4 relative">
-                <video
-                  ref={videoRef}
-                  src={video.fileUrl}
-                  className="w-full h-full rounded-lg"
-                  onTimeUpdate={handleTimeUpdate}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                />
+        <div className="space-y-8">
+          {/* Simple Video Player */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Video Player</h2>
+            
+            <div className="space-y-4">
+              {/* Video */}
+              <video
+                ref={videoRef}
+                src={video.fileUrl}
+                controls
+                className="w-full max-w-2xl mx-auto rounded-lg bg-black"
+                onTimeUpdate={handleTimeUpdate}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+              />
+              
+              {/* Simple Controls */}
+              <div className="flex items-center justify-center space-x-4">
+                <span className="text-gray-900 dark:text-white font-mono">
+                  Current: {formatTime(currentTime)}
+                </span>
                 
-                {/* Segment Markers */}
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="relative h-2 bg-gray-600 rounded-full">
-                    <div 
-                      className="absolute h-full bg-indigo-600 rounded-full"
-                      style={{ width: `${(currentTime / video.duration) * 100}%` }}
-                    />
-                    {segments.map((segment, index) => (
-                      <div
-                        key={index}
-                        className={`absolute h-4 -top-1 rounded ${
-                          segment.isUsable ? 'bg-green-500' : 'bg-red-500'
-                        }`}
-                        style={{
-                          left: `${(segment.startTime / video.duration) * 100}%`,
-                          width: `${((segment.endTime - segment.startTime) / video.duration) * 100}%`,
-                        }}
-                        title={`${segment.description} (${segment.quality}/10)`}
-                      />
-                    ))}
-                    {segmentStart !== null && (
-                      <div
-                        className="absolute h-4 -top-1 bg-yellow-500 rounded"
-                        style={{
-                          left: `${(segmentStart / video.duration) * 100}%`,
-                          width: `${((currentTime - segmentStart) / video.duration) * 100}%`,
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+                {!isCreatingSegment ? (
                   <button
-                    onClick={togglePlay}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg"
+                    onClick={startSegmentCreation}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium"
                   >
-                    {isPlaying ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5" />}
+                    🎬 Start New Segment
                   </button>
-                  <span className="text-gray-900 dark:text-white">
-                    {formatTime(currentTime)} / {formatTime(video.duration)}
-                  </span>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  {!isCreatingSegment ? (
-                    <button
-                      onClick={startSegmentCreation}
-                      className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
-                    >
-                      <ScissorsIcon className="h-4 w-4" />
-                      <span>Start Segment</span>
-                    </button>
-                  ) : (
+                ) : (
+                  <div className="flex items-center space-x-4">
+                    <span className="text-yellow-600 dark:text-yellow-400 font-medium">
+                      Recording from {formatTime(segmentStart || 0)}
+                    </span>
                     <button
                       onClick={finishSegmentCreation}
-                      className="flex items-center space-x-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg"
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg font-medium"
                     >
-                      <ScissorsIcon className="h-4 w-4" />
-                      <span>End Segment</span>
+                      ✂️ End Segment
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Segments List */}
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Segments ({segments.length})
-              </h3>
-              
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+          {/* Simple Segments List */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Segments ({segments.length})
+            </h3>
+            
+            {segments.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">No segments created yet</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">
+                  Play the video above and click "Start New Segment" to begin
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
                 {segments.map((segment, index) => (
-                  <div key={segment.id || index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <button
-                        onClick={() => seekTo(segment.startTime)}
-                        className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-                      >
-                        {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                      </button>
-                      <span className={`text-xs px-2 py-1 rounded ${
+                  <div key={segment.id || index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <button
+                          onClick={() => seekTo(segment.startTime)}
+                          className="text-lg font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                        >
+                          {formatTime(segment.startTime)} → {formatTime(segment.endTime)}
+                        </button>
+                        <p className="text-gray-600 dark:text-gray-400 mt-1">{segment.description}</p>
+                        
+                        {/* Simple Quality Rating */}
+                        <div className="flex items-center space-x-2 mt-3">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Quality:</span>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+                            <button
+                              key={rating}
+                              onClick={() => segment.id && updateSegmentRating(segment.id, rating)}
+                              className={`w-6 h-6 rounded text-xs font-bold ${
+                                rating <= segment.quality 
+                                  ? 'bg-yellow-400 text-black' 
+                                  : 'bg-gray-200 dark:bg-gray-600 text-gray-500'
+                              }`}
+                            >
+                              {rating}
+                            </button>
+                          ))}
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {segment.quality}/10
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         segment.isUsable 
                           ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
                           : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
                       }`}>
-                        {segment.isUsable ? 'Usable' : 'Skip'}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      {segment.description}
-                    </p>
-                    
-                    {/* Quality Rating */}
-                    <div className="flex items-center space-x-1">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
-                        <button
-                          key={rating}
-                          onClick={() => segment.id && updateSegmentRating(segment.id, rating)}
-                          className="p-1"
-                        >
-                          {rating <= segment.quality ? (
-                            <StarIconSolid className="h-3 w-3 text-yellow-400" />
-                          ) : (
-                            <StarIcon className="h-3 w-3 text-gray-300 dark:text-gray-600" />
-                          )}
-                        </button>
-                      ))}
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                        {segment.quality}/10
+                        {segment.isUsable ? '✅ Good' : '❌ Skip'}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {segments.length === 0 && (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                  No segments created yet. Click "Start Segment" to begin.
-                </p>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </main>
