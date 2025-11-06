@@ -139,7 +139,7 @@ export default function VideoLibrary() {
                       </Button>
                     </a>
                     
-                    <Link href={`/dashboard/content/${video.id}/segment`} className="w-full block">
+                    <Link href={`/dashboard/video-editor/${video.id}`} className="w-full block">
                       <Button className="w-full">
                         ✂️ Create Segments
                       </Button>

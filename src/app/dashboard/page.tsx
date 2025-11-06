@@ -111,12 +111,12 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          <Link href="/dashboard/ai-studio">
+          <Link href="/dashboard/ai-video-studio">
             <Card className="cursor-pointer hover:shadow-lg transition-shadow">
               <CardContent className="text-center py-6">
-                <div className="text-3xl mb-2">🤖</div>
-                <CardTitle className="text-lg">AI Studio</CardTitle>
-                <p className="text-muted-foreground text-sm">Generate content with AI</p>
+                <div className="text-3xl mb-2">🎬</div>
+                <CardTitle className="text-lg">AI Video Studio</CardTitle>
+                <p className="text-muted-foreground text-sm">Generate AI videos + avatars</p>
               </CardContent>
             </Card>
           </Link>
@@ -173,7 +173,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <Link href={`/dashboard/content/${video.id}/segment`}>
+                      <Link href={`/dashboard/video-editor/${video.id}`}>
                         <Button size="sm" variant="outline">Segment</Button>
                       </Link>
                       <a href={video.fileUrl} target="_blank" rel="noopener noreferrer">
