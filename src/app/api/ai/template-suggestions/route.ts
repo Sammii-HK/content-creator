@@ -1,0 +1,87 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { aiTemplateMatcher } from '@/lib/ai-template-matcher';
+
+export async function POST(request: NextRequest) {
+  try {
+    const { videoId } = await request.json();
+
+    if (!videoId) {
+      return NextResponse.json(
+        { error: 'videoId is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('🤖 Getting AI template suggestions for video:', videoId);
+
+    // Get video and segments
+    const video = await db.broll.findUnique({
+      where: { id: videoId },
+      include: {
+        segments: {
+          where: { isUsable: true },
+          orderBy: { quality: 'desc' }
+        }
+      }
+    });
+
+    if (!video) {
+      return NextResponse.json(
+        { error: 'Video not found' },
+        { status: 404 }
+      );
+    }
+
+    if (video.segments.length === 0) {
+      return NextResponse.json(
+        { error: 'No usable segments found. Create some segments first.' },
+        { status: 400 }
+      );
+    }
+
+    // Convert to AI format
+    const segments = video.segments.map(s => ({
+      id: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      quality: s.quality,
+      description: s.description || '',
+      isUsable: s.isUsable
+    }));
+
+    const videoContext = {
+      name: video.name,
+      duration: video.duration,
+      category: video.category || 'general'
+    };
+
+    // Get AI recommendations
+    const recommendations = await aiTemplateMatcher.analyzeSegmentsForTemplates(
+      segments,
+      videoContext
+    );
+
+    return NextResponse.json({
+      success: true,
+      video: {
+        id: video.id,
+        name: video.name,
+        duration: video.duration,
+        segmentCount: segments.length
+      },
+      recommendations,
+      message: `Found ${recommendations.length} template recommendations`
+    });
+
+  } catch (error) {
+    console.error('❌ AI template suggestion failed:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to generate template suggestions',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
