@@ -3,6 +3,8 @@
  * Connect to retrieve account data and post content
  */
 
+import { digitalMeService } from './digitalMe';
+
 export interface SucculentAccount {
   id: string;
   platform: 'instagram' | 'tiktok' | 'youtube' | 'twitter' | 'linkedin';

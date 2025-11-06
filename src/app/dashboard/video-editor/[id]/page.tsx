@@ -33,13 +33,6 @@ export default function SimpleVideoEditor() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    if (params.id) {
-      fetchVideo();
-      fetchSegments();
-    }
-  }, [params.id]);
-
   const fetchVideo = async () => {
     try {
       const response = await fetch(`/api/broll/${params.id}`);
@@ -63,6 +56,13 @@ export default function SimpleVideoEditor() {
       console.error('Failed to fetch segments:', error);
     }
   };
+
+  useEffect(() => {
+    if (params.id) {
+      fetchVideo();
+      fetchSegments();
+    }
+  }, [params.id]);
 
   const markStart = () => {
     setStartTime(currentTime);

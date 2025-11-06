@@ -1,0 +1,3 @@
+echo "Pre-commit: Vercel-level checks (TypeScript + Build)"
+npm run typecheck
+npm run build

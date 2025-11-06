@@ -123,8 +123,28 @@ Focus on identifying what makes this creator's voice unique and authentic.`
       const sample = samples[i];
       const embedding = embeddings[i];
 
+      // Find or create default persona
+      let defaultPersona = await db.voiceProfile.findFirst({
+        where: { name: 'Default' }
+      });
+
+      if (!defaultPersona) {
+        defaultPersona = await db.voiceProfile.create({
+          data: {
+            name: 'Default',
+            description: 'Default voice profile',
+            niche: 'general',
+            summary: 'Learning voice from samples...',
+            preferredTones: ['authentic'],
+            topThemes: ['general'],
+            lexicalTraits: {}
+          }
+        });
+      }
+
       await db.voiceExample.create({
         data: {
+          personaId: defaultPersona.id,
           theme: sample.theme,
           tone: sample.tone,
           hook: sample.hook,
@@ -181,20 +201,30 @@ Focus on identifying what makes this creator's voice unique and authentic.`
 
     // Create or update voice profile
     const profileData = {
+      name: 'Default',
+      description: 'Default voice profile',
+      niche: 'general',
       summary: `Creator with ${analysis.tone} tone, focuses on ${analysis.themes.slice(0, 3).join(', ')}. Writing style: ${analysis.writingStyle.sentenceLength} sentences, ${analysis.writingStyle.vocabulary} vocabulary, ${analysis.writingStyle.rhythm} rhythm.`,
       preferredTones: preferredTones.length > 0 ? preferredTones : [analysis.tone],
       topThemes: analysis.themes.slice(0, 5),
       lexicalTraits: analysis.writingStyle
     };
 
-    // Check if profile exists
-    const existingProfile = await db.voiceProfile.findFirst();
+    // Check if default profile exists
+    const existingProfile = await db.voiceProfile.findFirst({
+      where: { name: 'Default' }
+    });
 
     let profile;
     if (existingProfile) {
       profile = await db.voiceProfile.update({
         where: { id: existingProfile.id },
-        data: profileData
+        data: {
+          summary: profileData.summary,
+          preferredTones: profileData.preferredTones,
+          topThemes: profileData.topThemes,
+          lexicalTraits: profileData.lexicalTraits
+        }
       });
     } else {
       profile = await db.voiceProfile.create({
@@ -291,8 +321,28 @@ The content should sound like the creator wrote it themselves.`
         value: data.content
       });
 
+      // Find or create default persona
+      let defaultPersona = await db.voiceProfile.findFirst({
+        where: { name: 'Default' }
+      });
+
+      if (!defaultPersona) {
+        defaultPersona = await db.voiceProfile.create({
+          data: {
+            name: 'Default',
+            description: 'Default voice profile',
+            niche: 'general',
+            summary: 'Learning voice from samples...',
+            preferredTones: ['authentic'],
+            topThemes: ['general'],
+            lexicalTraits: {}
+          }
+        });
+      }
+
       await db.voiceExample.create({
         data: {
+          personaId: defaultPersona.id,
           theme: data.theme,
           tone: data.tone,
           hook: data.content.split(' ').slice(0, 8).join(' '), // First 8 words as hook
