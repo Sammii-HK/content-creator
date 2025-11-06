@@ -183,3 +183,30 @@ model MLModel {
   @@unique([name, version])
   @@map("ml_models")
 }
+
+// Digital Me Voice Learning Models
+model VoiceExample {
+  id          String   @id @default(cuid())
+  theme       String
+  tone        String
+  hook        String
+  body        String
+  caption     String?
+  tags        String[]
+  engagement  Float?
+  embedding   Float[]  // Vector embedding for similarity search
+  createdAt   DateTime @default(now())
+  
+  @@map("voice_examples")
+}
+
+model VoiceProfile {
+  id             String   @id @default(cuid())
+  summary        String   // AI-generated summary of voice characteristics
+  preferredTones String[] // Top-performing tones
+  topThemes      String[] // Most common themes
+  lexicalTraits  Json     // Writing style characteristics
+  updatedAt      DateTime @updatedAt
+  
+  @@map("voice_profiles")
+}
