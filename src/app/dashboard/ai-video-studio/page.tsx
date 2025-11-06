@@ -330,40 +330,81 @@ export default function AIVideoStudio() {
           </Card>
         </div>
 
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
-          <Card>
-            <CardContent className="text-center py-4">
-              <div className="text-2xl mb-2">🎬</div>
-              <h4 className="font-medium">Text to Video</h4>
-              <p className="text-xs text-muted-foreground">AI generates full videos from text</p>
+        {/* AI Video Options Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+          <Card className={`cursor-pointer transition-all ${activeTab === 'text-to-video' ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => setActiveTab('text-to-video')}>
+            <CardContent className="text-center py-6">
+              <div className="text-3xl mb-3">🎬</div>
+              <h4 className="font-medium mb-1">Text to Video</h4>
+              <p className="text-xs text-muted-foreground mb-2">AI generates full videos from descriptions</p>
+              <Badge variant="outline" className="text-xs">$0.50-2.00 per video</Badge>
+              <p className="text-xs text-muted-foreground mt-1">Runway ML, Pika Labs</p>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="text-center py-4">
-              <div className="text-2xl mb-2">👤</div>
-              <h4 className="font-medium">AI Avatar</h4>
-              <p className="text-xs text-muted-foreground">Videos of "you" talking</p>
+          <Card className={`cursor-pointer transition-all ${activeTab === 'avatar' ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => setActiveTab('avatar')}>
+            <CardContent className="text-center py-6">
+              <div className="text-3xl mb-3">👤</div>
+              <h4 className="font-medium mb-1">AI Avatar</h4>
+              <p className="text-xs text-muted-foreground mb-2">Videos of YOU talking (upload your photo)</p>
+              <Badge variant="outline" className="text-xs">$0.20-1.00 per video</Badge>
+              <p className="text-xs text-muted-foreground mt-1">HeyGen, Synthesia</p>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="text-center py-4">
-              <div className="text-2xl mb-2">📦</div>
-              <h4 className="font-medium">Product Demo</h4>
-              <p className="text-xs text-muted-foreground">Showcase products on virtual desks</p>
+          <Card className={`cursor-pointer transition-all ${activeTab === 'product-demo' ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => setActiveTab('product-demo')}>
+            <CardContent className="text-center py-6">
+              <div className="text-3xl mb-3">📦</div>
+              <h4 className="font-medium mb-1">Product Demo</h4>
+              <p className="text-xs text-muted-foreground mb-2">Products on virtual desks (like banana!)</p>
+              <Badge variant="outline" className="text-xs">$0.10-0.50 per video</Badge>
+              <p className="text-xs text-muted-foreground mt-1">AI + 3D placement</p>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="text-center py-4">
-              <div className="text-2xl mb-2">🔀</div>
-              <h4 className="font-medium">Hybrid</h4>
-              <p className="text-xs text-muted-foreground">Real footage + AI elements</p>
+          <Card className={`cursor-pointer transition-all ${activeTab === 'hybrid' ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => setActiveTab('hybrid')}>
+            <CardContent className="text-center py-6">
+              <div className="text-3xl mb-3">🔀</div>
+              <h4 className="font-medium mb-1">Hybrid</h4>
+              <p className="text-xs text-muted-foreground mb-2">Your real footage + AI elements</p>
+              <Badge variant="outline" className="text-xs">$0.05-0.20 per video</Badge>
+              <p className="text-xs text-muted-foreground mt-1">Cheapest option!</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Quick Examples */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>💡 What You Can Create</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              <div>
+                <h4 className="font-medium mb-2">🎬 With Your Videos:</h4>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li>• Take your morning routine footage + add AI voiceover</li>
+                  <li>• Use your talking clips + add AI text overlays</li>
+                  <li>• Combine multiple segments with AI transitions</li>
+                  <li>• Add AI-generated backgrounds to your clips</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">🤖 Pure AI Generation:</h4>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li>• Create avatar videos using your photo</li>
+                  <li>• Generate product demos with virtual environments</li>
+                  <li>• Make talking head videos without filming</li>
+                  <li>• Create animated explainer videos</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

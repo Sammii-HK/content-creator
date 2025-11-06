@@ -159,79 +159,108 @@ export default function SimpleVideoEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center space-x-4 mb-6">
-          <Link href="/dashboard/content">
-            <Button variant="ghost">← Back</Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">{video.name}</h1>
-            <p className="text-muted-foreground">Create segments from this video</p>
+    <div className="min-h-screen bg-background">
+      {/* Clean Header */}
+      <div className="border-b bg-card">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link href="/dashboard/content">
+                <Button variant="ghost">← Back to Library</Button>
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold">{video.name}</h1>
+                <p className="text-muted-foreground">Create quality-rated segments for AI content generation</p>
+              </div>
+            </div>
+            
+            {segments.length > 0 && (
+              <div className="flex items-center space-x-3">
+                <Badge variant="secondary">{segments.length} segments</Badge>
+                <Link href="/dashboard/ai-video-studio">
+                  <Button>🤖 Generate AI Video</Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Message */}
-        {message && (
-          <div className="mb-4 p-3 bg-muted rounded-lg">
-            <p className="text-sm">{message}</p>
+      {/* Message Bar */}
+      {message && (
+        <div className="bg-primary/10 border-b px-6 py-3">
+          <p className="text-primary font-medium">{message}</p>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Video Player - Larger */}
+          <div className="xl:col-span-2">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>🎬 Video Player</CardTitle>
+                  <Badge variant="outline">
+                    {formatTime(video.duration)} total
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <video
+                    ref={videoRef}
+                    src={video.fileUrl}
+                    controls
+                    className="w-full rounded-lg bg-black"
+                    onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
+                  />
+
+                  {/* Enhanced Controls */}
+                  <div className="bg-muted rounded-lg p-4">
+                    <div className="text-center mb-4">
+                      <div className="font-mono text-2xl font-bold mb-1">
+                        {formatTime(currentTime)} / {formatTime(video.duration)}
+                      </div>
+                      {startTime !== null && (
+                        <div className="text-sm text-orange-600 font-medium">
+                          🔴 Start: {formatTime(startTime)} • Duration: {formatTime(currentTime - startTime)}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-center space-x-4">
+                      <Button 
+                        onClick={markStart}
+                        variant={startTime !== null ? "secondary" : "default"}
+                        size="lg"
+                        className="min-w-32"
+                      >
+                        {startTime !== null ? '✅ Start Marked' : '📍 Mark Start'}
+                      </Button>
+                      
+                      <Button 
+                        onClick={createSegment}
+                        disabled={startTime === null}
+                        size="lg"
+                        className="min-w-32 bg-green-600 hover:bg-green-700"
+                      >
+                        ✂️ Create Segment
+                      </Button>
+                    </div>
+
+                    <div className="text-center text-sm text-muted-foreground mt-4 space-y-1">
+                      <p><strong>How to create segments:</strong></p>
+                      <p>1. Play video to find a good starting point</p>
+                      <p>2. Click "Mark Start" to set beginning</p>
+                      <p>3. Play to where you want segment to end</p>
+                      <p>4. Click "Create Segment" to save</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Video Player */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Video Player</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <video
-                ref={videoRef}
-                src={video.fileUrl}
-                controls
-                className="w-full rounded-lg mb-4"
-                onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
-              />
-
-              {/* Simple Controls */}
-              <div className="space-y-4">
-                <div className="text-center">
-                  <p className="font-mono text-lg mb-2">
-                    Current: {formatTime(currentTime)} / {formatTime(video.duration)}
-                  </p>
-                  {startTime !== null && (
-                    <p className="text-sm text-orange-600">
-                      Start marked at {formatTime(startTime)} • Duration so far: {formatTime(currentTime - startTime)}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-center space-x-3">
-                  <Button 
-                    onClick={markStart}
-                    variant="outline"
-                    size="lg"
-                  >
-                    📍 Mark Start
-                  </Button>
-                  
-                  <Button 
-                    onClick={createSegment}
-                    disabled={startTime === null}
-                    size="lg"
-                  >
-                    ✂️ Create Segment
-                  </Button>
-                </div>
-
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>1. Play video to find start → Click "Mark Start"</p>
-                  <p>2. Play to end point → Click "Create Segment"</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Segments List */}
           <Card>
