@@ -184,9 +184,10 @@ model MLModel {
   @@map("ml_models")
 }
 
-// Digital Me Voice Learning Models
+// Digital Me Voice Learning Models - Multi-Persona System
 model VoiceExample {
   id          String   @id @default(cuid())
+  personaId   String   // Link to specific persona
   theme       String
   tone        String
   hook        String
@@ -197,16 +198,27 @@ model VoiceExample {
   embedding   Float[]  // Vector embedding for similarity search
   createdAt   DateTime @default(now())
   
+  // Relations
+  persona VoiceProfile @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  
   @@map("voice_examples")
 }
 
 model VoiceProfile {
   id             String   @id @default(cuid())
+  name           String   // Persona name (e.g., "Succulent Expert", "Tech Reviewer", "Fitness Coach")
+  description    String?  // What this persona is about
+  niche          String   // Content niche (e.g., "plants", "tech", "fitness", "business")
   summary        String   // AI-generated summary of voice characteristics
-  preferredTones String[] // Top-performing tones
+  preferredTones String[] // Top-performing tones for this persona
   topThemes      String[] // Most common themes
   lexicalTraits  Json     // Writing style characteristics
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  
+  // Relations
+  examples VoiceExample[]
   
   @@map("voice_profiles")
 }

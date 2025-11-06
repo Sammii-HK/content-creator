@@ -154,39 +154,58 @@ Make it feel natural and engaging, not like an advertisement.`
     aiPrompt: string,
     duration: number = 30
   ): Promise<any> {
-    console.log('🔀 Generating hybrid video plan...');
+    console.log('🔀 Generating hybrid video plan with', realSegments.length, 'segments...');
+
+    if (realSegments.length === 0) {
+      throw new Error('No segments available. Create segments first in the video editor.');
+    }
 
     const segmentSummary = realSegments.map(s => ({
-      duration: s.endTime - s.startTime,
+      duration: (s.endTime - s.startTime).toFixed(1),
       description: s.description,
-      quality: s.quality
+      quality: s.quality,
+      timeRange: `${s.startTime.toFixed(1)}s-${s.endTime.toFixed(1)}s`
     }));
+
+    const totalFootageDuration = realSegments.reduce((acc, s) => acc + (s.endTime - s.startTime), 0);
 
     const result = await generateText({
       model: this.model,
-      prompt: `Create a hybrid video plan combining real footage with AI-generated elements.
+      prompt: `Create a hybrid video plan using REAL FOOTAGE + AI elements.
 
-Available Real Footage:
+AVAILABLE REAL FOOTAGE (${realSegments.length} segments):
 ${JSON.stringify(segmentSummary, null, 2)}
 
-AI Generation Request: ${aiPrompt}
-Target Duration: ${duration} seconds
+Total available footage: ${totalFootageDuration.toFixed(1)} seconds
+Target video duration: ${duration} seconds
 
-Plan how to:
-1. Use the best real footage segments
-2. Fill gaps with AI-generated content
-3. Create smooth transitions
-4. Add AI voiceover or text overlays
-5. Ensure cohesive storytelling
+AI Request: ${aiPrompt}
 
-Provide a timeline showing real footage + AI elements integration.`
+Create a detailed plan that:
+1. Uses the REAL FOOTAGE segments effectively
+2. Adds AI elements (voiceover, text overlays, transitions, background music)
+3. Creates a cohesive ${duration}-second video
+4. Includes specific timing for each segment
+5. Suggests AI enhancements for each part
+
+Format as a production timeline with:
+- Real footage usage (which segments, when)
+- AI voiceover script suggestions  
+- Text overlay recommendations
+- Transition effects
+- Background music mood
+
+Make it clear this uses EXISTING footage + AI enhancements.`
     });
 
     return {
       plan: result.text,
       realSegments: realSegments.length,
-      aiElements: ['voiceover', 'text-overlays', 'transitions'],
-      estimatedCost: '$0.10-0.50' // Rough AI generation cost
+      totalFootageDuration: totalFootageDuration.toFixed(1),
+      availableSegments: segmentSummary,
+      aiElements: ['voiceover', 'text-overlays', 'transitions', 'background-music'],
+      estimatedCost: `$0.05-0.20 (${realSegments.length} segments + AI)`,
+      readyForProduction: true
     };
   }
 

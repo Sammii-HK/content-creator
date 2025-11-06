@@ -37,7 +37,24 @@ export default function AIVideoStudio() {
       const response = await fetch('/api/broll');
       if (response.ok) {
         const data = await response.json();
-        setVideos(data.broll || []);
+        
+        // Get videos with segment counts
+        const videosWithSegments = await Promise.all(
+          (data.broll || []).map(async (video: any) => {
+            try {
+              const segResponse = await fetch(`/api/broll/${video.id}/segments`);
+              const segData = await segResponse.json();
+              return {
+                ...video,
+                segmentCount: segData.segments?.length || 0
+              };
+            } catch {
+              return { ...video, segmentCount: 0 };
+            }
+          })
+        );
+        
+        setVideos(videosWithSegments);
       }
     } catch (error) {
       console.error('Failed to fetch videos:', error);
@@ -213,19 +230,41 @@ export default function AIVideoStudio() {
 
               {activeTab === 'hybrid' && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Base Video</label>
+                  <label className="text-sm font-medium mb-2 block">Base Video (with segments)</label>
                   <select
                     value={selectedVideo}
                     onChange={(e) => setSelectedVideo(e.target.value)}
                     className="w-full p-2 border rounded-lg"
                   >
                     <option value="">Select video with segments...</option>
-                    {videos.map((video) => (
-                      <option key={video.id} value={video.id}>
-                        {video.name}
-                      </option>
-                    ))}
+                    {videos
+                      .filter(v => v.segmentCount && v.segmentCount > 0)
+                      .map((video) => (
+                        <option key={video.id} value={video.id}>
+                          {video.name} ({video.segmentCount} segments)
+                        </option>
+                      ))
+                    }
                   </select>
+                  
+                  {videos.filter(v => v.segmentCount && v.segmentCount > 0).length === 0 && (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 mb-2">
+                        📹 No videos with segments found
+                      </p>
+                      <Link href="/dashboard/content" className="text-sm text-blue-600 hover:underline">
+                        Go create segments first →
+                      </Link>
+                    </div>
+                  )}
+                  
+                  {selectedVideo && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                      <p className="text-sm text-green-800">
+                        ✅ Video selected with {videos.find(v => v.id === selectedVideo)?.segmentCount} segments
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -238,9 +277,16 @@ export default function AIVideoStudio() {
                 {generating ? '🤖 Generating...' : `✨ Generate ${tabs.find(t => t.id === activeTab)?.name.split(' ')[1]} Video`}
               </Button>
 
-              {/* Cost Estimate */}
-              <div className="text-xs text-muted-foreground text-center">
-                Estimated cost: {getCostEstimate(activeTab, duration)}
+              {/* Cost & Requirements */}
+              <div className="bg-muted rounded-lg p-3">
+                <div className="text-center mb-2">
+                  <Badge variant="secondary">
+                    Cost: {getCostEstimate(activeTab, duration)}
+                  </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground text-center">
+                  {getRequirements(activeTab)}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -432,5 +478,20 @@ function getCostEstimate(style: string, duration: number): string {
     case 'product-demo': return `$0.10-0.50`;
     case 'hybrid': return `$0.05-0.20`;
     default: return '$0.10-0.50';
+  }
+}
+
+function getRequirements(style: string): string {
+  switch (style) {
+    case 'text-to-video': 
+      return 'Requires: Runway ML or Pika Labs API • Generates completely new video content';
+    case 'avatar': 
+      return 'Requires: HeyGen or Synthesia API • Upload your photo to create AI version of you';
+    case 'product-demo': 
+      return 'Requires: Product images • AI creates virtual environments and placement';
+    case 'hybrid': 
+      return 'Uses YOUR existing video segments + AI voiceover/text • Cheapest option!';
+    default: 
+      return 'AI-powered video generation';
   }
 }

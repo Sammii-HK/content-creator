@@ -78,12 +78,12 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Get video segments
+        // Get video segments (any quality, we'll work with what's available)
         const video = await db.broll.findUnique({
           where: { id: videoId },
           include: {
             segments: {
-              where: { isUsable: true, quality: { gte: 6 } },
+              where: { isUsable: true },
               orderBy: { quality: 'desc' }
             }
           }
@@ -93,6 +93,13 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             { error: 'Video not found' },
             { status: 404 }
+          );
+        }
+
+        if (video.segments.length === 0) {
+          return NextResponse.json(
+            { error: 'No segments found for this video. Create segments first by going to the video editor.' },
+            { status: 400 }
           );
         }
 

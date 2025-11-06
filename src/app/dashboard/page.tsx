@@ -90,43 +90,53 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <Link href="/dashboard/upload">
             <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-6">
-                <div className="text-3xl mb-2">📤</div>
-                <CardTitle className="text-lg">Upload Videos</CardTitle>
-                <p className="text-muted-foreground text-sm">Add videos to your library</p>
+              <CardContent className="text-center py-4">
+                <div className="text-2xl mb-2">📤</div>
+                <CardTitle className="text-sm">Upload Videos</CardTitle>
+                <p className="text-xs text-muted-foreground">Add to library</p>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/dashboard/content">
             <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-6">
-                <div className="text-3xl mb-2">✂️</div>
-                <CardTitle className="text-lg">Create Segments</CardTitle>
-                <p className="text-muted-foreground text-sm">Break videos into clips</p>
+              <CardContent className="text-center py-4">
+                <div className="text-2xl mb-2">✂️</div>
+                <CardTitle className="text-sm">Create Segments</CardTitle>
+                <p className="text-xs text-muted-foreground">Break into clips</p>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/dashboard/ai-video-studio">
             <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-6">
-                <div className="text-3xl mb-2">🎬</div>
-                <CardTitle className="text-lg">AI Video Studio</CardTitle>
-                <p className="text-muted-foreground text-sm">Generate AI videos + avatars</p>
+              <CardContent className="text-center py-4">
+                <div className="text-2xl mb-2">🎬</div>
+                <CardTitle className="text-sm">AI Videos</CardTitle>
+                <p className="text-xs text-muted-foreground">Generate + avatars</p>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/dashboard/voice-profile">
+          <Link href="/dashboard/personas">
             <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-6">
-                <div className="text-3xl mb-2">🧠</div>
-                <CardTitle className="text-lg">Digital Me</CardTitle>
-                <p className="text-muted-foreground text-sm">Train your AI voice</p>
+              <CardContent className="text-center py-4">
+                <div className="text-2xl mb-2">🧠</div>
+                <CardTitle className="text-sm">Personas</CardTitle>
+                <p className="text-xs text-muted-foreground">AI voices</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/succulent">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardContent className="text-center py-4">
+                <div className="text-2xl mb-2">🌱</div>
+                <CardTitle className="text-sm">Succulent</CardTitle>
+                <p className="text-xs text-muted-foreground">Social accounts</p>
               </CardContent>
             </Card>
           </Link>
