@@ -80,8 +80,11 @@ export default function Dashboard() {
               <Link href="/dashboard/upload">
                 <Button>📤 Upload Videos</Button>
               </Link>
-              <Link href="/dashboard/voice-profile">
-                <Button variant="outline">🧠 Digital Me</Button>
+              <Link href="/dashboard/create-images">
+                <Button>🎨 Create Images</Button>
+              </Link>
+              <Link href="/dashboard/integrations">
+                <Button variant="outline">🔗 Integrations</Button>
               </Link>
             </div>
           </div>

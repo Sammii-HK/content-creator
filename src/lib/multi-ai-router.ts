@@ -28,13 +28,14 @@ export interface GenerationRequest {
 export class MultiAIRouter {
   private providers: AIProvider[] = [
     {
-      id: 'midjourney',
-      name: 'Midjourney',
+      id: 'replicate',
+      name: 'Replicate',
       type: 'text-to-image',
-      costPerUnit: 0.15,
+      costPerUnit: 0.05,
       quality: 'premium',
-      strengths: ['artistic', 'high-quality', 'creative', 'detailed'],
-      apiEndpoint: 'https://api.midjourney.com/v1'
+      strengths: ['artistic', 'high-quality', 'midjourney-style', 'auto-billing'],
+      apiEndpoint: 'https://api.replicate.com/v1',
+      apiKey: process.env.REPLICATE_API_TOKEN
     },
     {
       id: 'nano-banana',
@@ -43,34 +44,28 @@ export class MultiAIRouter {
       costPerUnit: 0.08,
       quality: 'standard',
       strengths: ['product-placement', 'realistic', 'cost-effective', 'batch-processing'],
-      apiEndpoint: 'https://api.nanobanana.com/v1'
-    },
-    {
-      id: 'stable-diffusion',
-      name: 'Stable Diffusion',
-      type: 'text-to-image',
-      costPerUnit: 0.02,
-      quality: 'budget',
-      strengths: ['open-source', 'customizable', 'volume', 'fast'],
-      apiEndpoint: 'https://api.stability.ai/v1'
+      apiEndpoint: 'https://api.nanobanana.ai/v1',
+      apiKey: process.env.NANO_BANANA_API_KEY
     },
     {
       id: 'dalle-3',
       name: 'DALL-E 3',
       type: 'text-to-image',
-      costPerUnit: 0.12,
+      costPerUnit: 0.08,
       quality: 'premium',
       strengths: ['prompt-following', 'precise', 'text-in-images', 'brand-safe'],
-      apiEndpoint: 'https://api.openai.com/v1'
+      apiEndpoint: 'https://api.openai.com/v1',
+      apiKey: process.env.OPENAI_API_KEY
     },
     {
-      id: 'runway-ml',
-      name: 'Runway ML',
-      type: 'video-generation',
-      costPerUnit: 1.20,
-      quality: 'premium',
-      strengths: ['video-generation', 'motion', 'cinematic', 'professional'],
-      apiEndpoint: 'https://api.runwayml.com/v1'
+      id: 'stability-ai',
+      name: 'Stability AI',
+      type: 'text-to-image',
+      costPerUnit: 0.02,
+      quality: 'budget',
+      strengths: ['open-source', 'customizable', 'volume', 'fast'],
+      apiEndpoint: 'https://api.stability.ai/v1',
+      apiKey: process.env.STABILITY_AI_API_KEY
     }
   ];
 
@@ -117,11 +112,11 @@ export class MultiAIRouter {
 
     try {
       switch (provider.id) {
-        case 'midjourney':
-          return await this.generateWithMidjourney(request, provider);
+        case 'replicate':
+          return await this.generateWithReplicate(request, provider);
         case 'nano-banana':
           return await this.generateWithNanoBanana(request, provider);
-        case 'stable-diffusion':
+        case 'stability-ai':
           return await this.generateWithStableDiffusion(request, provider);
         case 'dalle-3':
           return await this.generateWithDallE(request, provider);
@@ -227,60 +222,224 @@ export class MultiAIRouter {
     return scoredProviders.sort((a, b) => b.score - a.score)[0].provider;
   }
 
-  // Provider-specific generation methods (placeholder implementations)
-  private async generateWithMidjourney(request: GenerationRequest, provider: AIProvider): Promise<any> {
-    // Midjourney API implementation
-    return {
-      imageUrl: 'https://example.com/midjourney-generated.jpg',
-      provider: provider.name,
-      cost: provider.costPerUnit,
-      quality: 'premium',
-      note: 'Midjourney API integration needed'
-    };
+  // Provider-specific generation methods (real implementations)
+  private async generateWithReplicate(request: GenerationRequest, provider: AIProvider): Promise<any> {
+    if (!provider.apiKey) {
+      throw new Error('Replicate API key not configured');
+    }
+
+    try {
+      const response = await fetch('https://api.replicate.com/v1/predictions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${provider.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          version: "ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e45", // SDXL
+          input: {
+            prompt: request.prompt,
+            width: 1024,
+            height: 1024,
+            num_outputs: 1,
+            scheduler: "K_EULER",
+            num_inference_steps: 25,
+            guidance_scale: 7.5
+          }
+        })
+      });
+
+      const prediction = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Replicate API error: ${prediction.detail || 'Unknown error'}`);
+      }
+
+      // Poll for completion
+      let result = prediction;
+      while (result.status === 'starting' || result.status === 'processing') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+          headers: { 'Authorization': `Token ${provider.apiKey}` }
+        });
+        result = await pollResponse.json();
+      }
+
+      if (result.status === 'succeeded') {
+        return {
+          imageUrl: result.output[0],
+          provider: provider.name,
+          cost: provider.costPerUnit,
+          quality: 'premium',
+          predictionId: result.id
+        };
+      } else {
+        throw new Error(`Generation failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Replicate generation failed:', error);
+      throw error;
+    }
   }
 
   private async generateWithNanoBanana(request: GenerationRequest, provider: AIProvider): Promise<any> {
-    // Nano Banana API implementation
-    return {
-      imageUrl: 'https://example.com/nano-banana-generated.jpg',
-      provider: provider.name,
-      cost: provider.costPerUnit,
-      quality: 'standard',
-      note: 'Nano Banana API integration needed'
-    };
+    if (!provider.apiKey) {
+      throw new Error('Nano Banana API key not configured');
+    }
+
+    try {
+      const response = await fetch(`${provider.apiEndpoint}/generate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${provider.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: request.prompt,
+          style: 'realistic',
+          quality: request.quality,
+          product_url: request.assets?.productUrl,
+          model_url: request.assets?.modelUrl
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Nano Banana API error: ${result.error || 'Unknown error'}`);
+      }
+
+      return {
+        imageUrl: result.image_url,
+        provider: provider.name,
+        cost: provider.costPerUnit,
+        quality: 'standard',
+        jobId: result.job_id
+      };
+    } catch (error) {
+      console.error('Nano Banana generation failed:', error);
+      throw error;
+    }
   }
 
   private async generateWithStableDiffusion(request: GenerationRequest, provider: AIProvider): Promise<any> {
-    // Stable Diffusion API implementation
-    return {
-      imageUrl: 'https://example.com/stable-diffusion-generated.jpg',
-      provider: provider.name,
-      cost: provider.costPerUnit,
-      quality: 'budget',
-      note: 'Stable Diffusion API integration needed'
-    };
+    if (!provider.apiKey) {
+      throw new Error('Stability AI API key not configured');
+    }
+
+    try {
+      const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${provider.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text_prompts: [{ text: request.prompt }],
+          cfg_scale: 7,
+          height: 1024,
+          width: 1024,
+          steps: 30,
+          samples: 1
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Stability AI error: ${result.message || 'Unknown error'}`);
+      }
+
+      return {
+        imageUrl: `data:image/png;base64,${result.artifacts[0].base64}`,
+        provider: provider.name,
+        cost: provider.costPerUnit,
+        quality: 'budget',
+        seed: result.artifacts[0].seed
+      };
+    } catch (error) {
+      console.error('Stability AI generation failed:', error);
+      throw error;
+    }
   }
 
   private async generateWithDallE(request: GenerationRequest, provider: AIProvider): Promise<any> {
-    // DALL-E 3 API implementation
-    return {
-      imageUrl: 'https://example.com/dalle-generated.jpg',
-      provider: provider.name,
-      cost: provider.costPerUnit,
-      quality: 'premium',
-      note: 'DALL-E 3 API integration needed'
-    };
+    if (!provider.apiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${provider.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: request.prompt,
+          size: '1024x1024',
+          quality: 'standard',
+          n: 1
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`DALL-E 3 error: ${result.error?.message || 'Unknown error'}`);
+      }
+
+      return {
+        imageUrl: result.data[0].url,
+        provider: provider.name,
+        cost: provider.costPerUnit,
+        quality: 'premium',
+        revisedPrompt: result.data[0].revised_prompt
+      };
+    } catch (error) {
+      console.error('DALL-E 3 generation failed:', error);
+      throw error;
+    }
   }
 
   private async generateWithRunway(request: GenerationRequest, provider: AIProvider): Promise<any> {
-    // Runway ML API implementation
-    return {
-      videoUrl: 'https://example.com/runway-generated.mp4',
-      provider: provider.name,
-      cost: provider.costPerUnit,
-      quality: 'premium',
-      note: 'Runway ML API integration needed'
-    };
+    if (!provider.apiKey) {
+      throw new Error('Runway ML API key not configured');
+    }
+
+    try {
+      const response = await fetch('https://api.runwayml.com/v1/image_generations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${provider.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gen2',
+          prompt: request.prompt,
+          width: 1024,
+          height: 1024
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(`Runway ML error: ${result.error || 'Unknown error'}`);
+      }
+
+      return {
+        imageUrl: result.data[0].url,
+        provider: provider.name,
+        cost: provider.costPerUnit,
+        quality: 'premium',
+        taskId: result.task_id
+      };
+    } catch (error) {
+      console.error('Runway ML generation failed:', error);
+      throw error;
+    }
   }
 }
 

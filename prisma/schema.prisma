@@ -258,3 +258,20 @@ model GeneratedImage {
   
   @@map("generated_images")
 }
+
+// AI Usage Tracking
+model AiUsage {
+  id           String   @id @default(cuid())
+  provider     String   // replicate, nano-banana, stability-ai, dalle-3, etc.
+  requestType  String   // product-photo, scene-generation, avatar-video, etc.
+  cost         Float    // Cost in USD
+  success      Boolean  // Whether the request succeeded
+  prompt       String   // Truncated prompt for analysis
+  quality      String   // budget, standard, premium
+  responseTime Int      // Response time in milliseconds
+  errorMessage String?  // Error message if failed
+  metadata     Json     // Additional request/response data
+  createdAt    DateTime @default(now())
+  
+  @@map("ai_usage")
+}
