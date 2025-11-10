@@ -128,16 +128,42 @@ export default function VideoLibrary() {
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
-                    <a
-                      href={video.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full"
-                    >
-                      <Button variant="outline" className="w-full">
-                        🎬 Watch Full Video
-                      </Button>
-                    </a>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={video.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="outline" className="w-full" size="sm">
+                          🎬 Watch
+                        </Button>
+                      </a>
+                      <a
+                        href={`/api/video/download`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          fetch('/api/video/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                              videoUrl: video.fileUrl, 
+                              filename: `${video.name}.mp4` 
+                            })
+                          }).then(res => res.blob())
+                            .then(blob => {
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `${video.name}.mp4`;
+                              a.click();
+                            });
+                        }}
+                      >
+                        <Button variant="outline" className="w-full" size="sm">
+                          📥 Download
+                        </Button>
+                      </a>
+                    </div>
                     
                     <Link href={`/dashboard/video-editor/${video.id}`} className="w-full block">
                       <Button className="w-full">

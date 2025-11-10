@@ -89,58 +89,137 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-          <Link href="/dashboard/upload">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-4">
-                <div className="text-2xl mb-2">📤</div>
-                <CardTitle className="text-sm">Upload Videos</CardTitle>
-                <p className="text-xs text-muted-foreground">Add to library</p>
-              </CardContent>
-            </Card>
-          </Link>
+        {/* Main Feature Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Video Content Creation */}
+          <Card className="hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500">
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-lg">
+                  <div className="text-2xl">🎬</div>
+                </div>
+                <div>
+                  <CardTitle>Video Content</CardTitle>
+                  <p className="text-muted-foreground text-sm">Upload, segment, and create video content</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link href="/dashboard/upload" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  📤 Upload Videos
+                </Button>
+              </Link>
+              <Link href="/dashboard/content" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  ✂️ Create Segments
+                </Button>
+              </Link>
+              <Link href="/dashboard/ai-video-studio" className="block">
+                <Button className="w-full justify-start">
+                  🤖 AI Video Generation
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
 
-          <Link href="/dashboard/content">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-4">
-                <div className="text-2xl mb-2">✂️</div>
-                <CardTitle className="text-sm">Create Segments</CardTitle>
-                <p className="text-xs text-muted-foreground">Break into clips</p>
-              </CardContent>
-            </Card>
-          </Link>
+          {/* AI Image Studio */}
+          <Card className="hover:shadow-xl transition-all duration-300 border-l-4 border-l-purple-500">
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 dark:bg-purple-900 p-3 rounded-lg">
+                  <div className="text-2xl">🎨</div>
+                </div>
+                <div>
+                  <CardTitle>AI Image Studio</CardTitle>
+                  <p className="text-muted-foreground text-sm">Create product shots and model photography</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link href="/dashboard/create-images" className="block">
+                <Button className="w-full justify-start">
+                  ✨ Create Images
+                </Button>
+              </Link>
+              <Link href="/dashboard/asset-banks" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  📁 Asset Banks
+                </Button>
+              </Link>
+              <div className="text-xs text-muted-foreground">
+                <p>• Product + Wall Art</p>
+                <p>• Model Photography</p>
+                <p>• Cost: $0.05-0.35 per image</p>
+              </div>
+            </CardContent>
+          </Card>
 
-          <Link href="/dashboard/ai-video-studio">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-4">
-                <div className="text-2xl mb-2">🎬</div>
-                <CardTitle className="text-sm">AI Videos</CardTitle>
-                <p className="text-xs text-muted-foreground">Generate + avatars</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/dashboard/personas">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-4">
-                <div className="text-2xl mb-2">🧠</div>
-                <CardTitle className="text-sm">Personas</CardTitle>
-                <p className="text-xs text-muted-foreground">AI voices</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/dashboard/succulent">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="text-center py-4">
-                <div className="text-2xl mb-2">🌱</div>
-                <CardTitle className="text-sm">Succulent</CardTitle>
-                <p className="text-xs text-muted-foreground">Social accounts</p>
-              </CardContent>
-            </Card>
-          </Link>
+          {/* Digital Personas */}
+          <Card className="hover:shadow-xl transition-all duration-300 border-l-4 border-l-green-500">
+            <CardHeader>
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-100 dark:bg-green-900 p-3 rounded-lg">
+                  <div className="text-2xl">🧠</div>
+                </div>
+                <div>
+                  <CardTitle>Digital Personas</CardTitle>
+                  <p className="text-muted-foreground text-sm">AI voices for different content niches</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link href="/dashboard/persona-wizard" className="block">
+                <Button className="w-full justify-start">
+                  🧙‍♂️ Create Persona
+                </Button>
+              </Link>
+              <Link href="/dashboard/personas" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  🧠 Manage Personas
+                </Button>
+              </Link>
+              <Link href="/dashboard/succulent" className="block">
+                <Button variant="outline" className="w-full justify-start">
+                  🌱 Succulent Integration
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* External APIs Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>🔗 External APIs</CardTitle>
+            <p className="text-muted-foreground">Use these APIs from other apps (like Etsy tools)</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="font-medium">📦 Product Shot API</h4>
+                <p className="text-sm text-muted-foreground">Generate professional product photos</p>
+                <Badge variant="outline" className="text-xs">
+                  POST /api/external/generate-product-shot
+                </Badge>
+                <div className="text-xs text-muted-foreground">
+                  Perfect for Etsy listings, product catalogs
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h4 className="font-medium">🖼️ Wall Art + Product API</h4>
+                <p className="text-sm text-muted-foreground">Products with artistic wall backgrounds</p>
+                <Badge variant="outline" className="text-xs">
+                  POST /api/external/generate-wall-art-product
+                </Badge>
+                <div className="text-xs text-muted-foreground">
+                  Lifestyle product photography with gallery walls
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Library Overview */}
         <Card>

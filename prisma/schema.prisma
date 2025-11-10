@@ -222,3 +222,39 @@ model VoiceProfile {
   
   @@map("voice_profiles")
 }
+
+// Asset Bank Models
+model Asset {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // 'model', 'product', 'environment'
+  imageUrl    String
+  tags        String[]
+  category    String
+  subcategory String?
+  style       String
+  mood        String?
+  useCases    String[]
+  isFavorite  Boolean  @default(false)
+  metadata    Json     // File size, dimensions, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("assets")
+}
+
+model GeneratedImage {
+  id          String   @id @default(cuid())
+  imageUrl    String
+  prompt      String
+  style       String
+  quality     String
+  provider    String
+  cost        Float
+  assetIds    String[] // Which assets were used
+  metadata    Json     // Generation details
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  @@map("generated_images")
+}
