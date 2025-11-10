@@ -46,7 +46,31 @@ export default function FileUpload({
     setIsDragOver(false);
     
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
+    console.log('📱 Files dropped from iPhone Photos:', files.map(f => ({ 
+      name: f.name, 
+      type: f.type, 
+      size: f.size,
+      extension: f.name.split('.').pop()?.toLowerCase()
+    })));
+
+    // Handle iPhone Photos drag & drop (multiple files or single file)
+    if (files.length > 1) {
+      // Multiple files - find the video file
+      const videoFile = files.find(f => 
+        f.type.startsWith('video/') || 
+        f.name.toLowerCase().includes('.mov') || 
+        f.name.toLowerCase().includes('.mp4') ||
+        f.name.toLowerCase().includes('.m4v')
+      );
+      
+      if (videoFile) {
+        setUploadMessage('📱 Video file detected from iPhone Photos');
+        handleFileSelect(videoFile);
+      } else {
+        setUploadStatus('error');
+        setUploadMessage('📱 No video file found. Please select a VIDEO from your iPhone Photos.');
+      }
+    } else if (files.length > 0) {
       handleFileSelect(files[0]);
     }
   };

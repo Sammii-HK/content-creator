@@ -5,6 +5,8 @@ export async function POST(request: NextRequest) {
     console.log('🧪 Testing AI integrations...');
 
     const results = [];
+    let totalCost = 0;
+    let workingCount = 0;
 
     // Test environment variables
     const envTests = [
@@ -17,6 +19,12 @@ export async function POST(request: NextRequest) {
 
     for (const test of envTests) {
       const hasKey = !!process.env[test.key];
+      
+      if (hasKey) {
+        workingCount++;
+        totalCost += test.cost;
+      }
+      
       results.push({
         provider: test.name,
         status: hasKey ? 'configured' : 'missing_key',
@@ -26,29 +34,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const configuredCount = results.filter(r => r.configured).length;
-    const totalEstimatedCost = results.filter(r => r.configured).reduce((sum, r) => sum + r.cost, 0);
+    const failedCount = envTests.length - workingCount;
 
     return NextResponse.json({
-      success: configuredCount > 0,
+      success: workingCount > 0,
       results,
       summary: {
         totalProviders: envTests.length,
-        configured: configuredCount,
-        missing: envTests.length - configuredCount,
-        estimatedCostForFullTest: totalEstimatedCost.toFixed(2)
+        successful: workingCount,
+        failed: failedCount,
+        totalTestCost: totalCost.toFixed(2)
       },
       recommendations: [
-        configuredCount === 0 ? '❌ No AI providers configured - add API keys to environment variables' : `✅ ${configuredCount} AI providers configured`,
-        configuredCount >= 2 ? '🚀 Multiple providers available - smart cost routing enabled' : '⚠️ Add more providers for better cost optimization',
-        'Add missing API keys to Vercel environment variables to enable all features'
+        workingCount === 0 ? '❌ No AI providers configured' : `✅ ${workingCount} AI providers working`,
+        workingCount >= 2 ? '🚀 Multiple providers - smart routing enabled' : '⚠️ Add more providers for optimization',
+        'Add missing API keys to Vercel environment variables'
       ],
-      nextSteps: [
-        'Add missing API keys to Vercel environment variables',
-        'Test image generation in /dashboard/create-images',
-        'Set up asset banks with favorite models/products',
-        'Test external APIs for Etsy integration'
-      ]
+      environmentStatus: {
+        replicate: !!process.env.REPLICATE_API_TOKEN,
+        nanoBanana: !!process.env.NANO_BANANA_API_KEY,
+        stabilityAI: !!process.env.STABILITY_AI_API_KEY,
+        openAI: !!process.env.OPENAI_API_KEY,
+        runwayML: !!process.env.RUNWAY_ML_API_KEY
+      }
     });
 
   } catch (error) {
