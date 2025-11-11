@@ -107,7 +107,10 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { engagementData, personaId } = body as { engagementData?: unknown[]; personaId?: string };
+    const { engagementData, personaId } = body as { 
+      engagementData?: { content: string; tone: string; theme: string; engagement: number; }[]; 
+      personaId?: string; 
+    };
 
     await requirePersona(personaId);
 
