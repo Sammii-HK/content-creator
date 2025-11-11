@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import FileUpload from '@/components/ui/FileUpload';
-import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SidebarProvider, Sidebar, MainContent, MobileMenuButton } from '@/components/ui/sidebar';
+import PersonaSwitcher from '@/components/persona-switcher';
 
 export default function UploadPage() {
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
@@ -61,35 +63,44 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Modern Header */}
-      <div className="border-b bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                  Dashboard
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-3xl font-bold">📤 Upload Content</h1>
-                <p className="text-muted-foreground">Add videos to your AI content library</p>
+    <SidebarProvider>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        
+        <MainContent>
+          {/* Header */}
+          <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
+            <div className="flex h-16 items-center gap-4 px-6">
+              <MobileMenuButton />
+              
+              <div className="flex flex-1 items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Link href="/dashboard">
+                    <Button variant="ghost" size="sm">
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <div>
+                    <h1 className="text-xl font-semibold text-foreground">📤 Upload Content</h1>
+                    <p className="text-sm text-foreground-muted">Add videos to your AI content library</p>
+                  </div>
+                </div>
+                
+                {recentUploads.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary">{recentUploads.length} recent uploads</Badge>
+                    <Link href="/dashboard/content">
+                      <Button size="sm">View Library</Button>
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
-            
-            {recentUploads.length > 0 && (
-              <div className="flex items-center space-x-3">
-                <Badge variant="secondary">{recentUploads.length} recent uploads</Badge>
-                <Link href="/dashboard/content">
-                  <Button>View Library</Button>
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+          </header>
+
+          {/* Persona Switcher */}
+          <PersonaSwitcher />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -235,8 +246,9 @@ export default function UploadPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
+          </div>
+        </MainContent>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

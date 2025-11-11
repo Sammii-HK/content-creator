@@ -57,10 +57,10 @@ export default function PersonaSwitcher() {
 
   if (loading) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 py-3">
-        <div className="animate-pulse flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-          <div className="w-32 h-4 bg-gray-200 rounded"></div>
+      <div className="border-b border-border bg-background-secondary/50 backdrop-blur-xl px-6 py-4">
+        <div className="flex animate-pulse items-center space-x-3">
+          <div className="h-8 w-8 rounded-full bg-background-tertiary"></div>
+          <div className="h-4 w-32 rounded bg-background-tertiary"></div>
         </div>
       </div>
     );
@@ -68,17 +68,17 @@ export default function PersonaSwitcher() {
 
   if (personas.length === 0) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 py-3">
+      <div className="border-b border-border bg-background-secondary/50 backdrop-blur-xl px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-400" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background-tertiary">
+              <User className="h-4 w-4 text-foreground-muted" />
             </div>
-            <span className="text-gray-500">No personas created</span>
+            <span className="text-foreground-muted">No personas created</span>
           </div>
           <Link href="/dashboard/persona-wizard">
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button size="sm">
+              <Plus className="mr-2 h-4 w-4" />
               Create Persona
             </Button>
           </Link>
@@ -88,16 +88,16 @@ export default function PersonaSwitcher() {
   }
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm border-b border-gray-100 px-6 py-3">
+    <div className="border-b border-border bg-background-secondary/50 backdrop-blur-xl px-6 py-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <User className="h-4 w-4 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-success shadow-soft">
+              <User className="h-5 w-5 text-white" />
             </div>
             <div>
               <Select value={activePersona || ''} onValueChange={switchPersona}>
-                <SelectTrigger className="w-48 border-gray-200 bg-white/60">
+                <SelectTrigger className="w-56 border-border bg-background/80 shadow-soft">
                   <SelectValue placeholder="Select persona" />
                 </SelectTrigger>
                 <SelectContent>
@@ -105,7 +105,7 @@ export default function PersonaSwitcher() {
                     <SelectItem key={persona.id} value={persona.id}>
                       <div className="flex items-center space-x-2">
                         <span className="font-medium">{persona.name}</span>
-                        <Badge variant="outline" className="text-xs">{persona.niche}</Badge>
+                        <Badge variant="secondary" className="text-xs">{persona.niche}</Badge>
                       </div>
                     </SelectItem>
                   ))}
@@ -116,11 +116,11 @@ export default function PersonaSwitcher() {
 
           {currentPersona && (
             <div className="flex items-center space-x-2">
-              <Badge variant="secondary" className="bg-blue-50 text-blue-700">
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
                 {currentPersona.niche}
               </Badge>
               {currentPersona.succulentAccountGroupId && (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                <Badge variant="success" className="bg-success/10 text-success">
                   🌱 Connected
                 </Badge>
               )}
@@ -137,8 +137,8 @@ export default function PersonaSwitcher() {
             </Link>
           )}
           <Link href="/dashboard/persona-wizard">
-            <Button size="sm" variant="outline" className="border-gray-300">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button size="sm" variant="outline">
+              <Plus className="mr-2 h-4 w-4" />
               New Persona
             </Button>
           </Link>
