@@ -125,23 +125,47 @@
 @layer components {
   /* Apple-inspired Button Styles */
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transition: all 0.2s;
     background-color: var(--primary);
     color: var(--primary-foreground);
   }
   
   .btn-primary:hover {
     background-color: var(--primary-hover);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
   
   .btn-primary:focus-visible {
     outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  
+  .btn-primary:disabled {
+    pointer-events: none;
+    opacity: 0.5;
   }
   
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border px-6 py-3 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transition: all 0.2s;
     background-color: var(--background);
     color: var(--foreground);
     border-color: var(--border);
@@ -149,29 +173,50 @@
   
   .btn-secondary:hover {
     background-color: var(--background-secondary);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
   
   .btn-secondary:focus-visible {
     outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  
+  .btn-secondary:disabled {
+    pointer-events: none;
+    opacity: 0.5;
   }
   
   /* Card Styles */
   .card {
-    @apply rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md;
+    border-radius: 0.75rem;
+    border: 1px solid;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transition: all 0.2s;
     background-color: var(--background);
     border-color: var(--border);
   }
   
+  .card:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  
   .card-content {
-    @apply p-6;
+    padding: 1.5rem;
   }
   
   /* Form Styles */
   .input {
-    @apply flex h-12 w-full rounded-lg border px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    display: flex;
+    height: 3rem;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
     background-color: var(--background);
     border-color: var(--border);
     color: var(--foreground);
+    transition: all 0.2s;
   }
   
   .input::placeholder {
@@ -180,26 +225,53 @@
   
   .input:focus-visible {
     outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  
+  .input:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
   
   /* Sidebar Styles */
   .sidebar {
-    @apply fixed left-0 top-0 z-40 h-full w-64 border-r backdrop-blur-xl transition-transform duration-300 ease-in-out;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 40;
+    height: 100%;
+    width: 16rem;
+    border-right: 1px solid;
+    backdrop-filter: blur(12px);
+    transition: transform 0.3s ease-in-out;
     background-color: color-mix(in srgb, var(--background-secondary) 50%, transparent);
     border-color: var(--border);
   }
   
   .sidebar-collapsed {
-    @apply -translate-x-full lg:translate-x-0 lg:w-16;
+    transform: translateX(-100%);
+  }
+  
+  @media (min-width: 1024px) {
+    .sidebar-collapsed {
+      transform: translateX(0);
+      width: 4rem;
+    }
   }
   
   /* Main Content Area */
   .main-content {
-    @apply transition-all duration-300 ease-in-out lg:ml-64;
+    transition: all 0.3s ease-in-out;
   }
   
-  .main-content-collapsed {
-    @apply lg:ml-16;
+  @media (min-width: 1024px) {
+    .main-content {
+      margin-left: 16rem;
+    }
+    
+    .main-content-collapsed {
+      margin-left: 4rem;
+    }
   }
 }
 
@@ -208,17 +280,18 @@
     text-wrap: balance;
   }
   
-  /* Spacing Utilities */
-  .space-xs { @apply space-y-1 space-x-1; }
-  .space-sm { @apply space-y-2 space-x-2; }
-  .space-md { @apply space-y-3 space-x-3; }
-  .space-lg { @apply space-y-4 space-x-4; }
-  .space-xl { @apply space-y-6 space-x-6; }
-  
   /* Shadow Utilities */
-  .shadow-soft { box-shadow: var(--shadow-sm); }
-  .shadow-elevated { box-shadow: var(--shadow-md); }
-  .shadow-floating { box-shadow: var(--shadow-lg); }
+  .shadow-soft { 
+    box-shadow: var(--shadow-sm); 
+  }
+  
+  .shadow-elevated { 
+    box-shadow: var(--shadow-md); 
+  }
+  
+  .shadow-floating { 
+    box-shadow: var(--shadow-lg); 
+  }
   
   /* Animation Utilities */
   .animate-fade-in {

@@ -102,8 +102,8 @@ export default function UploadPage() {
           {/* Persona Switcher */}
           <PersonaSwitcher />
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="max-w-6xl mx-auto px-6 py-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Upload Section */}
           <div className="lg:col-span-2">
             <Card className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors">
@@ -144,7 +144,7 @@ export default function UploadPage() {
                     {recentUploads.map((upload, index) => (
                       <div key={index} className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
                         <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
-                          <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                         </div>
                         <div className="flex-1">
                           <p className="font-medium">{upload.name}</p>
@@ -246,6 +246,7 @@ export default function UploadPage() {
               </CardContent>
             </Card>
           </div>
+            </div>
           </div>
         </MainContent>
       </div>
