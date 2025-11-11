@@ -28,6 +28,7 @@ export interface AIVideoRequest {
   voiceProfile?: string;
   productImages?: string[];
   avatarImage?: string;
+  personaId: string;
 }
 
 export class AIVideoGenerator {
@@ -70,13 +71,13 @@ Make it engaging for social media with strong hooks and clear messaging.`
    */
   async generateAvatarVideoScript(
     prompt: string,
-    voiceProfile?: string,
+    options: { personaId: string; voiceProfile?: string },
     duration: number = 30
   ): Promise<any> {
-    console.log('👤 Generating avatar video script...');
+    console.log('👤 Generating avatar video script for persona:', options.personaId);
 
-    const voiceContext = voiceProfile 
-      ? `Use this voice profile: ${voiceProfile}` 
+    const voiceContext = options.voiceProfile 
+      ? `Use this voice profile: ${options.voiceProfile}` 
       : 'Use a professional, engaging tone';
 
     const result = await generateText({
@@ -115,9 +116,10 @@ Format as speaking script with timing cues.`
     productName: string,
     productDescription: string,
     keyFeatures: string[],
-    duration: number = 30
+    duration: number = 30,
+    personaId?: string
   ): Promise<any> {
-    console.log('📦 Generating product demo video plan...');
+    console.log('📦 Generating product demo video plan', personaId ? `for persona ${personaId}` : '');
 
     const result = await generateObject({
       model: this.model,
@@ -152,9 +154,10 @@ Make it feel natural and engaging, not like an advertisement.`
   async generateHybridVideo(
     realSegments: any[],
     aiPrompt: string,
-    duration: number = 30
+    duration: number = 30,
+    personaId?: string
   ): Promise<any> {
-    console.log('🔀 Generating hybrid video plan with', realSegments.length, 'segments...');
+    console.log('🔀 Generating hybrid video plan with', realSegments.length, 'segments', personaId ? `for persona ${personaId}` : '');
 
     if (realSegments.length === 0) {
       throw new Error('No segments available. Create segments first in the video editor.');

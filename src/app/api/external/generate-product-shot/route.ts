@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { multiAIRouter } from '@/lib/multi-ai-router';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 // External API for generating product shots from other apps (like Etsy tools)
@@ -10,7 +11,8 @@ const ExternalProductShotSchema = z.object({
   style: z.enum(['lifestyle', 'clean', 'artistic', 'minimal', 'luxury']).default('lifestyle'),
   environment: z.enum(['home', 'studio', 'outdoor', 'office', 'gallery']).default('home'),
   quality: z.enum(['budget', 'standard', 'premium']).default('standard'),
-  apiKey: z.string().optional() // For external app authentication
+  apiKey: z.string().optional(), // For external app authentication
+  personaId: z.string().optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -25,7 +27,8 @@ export async function POST(request: NextRequest) {
       style, 
       environment, 
       quality,
-      apiKey 
+      apiKey,
+      personaId
     } = ExternalProductShotSchema.parse(body);
 
     // Basic API key check (you'd implement proper authentication)
@@ -35,6 +38,10 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid API key' },
         { status: 401 }
       );
+    }
+
+    if (personaId) {
+      await requirePersona(personaId);
     }
 
     // Generate enhanced prompt for product photography
@@ -55,7 +62,8 @@ ${style === 'luxury' ? 'Premium, high-end presentation.' : ''}`;
       quality,
       assets: {
         productUrl: productImageUrl
-      }
+      },
+      personaId
     };
 
     const result = await multiAIRouter.generateContent(generationRequest);

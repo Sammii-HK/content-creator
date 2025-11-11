@@ -19,25 +19,82 @@ const CreatePersonaSchema = z.object({
 });
 
 // Get all personas
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const personas = await db.voiceProfile.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        niche: true,
+        summary: true,
+        preferredTones: true,
+        topThemes: true,
+        lexicalTraits: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        blueprint: true,
+        guidancePrompts: true,
         examples: {
           select: { id: true }
+        },
+        _count: {
+          select: {
+            videos: true,
+            templates: true,
+            broll: true,
+            assets: true,
+            generatedImages: true,
+            contentQueue: true,
+            aiUsage: true
+          }
         }
       },
       orderBy: { updatedAt: 'desc' }
     });
 
-    const personasWithCounts = personas.map(p => ({
-      ...p,
-      exampleCount: p.examples.length
-    }));
+    const personasWithContext = personas.map((persona) => {
+      const guidancePrompts = persona.guidancePrompts;
+      let guidanceCount = 0;
+
+      if (Array.isArray(guidancePrompts)) {
+        guidanceCount = guidancePrompts.length;
+      } else if (guidancePrompts && typeof guidancePrompts === 'object') {
+        guidanceCount = Object.keys(guidancePrompts as Record<string, unknown>).length;
+      }
+
+      return {
+        id: persona.id,
+        name: persona.name,
+        description: persona.description,
+        niche: persona.niche,
+        summary: persona.summary,
+        preferredTones: persona.preferredTones,
+        topThemes: persona.topThemes,
+        lexicalTraits: persona.lexicalTraits,
+        isActive: persona.isActive,
+        createdAt: persona.createdAt,
+        updatedAt: persona.updatedAt,
+        hasBlueprint: Boolean(persona.blueprint),
+        guidancePrompts,
+        guidanceCount,
+        exampleCount: persona.examples.length,
+        stats: {
+          videos: persona._count.videos,
+          templates: persona._count.templates,
+          broll: persona._count.broll,
+          assets: persona._count.assets,
+          generatedImages: persona._count.generatedImages,
+          scheduledContent: persona._count.contentQueue,
+          aiUsage: persona._count.aiUsage
+        }
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      personas: personasWithCounts
+      personas: personasWithContext
     });
 
   } catch (error) {

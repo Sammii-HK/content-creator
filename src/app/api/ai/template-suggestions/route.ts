@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { aiTemplateMatcher } from '@/lib/ai-template-matcher';
+import { requirePersona } from '@/lib/persona-context';
+import { z } from 'zod';
+
+const TemplateSuggestionSchema = z.object({
+  videoId: z.string(),
+  personaId: z.string()
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { videoId } = await request.json();
-
-    if (!videoId) {
-      return NextResponse.json(
-        { error: 'videoId is required' },
-        { status: 400 }
-      );
-    }
+    const { videoId, personaId } = TemplateSuggestionSchema.parse(await request.json());
 
     console.log('🤖 Getting AI template suggestions for video:', videoId);
 
+    await requirePersona(personaId);
+
     // Get video and segments
-    const video = await db.broll.findUnique({
-      where: { id: videoId },
+    const video = await db.broll.findFirst({
+      where: { id: videoId, personaId },
       include: {
         segments: {
           where: { isUsable: true },

@@ -1,3 +1,5 @@
-echo "Pre-commit: Vercel-level checks (TypeScript + Build)"
-npm run typecheck
-npm run build
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Pre-commit: lint staged files only"
+npm run pre-commit

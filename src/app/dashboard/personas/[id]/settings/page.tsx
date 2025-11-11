@@ -1,116 +1,192 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { Settings, Save, ArrowLeft, ExternalLink, Sparkles, BarChart3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
-interface Persona {
+interface PersonaSettings {
   id: string;
   name: string;
+  description?: string;
   niche: string;
-  description: string;
   summary: string;
   preferredTones: string[];
   topThemes: string[];
-  succulentAccountGroupId?: string;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export default function PersonaSettings() {
-  const params = useParams();
-  const [persona, setPersona] = useState<Persona | null>(null);
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function PersonaSettings({ params }: PageProps) {
+  const router = useRouter();
+  const [settings, setSettings] = useState<PersonaSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
-  // Form state
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [niche, setNiche] = useState('');
-  const [succulentGroupId, setSucculentGroupId] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    niche: '',
+    preferredTones: '',
+    topThemes: '',
+  });
 
-  useEffect(() => {
-    if (params.id) {
-      fetchPersona();
-    }
-  }, [params.id]);
-
-  const fetchPersona = async () => {
+  const loadSettings = useCallback(async () => {
     try {
-      const response = await fetch(`/api/digital-me/personas/${params.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        const p = data.persona;
-        setPersona(p);
-        setName(p.name);
-        setDescription(p.description || '');
-        setNiche(p.niche);
-        setSucculentGroupId(p.succulentAccountGroupId || '');
+      const response = await fetch(`/api/digital-me/personas/${params.id}/settings`);
+      const data = await response.json();
+
+      if (data.success) {
+        setSettings(data.settings);
+        setFormData({
+          name: data.settings.name,
+          description: data.settings.description || '',
+          niche: data.settings.niche,
+          preferredTones: data.settings.preferredTones.join(', '),
+          topThemes: data.settings.topThemes.join(', '),
+        });
+      } else {
+        alert('Failed to load persona settings');
       }
     } catch (error) {
-      console.error('Failed to fetch persona:', error);
+      console.error('Failed to load settings:', error);
+      alert('Failed to load persona settings');
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
   const saveSettings = async () => {
     setSaving(true);
     try {
-      const response = await fetch(`/api/digital-me/personas/${params.id}`, {
+      const response = await fetch(`/api/digital-me/personas/${params.id}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          description,
-          niche,
-          succulentAccountGroupId: succulentGroupId || null
-        })
+          name: formData.name,
+          description: formData.description || undefined,
+          niche: formData.niche,
+          preferredTones: formData.preferredTones
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+          topThemes: formData.topThemes
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }),
       });
 
-      if (response.ok) {
-        alert('✅ Settings saved successfully!');
-        fetchPersona(); // Refresh
+      const data = await response.json();
+
+      if (data.success) {
+        setSettings(data.settings);
+        alert('Settings saved successfully!');
       } else {
-        const error = await response.json();
-        alert(`❌ Failed to save: ${error.error}`);
+        alert(`Failed to save settings: ${data.error}`);
       }
     } catch (error) {
-      alert('❌ Network error');
+      console.error('Failed to save settings:', error);
+      alert('Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
+  const deletePersona = async () => {
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/digital-me/personas/${params.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Persona deleted successfully');
+        router.push('/dashboard/personas/management');
+      } else {
+        alert(`Failed to delete persona: ${data.error}`);
+        if (data.stats) {
+          console.log('Content stats:', data.stats);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete persona:', error);
+      alert('Failed to delete persona');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleActive = async () => {
+    if (!settings) return;
+
+    try {
+      const response = await fetch(`/api/digital-me/personas/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: !settings.isActive,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSettings({ ...settings, isActive: !settings.isActive });
+        alert(`Persona ${settings.isActive ? 'deactivated' : 'activated'} successfully`);
+      } else {
+        alert(`Failed to update persona: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to toggle active status:', error);
+      alert('Failed to update persona');
+    }
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading persona settings...</p>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading persona settings...</div>
         </div>
       </div>
     );
   }
 
-  if (!persona) {
+  if (!settings) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="text-center py-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Persona Not Found</h2>
-            <p className="text-gray-600 mb-4">The persona you're looking for doesn't exist.</p>
-            <Link href="/dashboard/personas">
-              <Button>Back to Personas</Button>
-            </Link>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-12 text-center">
+            <div className="text-muted-foreground">Persona not found</div>
+            <Button className="mt-4" onClick={() => router.push('/dashboard/personas/management')}>
+              Back to Personas
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -118,212 +194,189 @@ export default function PersonaSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <div className="flex items-center space-x-4">
-            <Link href="/dashboard/personas">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Personas
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{persona.name} Settings</h1>
-              <p className="text-gray-600">Configure this persona and Succulent integration</p>
-            </div>
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Persona Settings</h1>
+          <p className="text-muted-foreground">Configure {settings.name}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push('/dashboard/personas/management')}>
+            Back to Management
+          </Button>
+          <Button variant={settings.isActive ? 'destructive' : 'default'} onClick={toggleActive}>
+            {settings.isActive ? 'Deactivate' : 'Activate'} Persona
+          </Button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Settings Form */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="border-gray-200">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Settings className="h-5 w-5" />
-                  <span>Basic Settings</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Persona Name</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="bg-white border-gray-300"
-                  />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Settings Form */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="name">Persona Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Tech Reviewer, Fitness Coach"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="What this persona is about..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="niche">Content Niche</Label>
+                <Input
+                  id="niche"
+                  value={formData.niche}
+                  onChange={(e) => setFormData({ ...formData, niche: e.target.value })}
+                  placeholder="e.g., technology, fitness, business"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="preferredTones">Preferred Tones (comma-separated)</Label>
+                <Input
+                  id="preferredTones"
+                  value={formData.preferredTones}
+                  onChange={(e) => setFormData({ ...formData, preferredTones: e.target.value })}
+                  placeholder="e.g., inspiring, educational, authentic"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="topThemes">Top Themes (comma-separated)</Label>
+                <Input
+                  id="topThemes"
+                  value={formData.topThemes}
+                  onChange={(e) => setFormData({ ...formData, topThemes: e.target.value })}
+                  placeholder="e.g., productivity, innovation, tutorials"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button onClick={saveSettings} disabled={saving} className="flex-1">
+                  {saving ? 'Saving...' : 'Save Settings'}
+                </Button>
+                <Button variant="outline" onClick={loadSettings}>
+                  Reset
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Persona Info & Danger Zone */}
+        <div className="space-y-6">
+          {/* Current Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span>Active Status</span>
+                  <Badge variant={settings.isActive ? 'default' : 'secondary'}>
+                    {settings.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
                 </div>
 
-                <div>
-                  <Label htmlFor="niche">Content Niche</Label>
-                  <Input
-                    id="niche"
-                    value={niche}
-                    onChange={(e) => setNiche(e.target.value)}
-                    className="bg-white border-gray-300"
-                  />
+                <div className="text-sm text-muted-foreground">
+                  <div>Created: {new Date(settings.createdAt).toLocaleDateString()}</div>
+                  <div>Updated: {new Date(settings.updatedAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Current Traits */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Traits</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="font-medium text-sm mb-2">Summary</div>
+                <div className="text-sm text-muted-foreground">{settings.summary}</div>
+              </div>
+
+              <div>
+                <div className="font-medium text-sm mb-2">Preferred Tones</div>
+                <div className="flex flex-wrap gap-1">
+                  {settings.preferredTones.map((tone) => (
+                    <Badge key={tone} variant="secondary" className="text-xs">
+                      {tone}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium text-sm mb-2">Top Themes</div>
+                <div className="flex flex-wrap gap-1">
+                  {settings.topThemes.map((theme) => (
+                    <Badge key={theme} variant="outline" className="text-xs">
+                      {theme}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-destructive">
+            <CardHeader>
+              <CardTitle className="text-destructive">Danger Zone</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  Deleting a persona will remove all its training examples and cannot be undone.
                 </div>
 
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="bg-white border-gray-300 h-24"
-                    placeholder="What kind of content does this persona create?"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-200">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <div className="text-lg">🌱</div>
-                  <span>Succulent Integration</span>
-                </CardTitle>
-                <p className="text-gray-600 text-sm">Connect this persona to your social media accounts</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="succulent-group-id">Account Group ID</Label>
-                  <Input
-                    id="succulent-group-id"
-                    value={succulentGroupId}
-                    onChange={(e) => setSucculentGroupId(e.target.value)}
-                    className="bg-white border-gray-300"
-                    placeholder="e.g., group_abc123def456"
-                  />
-                  <p className="text-gray-500 text-xs mt-1">
-                    Get this from your Succulent dashboard → Account Groups
-                  </p>
-                </div>
-
-                {succulentGroupId && (
-                  <Alert>
-                    <AlertDescription>
-                      <strong>✅ Integration Active:</strong> This persona will post to account group "{succulentGroupId}" 
-                      containing all your connected social media accounts.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <h4 className="font-medium text-green-900 mb-2">How Succulent Integration Works:</h4>
-                  <ul className="text-green-800 text-sm space-y-1">
-                    <li>• Each persona = one Succulent account group</li>
-                    <li>• Account groups contain multiple platforms (Instagram + TikTok + YouTube)</li>
-                    <li>• When you generate content, it posts to all platforms in the group</li>
-                    <li>• Content is automatically optimized for each platform</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex justify-end">
-              <Button 
-                onClick={saveSettings}
-                disabled={saving}
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Settings
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Sidebar Info */}
-          <div className="space-y-6">
-            <Card className="border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg">📊 Persona Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Voice Examples</span>
-                  <Badge variant="secondary">0</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Generated Content</span>
-                  <Badge variant="secondary">0</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Success Rate</span>
-                  <Badge variant="secondary">-</Badge>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900">Preferred Tones</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {persona.preferredTones.map(tone => (
-                      <Badge key={tone} variant="outline" className="text-xs">
-                        {tone}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900">Top Themes</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {persona.topThemes.map(theme => (
-                      <Badge key={theme} variant="secondary" className="text-xs">
-                        {theme}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-lg">🔗 Quick Links</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Link href="/dashboard/create-images">
-                  <Button variant="outline" className="w-full justify-start border-gray-300">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate Content
-                  </Button>
-                </Link>
-                <Link href="/dashboard/ai-usage">
-                  <Button variant="outline" className="w-full justify-start border-gray-300">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    View Usage
-                  </Button>
-                </Link>
-                <a 
-                  href="https://app.succulent.com/account-groups" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="outline" className="w-full justify-start border-gray-300">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Succulent Dashboard
-                  </Button>
-                </a>
-              </CardContent>
-            </Card>
-          </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="w-full">
+                      Delete Persona
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete Persona</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to delete &quot;{settings.name}&quot;? This action
+                        cannot be undone. All training examples and associated data will be
+                        permanently removed.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline">Cancel</Button>
+                      <Button variant="destructive" onClick={deletePersona} disabled={deleting}>
+                        {deleting ? 'Deleting...' : 'Delete Permanently'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

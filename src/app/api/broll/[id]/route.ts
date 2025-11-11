@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { requirePersona } from '@/lib/persona-context';
 
 const UpdateBrollSchema = z.object({
   name: z.string().optional(),
@@ -16,7 +17,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const broll = await db.broll.findUnique({
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
+
+    const broll = await db.broll.findFirst({
       where: { id }
     });
 
@@ -44,6 +50,22 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
+
+    const existing = await db.broll.findFirst({
+      where: { id }
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'B-roll not found for this persona' },
+        { status: 404 }
+      );
+    }
+
     const body = await request.json();
     const data = UpdateBrollSchema.parse(body);
 
@@ -80,6 +102,22 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
+
+    const existing = await db.broll.findFirst({
+      where: { id }
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'B-roll not found for this persona' },
+        { status: 404 }
+      );
+    }
+
     await db.broll.delete({
       where: { id }
     });

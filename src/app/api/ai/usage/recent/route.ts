@@ -1,17 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { requirePersona } from '@/lib/persona-context';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('📝 Fetching recent AI usage...');
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
 
-    // For now, return empty usage since we just set up the system
-    const usage: any[] = [];
+    await requirePersona(personaId);
+
+    console.log('📝 Fetching recent AI usage for persona:', personaId);
+
+    const usage = await db.aiUsage.findMany({
+      where: { personaId },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
 
     return NextResponse.json({
       success: true,
-      usage,
+      usage: usage.map(entry => ({
+        id: entry.id,
+        provider: entry.provider,
+        requestType: entry.requestType,
+        cost: entry.cost,
+        success: entry.success,
+        prompt: entry.prompt,
+        quality: entry.quality,
+        responseTime: entry.responseTime,
+        createdAt: entry.createdAt
+      })),
       count: usage.length,
-      message: usage.length === 0 ? 'No usage data yet. Start generating images to see usage here.' : `Found ${usage.length} recent requests`
+      message: usage.length === 0
+        ? 'No usage data yet for this persona.'
+        : `Found ${usage.length} recent requests`
     });
 
   } catch (error) {

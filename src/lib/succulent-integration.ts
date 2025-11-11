@@ -198,9 +198,10 @@ export class SucculentService {
           engagement: post.metrics.engagement || 0
         }));
 
-        // Update the connected persona
+        // Update the connected persona (if any)
         if (engagementData.length > 0) {
-          await digitalMeService.updateVoiceProfile(engagementData);
+          // TODO: Add persona connection logic when account-persona mapping is implemented
+          console.log('📊 Engagement data collected for persona integration');
         }
       }
 

@@ -15,7 +15,8 @@ import {
   BarChart3,
   ArrowRight,
   Play,
-  Download
+  Download,
+  Brain
 } from 'lucide-react';
 
 interface Video {
@@ -170,6 +171,66 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </Link>
+        </div>
+
+        {/* Persona Management Section */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">AI Personas</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Link href="/dashboard/persona-wizard">
+              <Card className="group cursor-pointer border-gray-200 hover:shadow-lg hover:border-pink-300 transition-all duration-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-pink-100 rounded-lg">
+                      <Sparkles className="h-5 w-5 text-pink-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Create Persona</h3>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-3">Build AI that matches your voice</p>
+                  <div className="flex items-center text-pink-600 text-sm font-medium">
+                    Start wizard
+                    <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/dashboard/personas/management">
+              <Card className="group cursor-pointer border-gray-200 hover:shadow-lg hover:border-indigo-300 transition-all duration-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <Brain className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Manage Personas</h3>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-3">Train and configure AI voices</p>
+                  <div className="flex items-center text-indigo-600 text-sm font-medium">
+                    Open dashboard
+                    <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/dashboard/personas">
+              <Card className="group cursor-pointer border-gray-200 hover:shadow-lg hover:border-cyan-300 transition-all duration-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-cyan-100 rounded-lg">
+                      <BarChart3 className="h-5 w-5 text-cyan-600" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">Persona Analytics</h3>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-3">View persona performance</p>
+                  <div className="flex items-center text-cyan-600 text-sm font-medium">
+                    View stats
+                    <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
         </div>
 
         {/* Video Library */}

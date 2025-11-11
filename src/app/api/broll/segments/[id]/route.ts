@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requirePersona } from '@/lib/persona-context';
 
 // Update a specific segment
 export async function PUT(
@@ -9,6 +10,9 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const personaId = body?.personaId as string | undefined;
+
+    await requirePersona(personaId);
     
     const {
       startTime,
@@ -44,6 +48,18 @@ export async function PUT(
     if (tags !== undefined) updateData.tags = tags;
     if (isUsable !== undefined) updateData.isUsable = isUsable;
 
+    const segmentRecord = await db.brollSegment.findUnique({
+      where: { id },
+      include: { broll: true }
+    });
+
+    if (!segmentRecord || segmentRecord.broll?.personaId !== personaId) {
+      return NextResponse.json(
+        { error: 'Segment not found for this persona' },
+        { status: 404 }
+      );
+    }
+
     const segment = await db.brollSegment.update({
       where: { id },
       data: updateData,
@@ -78,6 +94,22 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
+
+    const segmentRecord = await db.brollSegment.findUnique({
+      where: { id },
+      include: { broll: true }
+    });
+
+    if (!segmentRecord || segmentRecord.broll?.personaId !== personaId) {
+      return NextResponse.json(
+        { error: 'Segment not found for this persona' },
+        { status: 404 }
+      );
+    }
 
     await db.brollSegment.delete({
       where: { id },
@@ -111,6 +143,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
 
     const segment = await db.brollSegment.findUnique({
       where: { id },

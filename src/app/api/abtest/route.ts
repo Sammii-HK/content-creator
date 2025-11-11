@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     if (templateId) {
       template = await templateService.getTemplate(templateId);
     } else {
-      const bestTemplates = await templateService.getBestTemplates(1);
+      const bestTemplates = await templateService.getBestTemplates();
       template = bestTemplates[0];
     }
 

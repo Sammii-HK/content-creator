@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { requirePersona } from '@/lib/persona-context';
 
 const CreateBrollSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -8,7 +9,8 @@ const CreateBrollSchema = z.object({
   fileUrl: z.string().url('Valid URL required'),
   duration: z.number().positive('Duration must be positive'),
   category: z.string().optional(),
-  tags: z.array(z.string()).default([])
+  tags: z.array(z.string()).default([]),
+  personaId: z.string()
 });
 
 export async function GET(request: NextRequest) {
@@ -18,8 +20,11 @@ export async function GET(request: NextRequest) {
     const active = searchParams.get('active');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
+    const personaId = searchParams.get('personaId') || undefined;
 
-    const where: Record<string, unknown> = {};
+    await requirePersona(personaId);
+
+    const where: Record<string, unknown> = { personaId };
     
     if (category) {
       where.category = category;
@@ -61,6 +66,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = CreateBrollSchema.parse(body);
+
+    await requirePersona(data.personaId);
 
     const broll = await db.broll.create({
       data: {

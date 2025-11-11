@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { digitalMeService } from '@/lib/digitalMe';
 import { db } from '@/lib/db';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 const CreateProfileRequestSchema = z.object({
+  personaId: z.string(),
   samples: z.array(z.object({
     theme: z.string(),
     tone: z.string(),
@@ -18,8 +20,13 @@ const CreateProfileRequestSchema = z.object({
 // Get current voice profile
 export async function GET(request: NextRequest) {
   try {
-    const profile = await db.voiceProfile.findFirst({
-      orderBy: { updatedAt: 'desc' }
+    const { searchParams } = new URL(request.url);
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
+
+    const profile = await db.voiceProfile.findUnique({
+      where: { id: personaId }
     });
 
     if (!profile) {
@@ -33,7 +40,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get example count
-    const exampleCount = await db.voiceExample.count();
+    const exampleCount = await db.voiceExample.count({
+      where: { personaId }
+    });
 
     return NextResponse.json({
       success: true,
@@ -59,15 +68,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { samples } = CreateProfileRequestSchema.parse(body);
+    const { samples, personaId } = CreateProfileRequestSchema.parse(body);
+
+    await requirePersona(personaId);
 
     console.log('🧠 Creating voice profile from', samples.length, 'samples...');
 
     // Store voice examples
-    await digitalMeService.storeVoiceExamples(samples);
+    await digitalMeService.storeVoiceExamples(samples, personaId);
 
     // Generate voice profile
-    const profile = await digitalMeService.generateVoiceProfile();
+    const profile = await digitalMeService.generateVoiceProfile(personaId);
 
     return NextResponse.json({
       success: true,
@@ -96,7 +107,9 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { engagementData } = body;
+    const { engagementData, personaId } = body as { engagementData?: unknown[]; personaId?: string };
+
+    await requirePersona(personaId);
 
     if (!engagementData || !Array.isArray(engagementData)) {
       return NextResponse.json(
@@ -105,7 +118,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    await digitalMeService.updateVoiceProfile(engagementData);
+    await digitalMeService.updateVoiceProfile(engagementData, personaId!);
 
     return NextResponse.json({
       success: true,

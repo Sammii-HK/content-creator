@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { multiAIRouter } from '@/lib/multi-ai-router';
 import { db } from '@/lib/db';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 // External API for product + wall art combinations
@@ -13,7 +14,8 @@ const WallArtProductSchema = z.object({
   roomStyle: z.enum(['modern', 'scandinavian', 'industrial', 'bohemian', 'minimalist']).default('modern'),
   lighting: z.enum(['natural', 'warm', 'bright', 'moody', 'soft']).default('natural'),
   quality: z.enum(['budget', 'standard', 'premium']).default('standard'),
-  apiKey: z.string().optional()
+  apiKey: z.string().optional(),
+  personaId: z.string().optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -30,7 +32,8 @@ export async function POST(request: NextRequest) {
       roomStyle,
       lighting,
       quality,
-      apiKey 
+      apiKey,
+      personaId
     } = WallArtProductSchema.parse(body);
 
     // API key check
@@ -42,6 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (personaId) {
+      await requirePersona(personaId);
+    }
+
     let finalProductUrl = productImageUrl;
     let wallArtUrl = null;
 
@@ -51,7 +58,8 @@ export async function POST(request: NextRequest) {
         where: { 
           id: productId, 
           type: 'product',
-          isFavorite: true 
+          isFavorite: true,
+          personaId: personaId ?? undefined
         }
       });
 
@@ -67,7 +75,8 @@ export async function POST(request: NextRequest) {
           id: wallArtId, 
           type: 'environment',
           category: 'wall-art',
-          isFavorite: true 
+          isFavorite: true,
+          personaId: personaId ?? undefined
         }
       });
 
@@ -104,7 +113,8 @@ Commercial photography quality, suitable for product listings and marketing.`;
       assets: {
         productUrl: finalProductUrl,
         environmentUrl: wallArtUrl || undefined
-      }
+      },
+      personaId
     };
 
     const result = await multiAIRouter.generateContent(generationRequest);
@@ -170,6 +180,7 @@ Commercial photography quality, suitable for product listings and marketing.`;
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const showDocs = searchParams.get('docs') === 'true';
+  const personaId = searchParams.get('personaId') || undefined;
 
   if (showDocs) {
     return NextResponse.json({
@@ -209,8 +220,12 @@ export async function GET(request: NextRequest) {
 
   // Return favorite assets for external apps
   try {
+    if (personaId) {
+      await requirePersona(personaId);
+    }
+
     const favorites = await db.asset.findMany({
-      where: { isFavorite: true },
+      where: { isFavorite: true, personaId: personaId ?? undefined },
       select: {
         id: true,
         name: true,

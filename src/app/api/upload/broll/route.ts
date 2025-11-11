@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ClientR2Uploader } from '@/lib/r2-storage';
 import { z } from 'zod';
+import { requirePersona } from '@/lib/persona-context';
 
 const UploadBrollSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).default([]),
+  personaId: z.string(),
   // Duration will be detected automatically from video file
 });
 
@@ -53,7 +55,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { name, description = '', category = '', tags = [] } = UploadBrollSchema.parse(metadata);
+    const { name, description = '', category = '', tags = [], personaId } = UploadBrollSchema.parse(metadata);
+
+    await requirePersona(personaId);
 
     if (!file) {
       return NextResponse.json(
@@ -95,7 +99,8 @@ export async function POST(request: NextRequest) {
         duration: estimatedDuration,
         category: autoCategory,
         tags,
-        isActive: true
+        isActive: true,
+        personaId
       }
     });
 

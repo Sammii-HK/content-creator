@@ -2,6 +2,7 @@ import { openai } from '@ai-sdk/openai';
 import { embed, generateObject, generateText } from 'ai';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { PersonaNotFoundError } from './persona-context';
 
 // Schema for voice analysis
 const VoiceAnalysisSchema = z.object({
@@ -50,6 +51,14 @@ export interface VoiceProfile {
 export class DigitalMeService {
   private model = openai('gpt-4o-mini');
   private embeddingModel = openai.embedding('text-embedding-3-small');
+
+  private async ensurePersona(personaId: string) {
+    const persona = await db.voiceProfile.findUnique({ where: { id: personaId } });
+    if (!persona) {
+      throw new PersonaNotFoundError(personaId);
+    }
+    return persona;
+  }
 
   /**
    * Analyze sample content to understand creator's voice
@@ -110,9 +119,12 @@ Focus on identifying what makes this creator's voice unique and authentic.`
       caption?: string;
       tags?: string[];
       engagement?: number;
-    }>
+    }>,
+    personaId: string
   ): Promise<void> {
     console.log('💾 Storing', samples.length, 'voice examples...');
+
+    await this.ensurePersona(personaId);
 
     // Create embeddings for the content
     const texts = samples.map(s => `${s.hook} ${s.body}`);
@@ -123,28 +135,9 @@ Focus on identifying what makes this creator's voice unique and authentic.`
       const sample = samples[i];
       const embedding = embeddings[i];
 
-      // Find or create default persona
-      let defaultPersona = await db.voiceProfile.findFirst({
-        where: { name: 'Default' }
-      });
-
-      if (!defaultPersona) {
-        defaultPersona = await db.voiceProfile.create({
-          data: {
-            name: 'Default',
-            description: 'Default voice profile',
-            niche: 'general',
-            summary: 'Learning voice from samples...',
-            preferredTones: ['authentic'],
-            topThemes: ['general'],
-            lexicalTraits: {}
-          }
-        });
-      }
-
       await db.voiceExample.create({
         data: {
-          personaId: defaultPersona.id,
+          personaId,
           theme: sample.theme,
           tone: sample.tone,
           hook: sample.hook,
@@ -163,16 +156,19 @@ Focus on identifying what makes this creator's voice unique and authentic.`
   /**
    * Generate voice profile from stored examples
    */
-  async generateVoiceProfile(): Promise<VoiceProfile> {
-    console.log('🧠 Generating voice profile from stored examples...');
+  async generateVoiceProfile(personaId: string): Promise<VoiceProfile> {
+    const persona = await this.ensurePersona(personaId);
 
-    // Get all voice examples
+    console.log('🧠 Generating voice profile from stored examples for persona:', persona.name);
+
+    // Get all voice examples for persona
     const examples = await db.voiceExample.findMany({
+      where: { personaId },
       orderBy: { engagement: 'desc' }
     });
 
     if (examples.length === 0) {
-      throw new Error('No voice examples found. Add some sample content first.');
+      throw new Error('No voice examples found for this persona. Add sample content first.');
     }
 
     // Analyze the examples to create profile
@@ -201,36 +197,24 @@ Focus on identifying what makes this creator's voice unique and authentic.`
 
     // Create or update voice profile
     const profileData = {
-      name: 'Default',
-      description: 'Default voice profile',
-      niche: 'general',
+      name: persona.name,
+      description: persona.description ?? 'Persona voice profile',
+      niche: persona.niche,
       summary: `Creator with ${analysis.tone} tone, focuses on ${analysis.themes.slice(0, 3).join(', ')}. Writing style: ${analysis.writingStyle.sentenceLength} sentences, ${analysis.writingStyle.vocabulary} vocabulary, ${analysis.writingStyle.rhythm} rhythm.`,
       preferredTones: preferredTones.length > 0 ? preferredTones : [analysis.tone],
       topThemes: analysis.themes.slice(0, 5),
       lexicalTraits: analysis.writingStyle
     };
 
-    // Check if default profile exists
-    const existingProfile = await db.voiceProfile.findFirst({
-      where: { name: 'Default' }
+    const profile = await db.voiceProfile.update({
+      where: { id: personaId },
+      data: {
+        summary: profileData.summary,
+        preferredTones: profileData.preferredTones,
+        topThemes: profileData.topThemes,
+        lexicalTraits: profileData.lexicalTraits
+      }
     });
-
-    let profile;
-    if (existingProfile) {
-      profile = await db.voiceProfile.update({
-        where: { id: existingProfile.id },
-        data: {
-          summary: profileData.summary,
-          preferredTones: profileData.preferredTones,
-          topThemes: profileData.topThemes,
-          lexicalTraits: profileData.lexicalTraits
-        }
-      });
-    } else {
-      profile = await db.voiceProfile.create({
-        data: profileData
-      });
-    }
 
     console.log('✅ Voice profile generated:', profile.summary);
     return profile;
@@ -245,22 +229,20 @@ Focus on identifying what makes this creator's voice unique and authentic.`
       theme?: string;
       targetDuration?: number;
       platform?: 'instagram' | 'tiktok' | 'youtube' | 'twitter';
-    }
+    },
+    personaId?: string
   ): Promise<any> {
-    console.log('🤖 Generating authentic content for:', prompt);
-
-    // Get latest voice profile
-    const profile = await db.voiceProfile.findFirst({
-      orderBy: { updatedAt: 'desc' }
-    });
-
-    if (!profile) {
-      throw new Error('No voice profile found. Create voice profile first.');
+    if (!personaId) {
+      throw new Error('personaId is required to generate content.');
     }
+
+    const persona = await this.ensurePersona(personaId);
+
+    console.log('🤖 Generating authentic content for persona:', persona.name);
 
     // Get recent high-performing examples for context
     const recentExamples = await db.voiceExample.findMany({
-      where: { engagement: { gt: 0 } },
+      where: { personaId, engagement: { gt: 0 } },
       orderBy: { engagement: 'desc' },
       take: 3
     });
@@ -269,16 +251,21 @@ Focus on identifying what makes this creator's voice unique and authentic.`
       ? recentExamples.map(e => `"${e.hook} ${e.body}"`).join('\n')
       : '';
 
+    const personaSummary = persona.summary || `${persona.name} persona voice profile`;
+    const preferredTones = persona.preferredTones?.length ? persona.preferredTones.join(', ') : 'authentic';
+    const topThemes = persona.topThemes?.length ? persona.topThemes.join(', ') : persona.niche;
+
     const result = await generateObject({
       model: this.model,
       schema: ContentGenerationSchema,
       prompt: `You are the creator's digital voice. Generate content that sounds authentically like them.
 
 VOICE PROFILE:
-${profile.summary}
+${personaSummary}
+Persona: ${persona.name}
 
-PREFERRED TONES: ${profile.preferredTones.join(', ')}
-TOP THEMES: ${profile.topThemes.join(', ')}
+PREFERRED TONES: ${preferredTones}
+TOP THEMES: ${topThemes}
 
 HIGH-PERFORMING EXAMPLES:
 ${exampleText}
@@ -311,8 +298,10 @@ The content should sound like the creator wrote it themselves.`
     tone: string;
     theme: string;
     engagement: number;
-  }>): Promise<void> {
-    console.log('🔄 Updating voice profile with new engagement data...');
+  }>, personaId: string): Promise<void> {
+    await this.ensurePersona(personaId);
+
+    console.log('🔄 Updating voice profile with new engagement data for persona:', personaId);
 
     // Store new examples
     for (const data of newEngagementData) {
@@ -321,28 +310,9 @@ The content should sound like the creator wrote it themselves.`
         value: data.content
       });
 
-      // Find or create default persona
-      let defaultPersona = await db.voiceProfile.findFirst({
-        where: { name: 'Default' }
-      });
-
-      if (!defaultPersona) {
-        defaultPersona = await db.voiceProfile.create({
-          data: {
-            name: 'Default',
-            description: 'Default voice profile',
-            niche: 'general',
-            summary: 'Learning voice from samples...',
-            preferredTones: ['authentic'],
-            topThemes: ['general'],
-            lexicalTraits: {}
-          }
-        });
-      }
-
       await db.voiceExample.create({
         data: {
-          personaId: defaultPersona.id,
+          personaId,
           theme: data.theme,
           tone: data.tone,
           hook: data.content.split(' ').slice(0, 8).join(' '), // First 8 words as hook
@@ -354,7 +324,7 @@ The content should sound like the creator wrote it themselves.`
     }
 
     // Regenerate profile
-    await this.generateVoiceProfile();
+    await this.generateVoiceProfile(personaId);
     console.log('✅ Voice profile updated with new performance data');
   }
 }

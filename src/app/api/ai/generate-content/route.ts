@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { digitalMeService } from '@/lib/digitalMe';
 import { aiTemplateMatcher } from '@/lib/ai-template-matcher';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 const ContentGenerationRequestSchema = z.object({
   videoId: z.string(),
+  personaId: z.string(),
   templateType: z.enum(['instagram-reel', 'youtube-short', 'tiktok-video', 'twitter-video']).optional(),
   prompt: z.string().min(1, 'Content prompt is required'),
   customRequirements: z.string().optional()
@@ -14,16 +16,18 @@ const ContentGenerationRequestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { videoId, templateType, prompt, customRequirements } = ContentGenerationRequestSchema.parse(body);
+    const { videoId, personaId, templateType, prompt, customRequirements } = ContentGenerationRequestSchema.parse(body);
 
     console.log('🤖 AI generating complete content for video:', videoId);
 
+    await requirePersona(personaId);
+
     // Get video and segments
-    const video = await db.broll.findUnique({
-      where: { id: videoId },
+    const video = await db.broll.findFirst({
+      where: { id: videoId, personaId },
       include: {
         segments: {
-          where: { isUsable: true, quality: { gte: 6 } }, // Only high-quality segments
+          where: { isUsable: true, quality: { gte: 6 } },
           orderBy: { quality: 'desc' }
         }
       }
@@ -79,7 +83,8 @@ export async function POST(request: NextRequest) {
         theme: customRequirements || video.category || undefined,
         targetDuration: getTemplateDuration(selectedTemplate),
         platform: selectedTemplate.split('-')[0] as any
-      }
+      },
+      personaId
     );
 
     // Select best segments for the template

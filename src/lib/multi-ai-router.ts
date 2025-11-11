@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
+import { aiUsageTracker } from './ai-usage-tracker';
 
 // AI Provider configurations with costs and capabilities
 export interface AIProvider {
@@ -23,6 +24,7 @@ export interface GenerationRequest {
     productUrl?: string;
     environmentUrl?: string;
   };
+  personaId?: string;
 }
 
 export class MultiAIRouter {
@@ -107,26 +109,61 @@ export class MultiAIRouter {
    */
   async generateContent(request: GenerationRequest): Promise<any> {
     const provider = this.selectOptimalProvider(request);
+    const startedAt = Date.now();
     
     console.log('🎨 Generating content with:', provider.name, `($${provider.costPerUnit})`);
 
     try {
+      let result;
       switch (provider.id) {
         case 'replicate':
-          return await this.generateWithReplicate(request, provider);
+          result = await this.generateWithReplicate(request, provider);
+          break;
         case 'nano-banana':
-          return await this.generateWithNanoBanana(request, provider);
+          result = await this.generateWithNanoBanana(request, provider);
+          break;
         case 'stability-ai':
-          return await this.generateWithStableDiffusion(request, provider);
+          result = await this.generateWithStableDiffusion(request, provider);
+          break;
         case 'dalle-3':
-          return await this.generateWithDallE(request, provider);
+          result = await this.generateWithDallE(request, provider);
+          break;
         case 'runway-ml':
-          return await this.generateWithRunway(request, provider);
+          result = await this.generateWithRunway(request, provider);
+          break;
         default:
           throw new Error(`Provider ${provider.id} not implemented`);
       }
+
+      await aiUsageTracker.recordUsage(
+        provider.id,
+        request.type,
+        provider.costPerUnit,
+        true,
+        request.prompt,
+        request.quality,
+        Date.now() - startedAt,
+        undefined,
+        { providerId: provider.id },
+        request.personaId
+      );
+
+      return result;
     } catch (error) {
       console.error(`❌ Generation failed with ${provider.name}:`, error);
+
+      await aiUsageTracker.recordUsage(
+        provider.id,
+        request.type,
+        provider.costPerUnit,
+        false,
+        request.prompt,
+        request.quality,
+        Date.now() - startedAt,
+        error instanceof Error ? error.message : 'Unknown error',
+        { providerId: provider.id },
+        request.personaId
+      );
       
       // Fallback to next best provider
       const fallbackProviders = this.providers.filter(p => p.id !== provider.id);

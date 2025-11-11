@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { requirePersona } from '@/lib/persona-context';
 
 const FavoriteRequestSchema = z.object({
   assetId: z.string(),
-  isFavorite: z.boolean()
+  isFavorite: z.boolean(),
+  personaId: z.string()
 });
 
 // Get favorite assets
@@ -12,8 +14,12 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as 'model' | 'product' | 'environment' | null;
+     const personaId = searchParams.get('personaId') || undefined;
 
-    const whereClause: any = { isFavorite: true };
+    await requirePersona(personaId);
+
+    const whereClause: any = { isFavorite: true, personaId };
+
     if (type) {
       whereClause.type = type;
     }
@@ -47,7 +53,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { assetId, isFavorite } = FavoriteRequestSchema.parse(body);
+    const { assetId, isFavorite, personaId } = FavoriteRequestSchema.parse(body);
+
+    await requirePersona(personaId);
+
+    const asset = await db.asset.findFirst({
+      where: { id: assetId, personaId }
+    });
+
+    if (!asset) {
+      return NextResponse.json(
+        { error: 'Asset not found for this persona' },
+        { status: 404 }
+      );
+    }
 
     const updatedAsset = await db.asset.update({
       where: { id: assetId },

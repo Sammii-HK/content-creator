@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aiVideoGenerator } from '@/lib/ai-video-generator';
 import { db } from '@/lib/db';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 const AIVideoRequestSchema = z.object({
@@ -11,7 +12,8 @@ const AIVideoRequestSchema = z.object({
   productName: z.string().optional(),
   productDescription: z.string().optional(),
   keyFeatures: z.array(z.string()).optional(),
-  avatarImage: z.string().optional()
+  avatarImage: z.string().optional(),
+  personaId: z.string()
 });
 
 export async function POST(request: NextRequest) {
@@ -25,10 +27,13 @@ export async function POST(request: NextRequest) {
       productName, 
       productDescription, 
       keyFeatures,
-      avatarImage 
+      avatarImage,
+      personaId
     } = AIVideoRequestSchema.parse(body);
 
     console.log('🎬 AI generating video:', { style, duration, prompt: prompt.slice(0, 50) });
+
+    await requirePersona(personaId);
 
     let videoGeneration;
 
@@ -37,7 +42,8 @@ export async function POST(request: NextRequest) {
         videoGeneration = await aiVideoGenerator.generateVideoFromText({
           prompt,
           duration,
-          style
+          style,
+          personaId
         });
         break;
 
@@ -50,7 +56,9 @@ export async function POST(request: NextRequest) {
         }
         videoGeneration = await aiVideoGenerator.generateAvatarVideoScript(
           prompt,
-          undefined, // Could integrate with Digital Me voice profile
+          {
+            personaId
+          },
           duration
         );
         break;
@@ -66,7 +74,8 @@ export async function POST(request: NextRequest) {
           productName,
           productDescription,
           keyFeatures,
-          duration
+          duration,
+          personaId
         );
         break;
 
@@ -79,8 +88,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Get video segments (any quality, we'll work with what's available)
-        const video = await db.broll.findUnique({
-          where: { id: videoId },
+        const video = await db.broll.findFirst({
+          where: { id: videoId, personaId },
           include: {
             segments: {
               where: { isUsable: true },
@@ -106,7 +115,8 @@ export async function POST(request: NextRequest) {
         videoGeneration = await aiVideoGenerator.generateHybridVideo(
           video.segments,
           prompt,
-          duration
+          duration,
+          personaId
         );
         break;
 

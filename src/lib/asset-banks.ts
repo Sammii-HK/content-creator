@@ -204,7 +204,7 @@ For each scene, specify:
     }
 
     // Filter by type if specified
-    let filteredAssets = assetType 
+    const filteredAssets = assetType 
       ? availableAssets.filter(asset => asset.type === assetType)
       : availableAssets;
 

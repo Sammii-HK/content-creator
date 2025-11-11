@@ -41,7 +41,8 @@ export class AIUsageTracker {
     quality: string,
     responseTime: number,
     errorMessage?: string,
-    metadata: any = {}
+    metadata: any = {},
+    personaId?: string
   ): Promise<void> {
     try {
       await db.aiUsage.create({
@@ -54,7 +55,8 @@ export class AIUsageTracker {
           quality,
           responseTime,
           errorMessage,
-          metadata
+          metadata,
+          personaId
         }
       });
     } catch (error) {
@@ -65,13 +67,14 @@ export class AIUsageTracker {
   /**
    * Get usage statistics for all providers
    */
-  async getProviderStatuses(): Promise<ProviderStatus[]> {
+  async getProviderStatuses(personaId?: string): Promise<ProviderStatus[]> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const usage = await db.aiUsage.findMany({
       where: {
-        createdAt: { gte: thirtyDaysAgo }
+        createdAt: { gte: thirtyDaysAgo },
+        ...(personaId ? { personaId } : {})
       }
     });
 
@@ -255,8 +258,8 @@ export class AIUsageTracker {
   /**
    * Get cost optimization recommendations
    */
-  async getCostOptimizationTips(): Promise<string[]> {
-    const statuses = await this.getProviderStatuses();
+  async getCostOptimizationTips(personaId?: string): Promise<string[]> {
+    const statuses = await this.getProviderStatuses(personaId);
     const tips = [];
 
     const cheapest = statuses
@@ -289,8 +292,8 @@ export class AIUsageTracker {
   /**
    * Get spending alerts
    */
-  async getSpendingAlerts(): Promise<string[]> {
-    const statuses = await this.getProviderStatuses();
+  async getSpendingAlerts(personaId?: string): Promise<string[]> {
+    const statuses = await this.getProviderStatuses(personaId);
     const alerts = [];
 
     for (const status of statuses) {

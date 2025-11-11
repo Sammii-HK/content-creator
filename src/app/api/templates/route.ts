@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { templateService } from '@/lib/templates';
 import { z } from 'zod';
+import { requirePersona } from '@/lib/persona-context';
 
 const CreateTemplateSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -26,19 +27,23 @@ const CreateTemplateSchema = z.object({
       filters: z.array(z.string()).optional()
     }))
   }),
-  parentId: z.string().optional()
+  parentId: z.string().optional(),
+  personaId: z.string()
 });
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const includePerformance = searchParams.get('includePerformance') === 'true';
+    const personaId = searchParams.get('personaId') || undefined;
+
+    await requirePersona(personaId);
 
     if (includePerformance) {
-      const templates = await templateService.getAllTemplates();
+      const templates = await templateService.getAllTemplates(personaId);
       return NextResponse.json({ templates });
     } else {
-      const templates = await templateService.getBestTemplates();
+      const templates = await templateService.getBestTemplates(personaId);
       return NextResponse.json({ templates });
     }
 
@@ -54,9 +59,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, json, parentId } = CreateTemplateSchema.parse(body);
+    const { name, json, parentId, personaId } = CreateTemplateSchema.parse(body);
 
-    const template = await templateService.createTemplate(name, json, parentId);
+    await requirePersona(personaId);
+
+    const template = await templateService.createTemplate(name, json, parentId, personaId);
 
     return NextResponse.json({
       success: true,

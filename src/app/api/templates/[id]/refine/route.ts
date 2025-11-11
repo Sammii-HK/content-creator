@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { templateService } from '@/lib/templates';
+import { requirePersona } from '@/lib/persona-context';
+import { z } from 'zod';
+
+const RefinePayloadSchema = z.object({
+  personaId: z.string()
+});
 
 export async function POST(
   request: NextRequest,
@@ -7,12 +13,16 @@ export async function POST(
 ) {
   try {
     const { id: templateId } = await params;
+    const body = await request.json();
+    const { personaId } = RefinePayloadSchema.parse(body);
+
+    await requirePersona(personaId);
 
     // Update performance metrics first
-    await templateService.updateTemplatePerformance(templateId);
+    await templateService.updateTemplatePerformance(templateId, personaId);
 
     // Refine the template using AI
-    const refinementResult = await templateService.refineTemplate(templateId);
+    const refinementResult = await templateService.refineTemplate(templateId, personaId);
 
     return NextResponse.json({
       success: true,

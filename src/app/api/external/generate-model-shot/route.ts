@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { multiAIRouter } from '@/lib/multi-ai-router';
 import { db } from '@/lib/db';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 // External API specifically for model photography
@@ -13,7 +14,8 @@ const ExternalModelShotSchema = z.object({
   quality: z.enum(['budget', 'standard', 'premium']).default('standard'),
   clothing: z.string().optional(),
   pose: z.string().optional(),
-  apiKey: z.string().optional()
+  apiKey: z.string().optional(),
+  personaId: z.string().optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -30,7 +32,8 @@ export async function POST(request: NextRequest) {
       quality,
       clothing,
       pose,
-      apiKey 
+      apiKey,
+      personaId
     } = ExternalModelShotSchema.parse(body);
 
     // API key check
@@ -42,6 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (personaId) {
+      await requirePersona(personaId);
+    }
+
     let finalModelUrl = modelImageUrl;
 
     // If using predefined favorite model
@@ -50,7 +57,8 @@ export async function POST(request: NextRequest) {
         where: { 
           id: modelId, 
           type: 'model',
-          isFavorite: true 
+          isFavorite: true,
+          personaId: personaId ?? undefined
         }
       });
 
@@ -89,7 +97,8 @@ Commercial photography quality, suitable for marketing and social media.`;
       quality,
       assets: {
         modelUrl: finalModelUrl
-      }
+      },
+      personaId
     };
 
     const result = await multiAIRouter.generateContent(generationRequest);

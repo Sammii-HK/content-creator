@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { llmService } from '@/lib/llm';
 import { templateService } from '@/lib/templates';
+import { requirePersona } from '@/lib/persona-context';
+import { digitalMeService } from '@/lib/digitalMe';
 import { z } from 'zod';
 
 const GenerateTextOnlySchema = z.object({
@@ -11,6 +13,7 @@ const GenerateTextOnlySchema = z.object({
   templateId: z.string().optional(),
   includeTrends: z.boolean().optional().default(true),
   generateVariants: z.number().min(1).max(5).optional().default(1),
+  personaId: z.string().optional()
 });
 
 export async function POST(request: NextRequest) {
@@ -22,8 +25,14 @@ export async function POST(request: NextRequest) {
       duration = 10,
       templateId,
       includeTrends,
-      generateVariants
+      generateVariants,
+      personaId
     } = GenerateTextOnlySchema.parse(body);
+
+    // Validate persona if provided
+    if (personaId) {
+      await requirePersona(personaId);
+    }
 
     console.log(`🤖 Generating text content for theme: ${theme}`);
 
@@ -80,7 +89,7 @@ export async function POST(request: NextRequest) {
       template = await templateService.getTemplate(templateId);
     } else {
       // Use best performing template
-      const bestTemplates = await templateService.getBestTemplates(1);
+      const bestTemplates = await templateService.getBestTemplates();
       template = bestTemplates[0];
     }
 
@@ -91,22 +100,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate content variants
-    const contentVariants = generateVariants > 1 
-      ? await llmService.generateVariants({
-          theme,
-          tone,
-          duration,
-          trends,
-          previousPerformance
-        }, generateVariants)
-      : [await llmService.generateVideoContent({
-          theme,
-          tone,
-          duration,
-          trends,
-          previousPerformance
-        })];
+    // Generate content variants with persona context
+    let contentVariants;
+    if (personaId) {
+      // Use persona-aware generation
+      contentVariants = generateVariants > 1 
+        ? await Promise.all(
+            Array.from({ length: generateVariants }, () =>
+              digitalMeService.generateAuthenticContent(
+                `${theme} content in ${tone} tone`,
+                { theme, targetDuration: duration },
+                personaId
+              )
+            )
+          )
+        : [await digitalMeService.generateAuthenticContent(
+            `${theme} content in ${tone} tone`,
+            { theme, targetDuration: duration },
+            personaId
+          )];
+    } else {
+      // Use generic generation
+      contentVariants = generateVariants > 1 
+        ? await llmService.generateVariants({
+            theme,
+            tone,
+            duration,
+            trends,
+            previousPerformance
+          }, generateVariants)
+        : [await llmService.generateVideoContent({
+            theme,
+            tone,
+            duration,
+            trends,
+            previousPerformance
+          })];
+    }
 
     const results = [];
 

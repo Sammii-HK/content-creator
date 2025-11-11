@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
               {
                 theme: persona.niche,
                 platform: account.platform as any
-              }
+              },
+              persona.id
             );
           } else {
             // Fallback to generic content

@@ -1,26 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { digitalMeService } from '@/lib/digitalMe';
+import { requirePersona } from '@/lib/persona-context';
 import { z } from 'zod';
 
 const GenerateRequestSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required'),
   theme: z.string().optional(),
   targetDuration: z.number().min(5).max(300).optional().default(30),
-  platform: z.enum(['instagram', 'tiktok', 'youtube', 'twitter']).optional().default('instagram')
+  platform: z.enum(['instagram', 'tiktok', 'youtube', 'twitter']).optional().default('instagram'),
+  personaId: z.string()
 });
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, theme, targetDuration, platform } = GenerateRequestSchema.parse(body);
+    const { prompt, theme, targetDuration, platform, personaId } = GenerateRequestSchema.parse(body);
 
     console.log('🤖 Digital Me generating content:', { prompt, theme, platform });
 
-    const content = await digitalMeService.generateAuthenticContent(prompt, {
-      theme,
-      targetDuration,
-      platform
-    });
+    await requirePersona(personaId);
+
+    const content = await digitalMeService.generateAuthenticContent(
+      prompt,
+      {
+        theme,
+        targetDuration,
+        platform
+      },
+      personaId
+    );
 
     return NextResponse.json({
       success: true,

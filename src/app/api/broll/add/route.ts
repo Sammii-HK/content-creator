@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { requirePersona } from '@/lib/persona-context';
 
 const AddBrollSchema = z.object({
   name: z.string().min(1),
@@ -8,7 +9,8 @@ const AddBrollSchema = z.object({
   fileUrl: z.string().url(),
   duration: z.number().positive(),
   category: z.string().optional(),
-  tags: z.array(z.string()).default([])
+  tags: z.array(z.string()).default([]),
+  personaId: z.string()
 });
 
 export async function POST(request: NextRequest) {
@@ -17,6 +19,8 @@ export async function POST(request: NextRequest) {
     const data = AddBrollSchema.parse(body);
 
     console.log('Adding B-roll to database:', data);
+
+    await requirePersona(data.personaId);
 
     const brollEntry = await db.broll.create({
       data: {

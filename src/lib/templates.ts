@@ -15,9 +15,9 @@ export class TemplateService {
   /**
    * Get all active templates with performance data
    */
-  async getAllTemplates() {
+  async getAllTemplates(personaId?: string) {
     const templates = await db.template.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(personaId ? { personaId } : {}) },
       include: {
         videos: {
           include: {
@@ -37,7 +37,7 @@ export class TemplateService {
   /**
    * Get template by ID
    */
-  async getTemplate(id: string) {
+  async getTemplate(id: string, personaId?: string) {
     return await db.template.findUnique({
       where: { id },
       include: {
@@ -47,17 +47,24 @@ export class TemplateService {
           }
         }
       }
+    }).then(template => {
+      if (!template) return null;
+      if (personaId && template.personaId && template.personaId !== personaId) {
+        return null;
+      }
+      return template;
     });
   }
 
   /**
    * Get best performing templates for a specific category
    */
-  async getBestTemplates(limit: number = 5) {
+  async getBestTemplates(personaId?: string, limit: number = 5) {
     return await db.template.findMany({
       where: { 
         isActive: true,
-        performance: { not: null }
+        performance: { not: null },
+        ...(personaId ? { personaId } : {})
       },
       orderBy: { performance: 'desc' },
       take: limit,
@@ -68,7 +75,7 @@ export class TemplateService {
           },
           orderBy: { createdAt: 'desc' },
           take: 3 // Recent videos for context
-        }
+          }
       }
     });
   }
@@ -76,13 +83,14 @@ export class TemplateService {
   /**
    * Create a new template
    */
-  async createTemplate(name: string, templateJson: VideoTemplate, parentId?: string) {
+  async createTemplate(name: string, templateJson: VideoTemplate, parentId: string | undefined, personaId: string) {
     return await db.template.create({
       data: {
         name,
         json: JSON.parse(JSON.stringify(templateJson)),
         parentId,
-        isActive: true
+        isActive: true,
+        personaId
       }
     });
   }
@@ -90,7 +98,7 @@ export class TemplateService {
   /**
    * Update template performance based on video metrics
    */
-  async updateTemplatePerformance(templateId: string) {
+  async updateTemplatePerformance(templateId: string, personaId?: string) {
     const template = await db.template.findUnique({
       where: { id: templateId },
       include: {
@@ -106,6 +114,10 @@ export class TemplateService {
       throw new Error('Template not found');
     }
 
+    if (personaId && template.personaId && template.personaId !== personaId) {
+      throw new Error('Template does not belong to this persona');
+    }
+
     const performance = this.calculatePerformance(template.videos);
     
     await db.template.update({
@@ -119,7 +131,7 @@ export class TemplateService {
   /**
    * Refine template using AI based on performance data
    */
-  async refineTemplate(templateId: string) {
+  async refineTemplate(templateId: string, personaId?: string) {
     const template = await db.template.findUnique({
       where: { id: templateId },
       include: {
@@ -133,6 +145,10 @@ export class TemplateService {
 
     if (!template) {
       throw new Error('Template not found');
+    }
+
+    if (personaId && template.personaId && template.personaId !== personaId) {
+      throw new Error('Template does not belong to this persona');
     }
 
     // Separate high and low performing videos
@@ -162,10 +178,16 @@ export class TemplateService {
     );
 
     // Create new template version
+    const personaForNewTemplate = template.personaId ?? personaId;
+    if (!personaForNewTemplate) {
+      throw new Error('Persona required to refine template');
+    }
+
     const newTemplate = await this.createTemplate(
       `${template.name} v${await this.getNextVersion(template.name)}`,
       refinedTemplate,
-      template.id
+      template.id,
+      personaForNewTemplate
     );
 
     return {
@@ -365,7 +387,8 @@ export class TemplateService {
       const variant = await this.createTemplate(
         `${baseTemplate.name} - Variant ${i + 1}`,
         variantTemplate,
-        baseTemplate.id
+        baseTemplate.id,
+        baseTemplate.personaId || ''
       );
       
       variants.push(variant);
