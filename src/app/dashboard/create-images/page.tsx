@@ -292,38 +292,110 @@ export default function CreateImages() {
               </CardContent>
             </Card>
 
-            {/* Professional Prompt Templates */}
+            {/* Smart Prompt System */}
             <Card className="border-gray-200">
               <CardHeader>
-                <CardTitle>✨ Professional Prompt Templates</CardTitle>
-                <p className="text-gray-600 text-sm">Detailed prompts optimized for different use cases</p>
+                <CardTitle>🧠 Smart Prompts for Consistent Results</CardTitle>
+                <p className="text-gray-600 text-sm">Professional prompts designed for gorgeous, consistent product imagery</p>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {promptTemplates.slice(0, 6).map((template) => (
-                    <div
-                      key={template.id}
-                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                        selectedTemplate === template.id 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }`}
-                      onClick={() => useTemplate(template.id)}
+              <CardContent className="space-y-6">
+                {/* Consistency Prompts */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">🔄 Consistency & Variations</h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-blue-50 border-blue-200 hover:bg-blue-100"
+                      onClick={() => setPrompt('Professional t-shirt photography, model in natural relaxed pose facing slightly towards camera, same exact pose and angle as reference, soft natural lighting from large window, clean modern background, only change the t-shirt design/pattern while maintaining identical composition, pose, lighting, and camera angle')}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">{template.name}</h4>
-                        <Badge variant="outline" className="text-xs">{template.estimatedCost}</Badge>
+                      <div>
+                        <div className="font-medium text-blue-900">👕 Same Model, New T-Shirt Design</div>
+                        <div className="text-xs text-blue-700 mt-1">Perfect for showing different designs on same model/pose</div>
                       </div>
-                      <p className="text-gray-600 text-sm mb-3">{template.description}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {template.bestFor.slice(0, 2).map((use) => (
-                          <Badge key={use} variant="secondary" className="text-xs">
-                            {use}
-                          </Badge>
-                        ))}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-green-50 border-green-200 hover:bg-green-100"
+                      onClick={() => setPrompt('Recreate exact same scene composition and lighting setup, same model in identical pose and expression, same camera angle and distance, same background and environment. Only change: the specific product being showcased. Maintain perfect consistency for brand catalog continuity')}
+                    >
+                      <div>
+                        <div className="font-medium text-green-900">🔄 Same Scene, Different Product</div>
+                        <div className="text-xs text-green-700 mt-1">Maintain everything identical except the product</div>
                       </div>
-                    </div>
-                  ))}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-purple-50 border-purple-200 hover:bg-purple-100"
+                      onClick={() => setPrompt('Professional product photography series, maintain consistent brand aesthetic: same lighting style (soft natural window light), same composition approach (product centered, model in natural pose), same color palette (neutral tones), same mood (clean, modern, aspirational). Create cohesive brand imagery with visual consistency across all product shots')}
+                    >
+                      <div>
+                        <div className="font-medium text-purple-900">🎨 Brand Consistency Series</div>
+                        <div className="text-xs text-purple-700 mt-1">Cohesive aesthetic across all product images</div>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Etsy-Optimized Prompts */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">🛍️ Etsy Marketplace Optimized</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-orange-50 border-orange-200 hover:bg-orange-100"
+                      onClick={() => setPrompt('Professional Etsy hero image, product photography optimized for marketplace thumbnail, clean composition that stands out in search results, perfect lighting to show product quality and details, appeals to target customer demographic, professional but approachable, high-converting marketplace image')}
+                    >
+                      <div>
+                        <div className="font-medium text-orange-900">🏆 Etsy Hero Shot</div>
+                        <div className="text-xs text-orange-700 mt-1">Main listing image that converts</div>
+                        <Badge variant="outline" className="mt-2 bg-orange-100 text-orange-800">$0.08-0.15</Badge>
+                      </div>
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-pink-50 border-pink-200 hover:bg-pink-100"
+                      onClick={() => setPrompt('Etsy lifestyle product photography, shows product being used naturally in beautiful home setting, authentic and relatable, appeals to Etsy customer aesthetic preferences, handmade/artisanal feel, warm and inviting atmosphere, tells a story about the product and lifestyle')}
+                    >
+                      <div>
+                        <div className="font-medium text-pink-900">🏠 Etsy Lifestyle Shot</div>
+                        <div className="text-xs text-pink-700 mt-1">Product in beautiful home context</div>
+                        <Badge variant="outline" className="mt-2 bg-pink-100 text-pink-800">$0.12-0.25</Badge>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Advanced Scenarios */}
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">🎯 Advanced Scenarios</h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                      onClick={() => setPrompt('Professional product photography with gallery wall background, modern art collection on wall, sophisticated interior design, product elegantly placed on clean surface in foreground, museum-quality lighting, high-end aesthetic, luxury brand feel, perfect for artistic and creative products')}
+                    >
+                      <div>
+                        <div className="font-medium text-indigo-900">🖼️ Gallery Wall + Product</div>
+                        <div className="text-xs text-indigo-700 mt-1">Sophisticated artistic background with curated wall art</div>
+                        <Badge variant="outline" className="mt-2 bg-indigo-100 text-indigo-800">$0.15-0.30</Badge>
+                      </div>
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      className="h-auto p-4 text-left bg-teal-50 border-teal-200 hover:bg-teal-100"
+                      onClick={() => setPrompt('Seasonal product photography, product beautifully integrated into current season aesthetic, appropriate seasonal colors and mood, lifestyle setting that reflects the time of year, creates emotional connection with seasonal shopping mindset, timely and relevant')}
+                    >
+                      <div>
+                        <div className="font-medium text-teal-900">🍂 Seasonal Context</div>
+                        <div className="text-xs text-teal-700 mt-1">Product in seasonal lifestyle setting</div>
+                        <Badge variant="outline" className="mt-2 bg-teal-100 text-teal-800">$0.12-0.22</Badge>
+                      </div>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
