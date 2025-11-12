@@ -60,14 +60,6 @@ interface PersonaBlueprint {
   sample_prompts?: string[];
 }
 
-interface PromptPack {
-  id: string;
-  title: string;
-  description: string;
-  prompt: string;
-  tone?: string;
-}
-
 const PLATFORM_OPTIONS = [
   'Instagram',
   'TikTok',
@@ -250,67 +242,92 @@ export default function PersonaWizard() {
     if (personaData.challenges)
       contextParts.push(`**Current Challenges:** ${personaData.challenges}`);
 
-    const prompt = `# Comprehensive Digital Persona Creation
+    const prompt = `# Digital Persona Creation for AI Content System
 
-I'm building an AI-powered content creation system and need you to help me develop a complete digital persona. I'll provide context about myself and my brand, and I need you to answer ALL the questions below in one comprehensive response.
+## What We're Trying to Achieve
 
-## My Context
+I'm building an AI-powered content creation system that needs to generate authentic, on-brand content automatically. To do this, I need to create a detailed "persona blueprint" that captures everything about my brand voice, audience, content style, and communication approach.
+
+The goal is to train an AI system that can:
+- Write content in my exact voice and style
+- Adapt tone for different platforms (${personaData.platforms.length > 0 ? personaData.platforms.join(', ') : 'Instagram, TikTok, YouTube, Threads, etc.'})
+- Create content that feels authentic and true to my brand
+- Generate hooks, captions, CTAs, and content prompts that match my style
+- Understand my audience and speak directly to them
+
+## My Context & Background
+
 ${contextParts.length > 0 ? contextParts.join('\n') : '*No context provided yet - please fill in the form fields above*'}
 
-## Your Task: Answer ALL These Questions
+## Your Task: Help Me Build This Persona
 
-Please provide a detailed response covering ALL of the following areas:
+Please ask me thoughtful questions and guide me through answering ALL of the following areas. I'll provide my answers, and you'll help me refine them into a comprehensive persona blueprint:
 
 ### 1. Brand Essence & Story
-- What is the origin story and purpose of this brand/persona?
-- What emotional transformation do we want the audience to feel?
-- What philosophy or point of view guides the work?
-- What are the core values?
+Ask me about:
+- The origin story and purpose of this brand/persona
+- The emotional transformation we want the audience to feel
+- The philosophy or point of view that guides the work
+- The core values that define us
 
 ### 2. Audience Profile
-- Who is the perfect audience for this persona? (lifestyle, values, design taste, emotional triggers)
+Help me clarify:
+- Who is the perfect audience? (lifestyle, values, design taste, emotional triggers)
 - What decisions do they struggle with and what do they crave right now?
 - Where do they spend time online and what inspires or annoys them?
-- What age range, location, and values do they hold?
+- Age range, location, and values they hold
 
 ### 3. Voice & Communication Style
-- How should this persona write and communicate? (tone descriptors with examples)
-- What are the style rules? (capitalization, punctuation, line breaks, rhythm, sentence length)
-- Provide sample phrases this persona would absolutely say (and wouldn't say)
-- How does the voice adapt for different content types?
+Guide me to define:
+- How this persona writes and communicates (tone descriptors with examples)
+- Style rules (capitalization, punctuation, line breaks, rhythm, sentence length)
+- Sample phrases this persona would absolutely say (and wouldn't say)
+- How the voice adapts for different content types
 
 ### 4. Content Systems & Pillars
-- What are 3-5 recurring content pillars or themes that feel inherent to this persona?
-- What signature formats, visuals, or rituals could become consistent series?
-- What stories, processes, or philosophies get the best engagement?
-- What content tone keywords should we use?
+Help me identify:
+- 3-5 recurring content pillars or themes that feel inherent to this persona
+- Signature formats, visuals, or rituals that could become consistent series
+- Stories, processes, or philosophies that get the best engagement
+- Content tone keywords we should use
 
 ### 5. Platform Adaptation
-- How should the voice adapt for each platform? (${personaData.platforms.length > 0 ? personaData.platforms.join(', ') : 'Instagram, TikTok, YouTube, Threads, etc.'})
-- What are the platform-specific voice rules and styles?
-- How do hooks and CTAs differ by platform?
+Work with me on:
+- How the voice adapts for each platform (${personaData.platforms.length > 0 ? personaData.platforms.join(', ') : 'Instagram, TikTok, YouTube, Threads, etc.'})
+- Platform-specific voice rules and styles
+- How hooks and CTAs differ by platform
 
 ### 6. Conversion & Momentum
+Explore with me:
 - What actions feel aligned for this persona? (buying, subscribing, reflecting, sharing)
-- How do we invite people to stay in the world longer without feeling salesy?
-- What are 3-5 CTA archetypes that sound like this persona?
-- What seasonal or campaign moments can the persona rally people around?
+- How we invite people to stay in the world longer without feeling salesy
+- 3-5 CTA archetypes that sound like this persona
+- Seasonal or campaign moments where the persona can rally people
 
 ### 7. Aesthetic & Visual Identity
-- What is the visual palette? (colors, mood, style)
-- What subjects or themes appear in visuals?
-- What is the overall aesthetic mood?
+Define together:
+- The visual palette (colors, mood, style)
+- Subjects or themes that appear in visuals
+- The overall aesthetic mood
 
 ### 8. Content Examples & Prompts
-- Provide 5-10 sample prompts that demonstrate this persona's voice
-- Give examples of successful content formats
-- Show how hooks, captions, and CTAs work together
+Create with me:
+- 5-10 sample prompts that demonstrate this persona's voice
+- Examples of successful content formats
+- How hooks, captions, and CTAs work together
 
 ---
 
-**Important:** Answer ALL questions above in one comprehensive response. Be specific, detailed, and practical. I'll use this to train an AI system that generates content automatically in this persona's voice.
+## How to Use This Prompt
 
-Format your response clearly with sections matching the questions above.`;
+1. Copy this entire prompt
+2. Paste it into ChatGPT (GPT-4 recommended) along with any additional context about yourself
+3. ChatGPT will guide you through answering all these questions
+4. Answer each question as ChatGPT asks them
+5. Copy ChatGPT's complete response (your persona blueprint)
+6. Paste it back into the "ChatGPT Response" section below and save
+
+**Important:** Be specific, detailed, and practical in your answers. The more detail you provide, the better the AI will understand your voice and generate authentic content.`;
 
     setGeneratedPrompt(prompt);
   };
@@ -514,26 +531,6 @@ Format your response clearly with sections matching the questions above.`;
       flashStatus({
         type: 'error',
         message: 'Unable to parse JSON. Please validate the syntax and try again.',
-      });
-    }
-  };
-
-  const downloadBlueprint = () => {
-    try {
-      const parsed = JSON.parse(blueprintJSON || JSON.stringify(memoizedBlueprint, null, 2));
-      const blob = new Blob([JSON.stringify(parsed, null, 2)], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${parsed.persona_name || 'persona-blueprint'}.json`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      setBlueprintStatus({ type: 'success', message: 'Blueprint downloaded as JSON.' });
-    } catch (error) {
-      console.error('Blueprint download error:', error);
-      setBlueprintStatus({
-        type: 'error',
-        message: 'Blueprint must be valid JSON before download.',
       });
     }
   };
@@ -886,14 +883,6 @@ Format your response clearly with sections matching the questions above.`;
                       ? 'Save to Persona'
                       : 'Select Persona'}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
-                  onClick={downloadBlueprint}
-                >
-                  Download JSON
-                </Button>
               </div>
             </CardTitle>
             <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -1234,7 +1223,8 @@ Format your response clearly with sections matching the questions above.`;
                         <Textarea
                           value={generatedPrompt}
                           onChange={(e) => setGeneratedPrompt(e.target.value)}
-                          className="h-96 font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
+                          onFocus={(e) => e.target.select()}
+                          className="h-96 font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed select-all"
                           placeholder="Click 'Generate Comprehensive ChatGPT Prompt' to create your prompt..."
                         />
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
