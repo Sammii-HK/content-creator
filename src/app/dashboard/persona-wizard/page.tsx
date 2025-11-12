@@ -87,59 +87,6 @@ const createEmptyPersona = (): PersonaData => ({
   challenges: ''
 });
 
-const guidedPromptPacks: PromptPack[] = [
-  {
-    id: 'brand-essence',
-    title: 'Brand Essence & Story',
-    description: 'Uncover the core story, philosophy, and emotional purpose behind the persona.',
-    prompt: `You're a brand strategist helping me define a digital persona. Ask me smart follow-up questions to understand:
-- The origin story and purpose of the brand/persona
-- The emotional transformation we want the audience to feel
-- The philosophy or point of view that guides the work
-Keep it conversational, one question at a time, and push deeper for real emotional clarity.`
-  },
-  {
-    id: 'audience-lens',
-    title: 'Audience Lens',
-    description: 'Clarify who the persona speaks to, what they need, and where they live digitally.',
-    prompt: `Help me profile the perfect audience for this persona. Ask about:
-- Their lifestyle, values, design taste, and emotional triggers
-- The decisions they struggle with and what they crave right now
-- Where they spend time online and what inspires or annoys them
-Use probing follow-ups to get vivid details I can use in content.`
-  },
-  {
-    id: 'voice-composer',
-    title: 'Voice Composer',
-    description: 'Craft a precise writing voice, pacing, and stylistic rules.',
-    prompt: `Help me document the persona's writing voice. Ask for:
-- Tone descriptors with examples of sentence structures
-- Rules or boundaries (capitalisation, punctuation, line breaks, rhythm)
-- Sample phrases this persona would absolutely say (and wouldn't say)
-Ask step-by-step so we can refine until it feels undeniably on-brand.`
-  },
-  {
-    id: 'content-systems',
-    title: 'Content Systems',
-    description: 'Define pillars, recurring formats, and creative rituals that feel true to the persona.',
-    prompt: `Help me architect content systems for this persona. Ask me about:
-- 3-5 recurring pillars or themes that feel inherent to this persona
-- Signature formats, visuals, or rituals that could become consistent series
-- Stories, processes, or philosophies that get the best engagement
-Guide me to describe each in rich detail that AI can replicate.`
-  },
-  {
-    id: 'conversion-path',
-    title: 'Conversion & Momentum',
-    description: 'Map the path from inspiration to action in a way that fits the persona naturally.',
-    prompt: `We're designing authentic CTAs and momentum builders. Ask questions to reveal:
-- What actions feel aligned for this persona (buying, subscribing, reflecting, sharing)
-- How we invite people to stay in the world longer without feeling salesy
-- Seasonal or campaign moments where the persona can rally people
-Use my answers to outline 3-5 CTA archetypes that sound like this persona.`
-  }
-];
-
 const samplePersonaBlueprint: PersonaBlueprint = {
   persona_name: 'scape²',
   brand_type: 'wearable art and slow fashion',
@@ -255,6 +202,8 @@ export default function PersonaWizard() {
   const [activePersonaName, setActivePersonaName] = useState<string | null>(null);
   const [loadingPersonaBlueprint, setLoadingPersonaBlueprint] = useState(false);
   const [savingBlueprint, setSavingBlueprint] = useState(false);
+  const [chatgptResponse, setChatgptResponse] = useState('');
+  const [savingResponse, setSavingResponse] = useState(false);
 
   const flashStatus = useCallback((payload: { type: 'success' | 'error'; message: string }) => {
     setBlueprintStatus(payload);
@@ -269,44 +218,81 @@ export default function PersonaWizard() {
     setPersonaData(prev => ({ ...prev, [field]: value }));
   };
 
-  const generateChatGPTPrompt = () => {
-    const prompt = `# Digital Persona Creation for ${personaData.name}
+  const generateComprehensivePrompt = () => {
+    const contextParts = [];
+    
+    if (personaData.name) contextParts.push(`**Persona Name:** ${personaData.name}`);
+    if (personaData.niche) contextParts.push(`**Content Niche/Brand Type:** ${personaData.niche}`);
+    if (personaData.expertise) contextParts.push(`**Expertise:** ${personaData.expertise}`);
+    if (personaData.audience) contextParts.push(`**Target Audience:** ${personaData.audience}`);
+    if (personaData.businessGoals) contextParts.push(`**Business Goals:** ${personaData.businessGoals}`);
+    if (personaData.contentStyle) contextParts.push(`**Content Style:** ${personaData.contentStyle}`);
+    if (personaData.brandVoice) contextParts.push(`**Brand Voice:** ${personaData.brandVoice}`);
+    if (personaData.platforms.length > 0) contextParts.push(`**Platforms:** ${personaData.platforms.join(', ')}`);
+    if (personaData.successfulContent) contextParts.push(`**Most Successful Content:** ${personaData.successfulContent}`);
+    if (personaData.challenges) contextParts.push(`**Current Challenges:** ${personaData.challenges}`);
 
-I'm creating an AI-powered content creation system and need help developing a detailed digital persona. Please help me create a comprehensive persona profile based on this information:
+    const prompt = `# Comprehensive Digital Persona Creation
 
-## About Me & My Business
-**Expertise:** ${personaData.expertise}
-**Target Audience:** ${personaData.audience}
-**Business Goals:** ${personaData.businessGoals}
-**Content Niche:** ${personaData.niche}
+I'm building an AI-powered content creation system and need you to help me develop a complete digital persona. I'll provide context about myself and my brand, and I need you to answer ALL the questions below in one comprehensive response.
 
-## Content & Communication Style
-**Content Style:** ${personaData.contentStyle}
-**Brand Voice:** ${personaData.brandVoice}
-**Platforms:** ${personaData.platforms.join(', ')}
+## My Context
+${contextParts.length > 0 ? contextParts.join('\n') : '*No context provided yet - please fill in the form fields above*'}
 
-## Performance Insights
-**Most Successful Content:** ${personaData.successfulContent}
-**Current Challenges:** ${personaData.challenges}
+## Your Task: Answer ALL These Questions
 
-## What I Need From You
+Please provide a detailed response covering ALL of the following areas:
 
-Please create a detailed digital persona profile that includes:
+### 1. Brand Essence & Story
+- What is the origin story and purpose of this brand/persona?
+- What emotional transformation do we want the audience to feel?
+- What philosophy or point of view guides the work?
+- What are the core values?
 
-1. **Voice Characteristics**: How should this persona write and communicate?
-2. **Content Themes**: What topics should this persona focus on?
-3. **Tone Variations**: Different tones for different content types
-4. **Audience Connection**: How to authentically connect with the target audience
-5. **Platform Adaptation**: How to adapt the voice for each platform
-6. **Content Hooks**: Types of opening lines that work for this persona
-7. **Call-to-Actions**: Authentic CTAs that fit this persona's style
-8. **Hashtag Strategy**: Relevant hashtags and tagging approach
-9. **Content Calendar Ideas**: Weekly content themes and posting patterns
-10. **Engagement Strategy**: How this persona should interact with followers
+### 2. Audience Profile
+- Who is the perfect audience for this persona? (lifestyle, values, design taste, emotional triggers)
+- What decisions do they struggle with and what do they crave right now?
+- Where do they spend time online and what inspires or annoys them?
+- What age range, location, and values do they hold?
 
-Please provide specific examples and actionable guidance I can use to train my AI system to create authentic content in this persona's voice.
+### 3. Voice & Communication Style
+- How should this persona write and communicate? (tone descriptors with examples)
+- What are the style rules? (capitalization, punctuation, line breaks, rhythm, sentence length)
+- Provide sample phrases this persona would absolutely say (and wouldn't say)
+- How does the voice adapt for different content types?
 
-Make the response detailed and practical - I'll use this to train an AI system that generates content automatically.`;
+### 4. Content Systems & Pillars
+- What are 3-5 recurring content pillars or themes that feel inherent to this persona?
+- What signature formats, visuals, or rituals could become consistent series?
+- What stories, processes, or philosophies get the best engagement?
+- What content tone keywords should we use?
+
+### 5. Platform Adaptation
+- How should the voice adapt for each platform? (${personaData.platforms.length > 0 ? personaData.platforms.join(', ') : 'Instagram, TikTok, YouTube, Threads, etc.'})
+- What are the platform-specific voice rules and styles?
+- How do hooks and CTAs differ by platform?
+
+### 6. Conversion & Momentum
+- What actions feel aligned for this persona? (buying, subscribing, reflecting, sharing)
+- How do we invite people to stay in the world longer without feeling salesy?
+- What are 3-5 CTA archetypes that sound like this persona?
+- What seasonal or campaign moments can the persona rally people around?
+
+### 7. Aesthetic & Visual Identity
+- What is the visual palette? (colors, mood, style)
+- What subjects or themes appear in visuals?
+- What is the overall aesthetic mood?
+
+### 8. Content Examples & Prompts
+- Provide 5-10 sample prompts that demonstrate this persona's voice
+- Give examples of successful content formats
+- Show how hooks, captions, and CTAs work together
+
+---
+
+**Important:** Answer ALL questions above in one comprehensive response. Be specific, detailed, and practical. I'll use this to train an AI system that generates content automatically in this persona's voice.
+
+Format your response clearly with sections matching the questions above.`;
 
     setGeneratedPrompt(prompt);
   };
@@ -565,6 +551,7 @@ Make the response detailed and practical - I'll use this to train an AI system t
         setActivePersonaName(persona?.name ?? null);
 
         const blueprintPayload = persona?.blueprint;
+        const guidancePromptsPayload = persona?.guidancePrompts;
 
         if (blueprintPayload) {
           const pretty = JSON.stringify(blueprintPayload, null, 2);
@@ -573,20 +560,28 @@ Make the response detailed and practical - I'll use this to train an AI system t
           if (typeof blueprintPayload === 'object' && !Array.isArray(blueprintPayload)) {
             applyBlueprintToForm(blueprintPayload as PersonaBlueprint);
           }
-
-          flashStatus({
-            type: 'success',
-            message: `Loaded ${persona?.name ?? 'persona'} blueprint.`
-          });
         } else {
           setBlueprintJSON('');
           setPersonaData(createEmptyPersona());
           setGeneratedPrompt('');
-          flashStatus({
-            type: 'success',
-            message: `${persona?.name ?? 'This persona'} has no saved blueprint yet.`
-          });
         }
+
+        // Load ChatGPT response if saved
+        if (guidancePromptsPayload && typeof guidancePromptsPayload === 'object') {
+          const guidance = guidancePromptsPayload as Record<string, unknown>;
+          if (typeof guidance.chatgptResponse === 'string') {
+            setChatgptResponse(guidance.chatgptResponse);
+          }
+        } else {
+          setChatgptResponse('');
+        }
+
+        flashStatus({
+          type: 'success',
+          message: blueprintPayload 
+            ? `Loaded ${persona?.name ?? 'persona'} blueprint.`
+            : `${persona?.name ?? 'This persona'} has no saved blueprint yet.`
+        });
       } catch (error) {
         console.error('Failed to load persona blueprint:', error);
         flashStatus({ type: 'error', message: 'Unable to load persona blueprint.' });
@@ -648,10 +643,59 @@ Make the response detailed and practical - I'll use this to train an AI system t
 
   const glassCard = groupedSurface;
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedPrompt);
-    alert('ChatGPT prompt copied to clipboard!');
-  };
+  const handleSaveChatGPTResponse = useCallback(async () => {
+    if (!activePersonaId) {
+      flashStatus({ type: 'error', message: 'Select a persona using the switcher before saving.' });
+      return;
+    }
+
+    if (!chatgptResponse.trim()) {
+      flashStatus({ type: 'error', message: 'Please paste ChatGPT response before saving.' });
+      return;
+    }
+
+    try {
+      setSavingResponse(true);
+
+      let parsedBlueprint: PersonaBlueprint;
+
+      if (blueprintJSON.trim()) {
+        try {
+          parsedBlueprint = JSON.parse(blueprintJSON) as PersonaBlueprint;
+        } catch (error) {
+          throw new Error('Blueprint JSON is invalid. Please fix the syntax before saving.');
+        }
+      } else {
+        parsedBlueprint = memoizedBlueprint;
+      }
+
+      const response = await fetch(`/api/digital-me/personas/${activePersonaId}/blueprint`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blueprint: parsedBlueprint,
+          guidancePrompts: {
+            chatgptResponse: chatgptResponse.trim(),
+            savedAt: new Date().toISOString()
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody?.error || 'Failed to save ChatGPT response.');
+      }
+
+      const payload = await response.json();
+      setActivePersonaName(payload.persona?.name ?? activePersonaName);
+      flashStatus({ type: 'success', message: 'ChatGPT response saved successfully!' });
+    } catch (error) {
+      console.error('Failed to save ChatGPT response:', error);
+      flashStatus({ type: 'error', message: error instanceof Error ? error.message : 'Unable to save response.' });
+    } finally {
+      setSavingResponse(false);
+    }
+  }, [activePersonaId, activePersonaName, blueprintJSON, chatgptResponse, flashStatus, memoizedBlueprint]);
 
   const handleSaveBlueprint = useCallback(async () => {
     if (!activePersonaId) {
@@ -674,12 +718,21 @@ Make the response detailed and practical - I'll use this to train an AI system t
         parsedBlueprint = memoizedBlueprint;
       }
 
+      const guidancePromptsData: Record<string, unknown> = {};
+      if (chatgptResponse.trim()) {
+        guidancePromptsData.chatgptResponse = chatgptResponse.trim();
+        guidancePromptsData.savedAt = new Date().toISOString();
+      }
+      if (contextualPrompts.length > 0) {
+        guidancePromptsData.contextualPrompts = contextualPrompts;
+      }
+
       const response = await fetch(`/api/digital-me/personas/${activePersonaId}/blueprint`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           blueprint: parsedBlueprint,
-          guidancePrompts: contextualPrompts
+          guidancePrompts: Object.keys(guidancePromptsData).length > 0 ? guidancePromptsData : undefined
         })
       });
 
@@ -697,7 +750,7 @@ Make the response detailed and practical - I'll use this to train an AI system t
     } finally {
       setSavingBlueprint(false);
     }
-  }, [activePersonaId, activePersonaName, blueprintJSON, contextualPrompts, flashStatus, memoizedBlueprint]);
+  }, [activePersonaId, activePersonaName, blueprintJSON, chatgptResponse, contextualPrompts, flashStatus, memoizedBlueprint]);
 
   const nextStep = () => {
     if (step < totalSteps) setStep(step + 1);
@@ -842,14 +895,14 @@ Make the response detailed and practical - I'll use this to train an AI system t
               {step === 2 && '👥 Audience & Content'}
               {step === 3 && '🎨 Style & Voice'}
               {step === 4 && '📊 Performance & Goals'}
-              {step === 5 && '🤖 Generate ChatGPT Prompt'}
+              {step === 5 && '🤖 Generate & Save ChatGPT Response'}
             </CardTitle>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {step === 1 && 'Tell us about this persona and their expertise'}
               {step === 2 && 'Who do they create content for and what platforms?'}
               {step === 3 && 'How do they communicate and what\'s their style?'}
               {step === 4 && 'What works well and what are the challenges?'}
-              {step === 5 && 'Review and generate your ChatGPT persona prompt'}
+              {step === 5 && 'Generate one comprehensive prompt and save ChatGPT\'s response'}
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -998,55 +1051,99 @@ Make the response detailed and practical - I'll use this to train an AI system t
 
             {/* Step 5: Generated Prompt */}
             {step === 5 && (
-              <div className="space-y-4">
-                {!generatedPrompt && (
-                  <div className="text-center py-10">
-                    <Button onClick={generateChatGPTPrompt} size="lg" className="rounded-full px-8 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100">
-                      🤖 Generate ChatGPT Prompt
-                    </Button>
-                    <p className="text-slate-600 dark:text-slate-300 text-sm mt-2">
-                      Create a comprehensive prompt with all your context
-                    </p>
-                  </div>
-                )}
-
-                {generatedPrompt && (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Your ChatGPT Persona Prompt</Label>
-                        <Button onClick={copyToClipboard} variant="outline" size="sm" className="rounded-full">
-                          📋 Copy to Clipboard
-                        </Button>
-                      </div>
-                      <Textarea
-                        value={generatedPrompt}
-                        readOnly
-                        className="h-96 font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                      />
-                    </div>
-                    
-                    <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-100/60 dark:bg-slate-950/60 p-4">
-                      <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-2">🚀 How to Use This Prompt:</h4>
-                      <ol className="text-sm space-y-1 list-decimal list-inside text-slate-600 dark:text-slate-300">
-                        <li>Copy the prompt above</li>
-                        <li>Paste it into ChatGPT (GPT-4 recommended)</li>
-                        <li>Get detailed persona insights and guidelines</li>
-                        <li>Come back and paste ChatGPT&apos;s response to train your AI persona</li>
-                        <li>Your AI will learn to create content in this authentic voice</li>
-                      </ol>
-                    </div>
-
-                    <div className="flex space-x-3">
-                      <Button onClick={createPersona} disabled={creating} className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900">
-                        {creating ? 'Creating Persona...' : '✨ Create AI Persona'}
+              <div className="space-y-6">
+                {/* Generate Prompt Section */}
+                <div className="space-y-4">
+                  {!generatedPrompt && (
+                    <div className="text-center py-10">
+                      <Button onClick={generateComprehensivePrompt} size="lg" className="rounded-full px-8 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100">
+                        🤖 Generate Comprehensive ChatGPT Prompt
                       </Button>
-                      <Button onClick={() => setGeneratedPrompt('')} variant="outline" className="rounded-2xl">
+                      <p className="text-slate-600 dark:text-slate-300 text-sm mt-2">
+                        Create one prompt with all your context - answer everything at once
+                      </p>
+                    </div>
+                  )}
+
+                  {generatedPrompt && (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Your Comprehensive ChatGPT Prompt</Label>
+                          <Button onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')} variant="outline" size="sm" className="rounded-full">
+                            📋 Copy to Clipboard
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={generatedPrompt}
+                          onChange={(e) => setGeneratedPrompt(e.target.value)}
+                          className="h-96 font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
+                          placeholder="Click 'Generate Comprehensive ChatGPT Prompt' to create your prompt..."
+                        />
+                      </div>
+                      
+                      <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-100/60 dark:bg-slate-950/60 p-4">
+                        <h4 className="font-medium text-slate-700 dark:text-slate-200 mb-2">🚀 How to Use This Prompt:</h4>
+                        <ol className="text-sm space-y-1 list-decimal list-inside text-slate-600 dark:text-slate-300">
+                          <li>Copy the prompt above</li>
+                          <li>Paste it into ChatGPT (GPT-4 recommended)</li>
+                          <li>Answer all questions in ChatGPT&apos;s response</li>
+                          <li>Copy ChatGPT&apos;s complete response</li>
+                          <li>Paste it in the &quot;ChatGPT Response&quot; section below and save</li>
+                        </ol>
+                      </div>
+
+                      <Button onClick={() => setGeneratedPrompt('')} variant="outline" className="rounded-2xl w-full">
                         🔄 Regenerate Prompt
                       </Button>
                     </div>
+                  )}
+                </div>
+
+                {/* ChatGPT Response Section */}
+                <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">ChatGPT Response (Paste Here)</Label>
+                      {chatgptResponse && (
+                        <Badge variant="secondary" className="rounded-full">
+                          {chatgptResponse.length} characters
+                        </Badge>
+                      )}
+                    </div>
+                    <Textarea
+                      value={chatgptResponse}
+                      onChange={(e) => setChatgptResponse(e.target.value)}
+                      placeholder="Paste ChatGPT's complete response here after answering all the questions..."
+                      className="min-h-[300px] font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      This response will be saved with your persona blueprint for future reference.
+                    </p>
                   </div>
-                )}
+
+                  <div className="flex gap-3">
+                    <Button 
+                      onClick={handleSaveChatGPTResponse} 
+                      disabled={savingResponse || !chatgptResponse.trim() || !activePersonaId}
+                      className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 disabled:opacity-50"
+                    >
+                      {savingResponse ? 'Saving...' : '💾 Save ChatGPT Response'}
+                    </Button>
+                    {!activePersonaId && (
+                      <Badge variant="secondary" className="rounded-full px-4 py-2 self-center">
+                        Select a persona to save
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Create Persona Button */}
+                <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+                  <Button onClick={createPersona} disabled={creating} className="w-full rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900">
+                    {creating ? 'Creating Persona...' : '✨ Create AI Persona'}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1133,34 +1230,6 @@ Make the response detailed and practical - I'll use this to train an AI system t
           </Card>
         )}
 
-        {/* Guided Prompt Packs */}
-        <Card className={cn(glassCard, 'mt-6')}>
-          <CardHeader>
-            <CardTitle className="text-lg text-slate-900 dark:text-slate-50">🧩 Guided Question Prompts</CardTitle>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Drop these prompts into a separate GPT chat to gather richer inputs. Each bundle keeps context and asks smart follow-ups.
-            </p>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            {guidedPromptPacks.map((pack) => (
-              <div key={pack.id} className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4 shadow-sm flex flex-col justify-between">
-                <div>
-                  <h4 className="font-semibold text-slate-800 dark:text-slate-100">{pack.title}</h4>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                    {pack.description}
-                  </p>
-                </div>
-                <Button
-                  variant="secondary"
-                  className="mt-4 rounded-full bg-slate-100/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700"
-                  onClick={() => handleCopy(pack.prompt, `${pack.title} prompt copied`)}
-                >
-                  Copy Prompt
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
 
         {/* Help Card */}
         <Card className={cn(glassCard, 'mt-6 mb-10')}>
