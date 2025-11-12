@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -43,8 +43,20 @@ interface SidebarProviderProps {
 }
 
 export const SidebarProvider: React.FC<SidebarProviderProps> = ({ children }) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      return saved === 'true';
+    }
+    return false;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-collapsed', String(collapsed));
+    }
+  }, [collapsed]);
 
   return (
     <SidebarContext.Provider value={{ collapsed, setCollapsed, mobileOpen, setMobileOpen }}>
@@ -90,12 +102,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       <Link href={item.href} onClick={() => setMobileOpen(false)}>
         <div
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-background-secondary group",
+            "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-background-secondary",
             isActive 
               ? "bg-primary text-primary-foreground shadow-soft hover:bg-primary-hover" 
               : "text-foreground-secondary hover:text-foreground",
             collapsed && "justify-center px-2"
           )}
+          title={collapsed ? item.title : undefined}
         >
           <item.icon className={cn("h-5 w-5 flex-shrink-0", collapsed && "h-6 w-6")} />
           {!collapsed && (
@@ -107,6 +120,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 </span>
               )}
             </>
+          )}
+          {/* Tooltip for collapsed state */}
+          {collapsed && (
+            <div className="pointer-events-none absolute left-full ml-2 z-50 hidden rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 lg:block">
+              {item.title}
+            </div>
           )}
         </div>
       </Link>
@@ -124,9 +143,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       )}
 
       {/* Sidebar */}
-      <div
+      <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-full flex-col border-r border-border bg-background-secondary/50 backdrop-blur-xl transition-all duration-300 ease-in-out lg:z-40",
+          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background/95 backdrop-blur-xl transition-all duration-300 ease-in-out lg:relative lg:z-40",
           collapsed ? "w-16" : "w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           className
@@ -185,7 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             </nav>
           </div>
         </div>
-      </div>
+      </aside>
     </>
   );
 };
@@ -216,17 +235,14 @@ interface MainContentProps {
 }
 
 export const MainContent: React.FC<MainContentProps> = ({ children, className }) => {
-  const { collapsed } = useSidebar();
-
   return (
-    <div
+    <main
       className={cn(
-        "min-h-screen transition-all duration-300 ease-in-out",
-        collapsed ? "lg:ml-16" : "lg:ml-64",
+        "min-h-screen w-full flex-1 transition-all duration-300 ease-in-out",
         className
       )}
     >
       {children}
-    </div>
+    </main>
   );
 };

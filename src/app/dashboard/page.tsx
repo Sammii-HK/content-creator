@@ -70,13 +70,13 @@ export default function Dashboard() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-screen bg-background lg:flex-row">
         <Sidebar />
         
-        <MainContent>
+        <MainContent className="flex flex-col">
           {/* Header */}
-          <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
-            <div className="flex h-16 items-center gap-4 px-6">
+          <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-xl">
+            <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
               <MobileMenuButton />
               
               <div className="flex flex-1 items-center justify-between">
@@ -89,17 +89,17 @@ export default function Dashboard() {
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <Link href="/dashboard/create-images">
                     <Button size="sm">
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Create Images
+                      <Sparkles className="h-4 w-4" />
+                      <span className="hidden sm:inline">Create Images</span>
                     </Button>
                   </Link>
                   <Link href="/dashboard/upload">
                     <Button variant="outline" size="sm">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
+                      <Upload className="h-4 w-4" />
+                      <span className="hidden sm:inline">Upload</span>
                     </Button>
                   </Link>
                 </div>
@@ -190,82 +190,82 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <Link href="/dashboard/upload">
-                <Card className="group cursor-pointer transition-all duration-200 hover:shadow-elevated">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Link href="/dashboard/upload" className="block">
+                <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]">
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-4">
+                    <div className="flex flex-col gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                         <Upload className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground">Upload Videos</h3>
+                        <h3 className="mb-1 text-lg font-semibold text-foreground">Upload Videos</h3>
                         <p className="text-sm text-foreground-muted">Add to your library</p>
                       </div>
-                    </div>
-                    <div className="flex items-center text-sm font-medium text-primary">
-                      Get started
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <Button variant="ghost" size="sm" className="w-fit -ml-2 group-hover:text-primary">
+                        Get started
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               </Link>
 
-              <Link href="/dashboard/content">
-                <Card className="group cursor-pointer transition-all duration-200 hover:shadow-elevated">
+              <Link href="/dashboard/content" className="block">
+                <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]">
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-4">
+                    <div className="flex flex-col gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10 text-success group-hover:bg-success group-hover:text-success-foreground transition-colors">
                         <Scissors className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground">Create Segments</h3>
+                        <h3 className="mb-1 text-lg font-semibold text-foreground">Create Segments</h3>
                         <p className="text-sm text-foreground-muted">Break videos into clips</p>
                       </div>
-                    </div>
-                    <div className="flex items-center text-sm font-medium text-success">
-                      Start editing
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <Button variant="ghost" size="sm" className="w-fit -ml-2 group-hover:text-success">
+                        Start editing
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               </Link>
 
-              <Link href="/dashboard/create-images">
-                <Card className="group cursor-pointer transition-all duration-200 hover:shadow-elevated">
+              <Link href="/dashboard/create-images" className="block">
+                <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]">
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-4">
+                    <div className="flex flex-col gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10 text-warning group-hover:bg-warning group-hover:text-warning-foreground transition-colors">
                         <Palette className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground">AI Images</h3>
+                        <h3 className="mb-1 text-lg font-semibold text-foreground">AI Images</h3>
                         <p className="text-sm text-foreground-muted">Generate professional photos</p>
                       </div>
-                    </div>
-                    <div className="flex items-center text-sm font-medium text-warning">
-                      Create images
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <Button variant="ghost" size="sm" className="w-fit -ml-2 group-hover:text-warning">
+                        Create images
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               </Link>
 
-              <Link href="/dashboard/ai-usage">
-                <Card className="group cursor-pointer transition-all duration-200 hover:shadow-elevated">
+              <Link href="/dashboard/ai-usage" className="block">
+                <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]">
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-4">
+                    <div className="flex flex-col gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                         <BarChart3 className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground">AI Usage</h3>
+                        <h3 className="mb-1 text-lg font-semibold text-foreground">AI Usage</h3>
                         <p className="text-sm text-foreground-muted">Monitor costs & credits</p>
                       </div>
-                    </div>
-                    <div className="flex items-center text-sm font-medium text-primary">
-                      View usage
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <Button variant="ghost" size="sm" className="w-fit -ml-2 group-hover:text-primary">
+                        View usage
+                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -294,7 +294,7 @@ export default function Dashboard() {
                     </p>
                     <Link href="/dashboard/upload">
                       <Button size="lg">
-                        <Upload className="mr-2 h-5 w-5" />
+                        <Upload className="h-5 w-5" />
                         Upload Your First Video
                       </Button>
                     </Link>
@@ -357,30 +357,38 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <Link href="/dashboard/persona-wizard">
-                      <div className="flex items-center gap-4 rounded-lg border border-dashed border-border p-4 transition-colors hover:bg-background-secondary">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                          <Sparkles className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">Create New Persona</h3>
-                          <p className="text-sm text-foreground-muted">Build AI that matches your voice</p>
-                        </div>
-                        <ArrowRight className="ml-auto h-4 w-4 text-foreground-muted" />
-                      </div>
+                    <Link href="/dashboard/persona-wizard" className="block">
+                      <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.01] active:scale-[0.99]">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                              <Sparkles className="h-6 w-6 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-foreground">Create New Persona</h3>
+                              <p className="text-sm text-foreground-muted">Build AI that matches your voice</p>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-foreground-muted transition-transform group-hover:translate-x-1" />
+                          </div>
+                        </CardContent>
+                      </Card>
                     </Link>
                     
-                    <Link href="/dashboard/personas/management">
-                      <div className="flex items-center gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-background-secondary">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
-                          <Brain className="h-6 w-6 text-success" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">Manage Personas</h3>
-                          <p className="text-sm text-foreground-muted">Train and configure AI voices</p>
-                        </div>
-                        <ArrowRight className="ml-auto h-4 w-4 text-foreground-muted" />
-                      </div>
+                    <Link href="/dashboard/personas/management" className="block">
+                      <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.01] active:scale-[0.99]">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10 group-hover:bg-success/20 transition-colors">
+                              <Brain className="h-6 w-6 text-success" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-foreground">Manage Personas</h3>
+                              <p className="text-sm text-foreground-muted">Train and configure AI voices</p>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-foreground-muted transition-transform group-hover:translate-x-1" />
+                          </div>
+                        </CardContent>
+                      </Card>
                     </Link>
                   </div>
                 </CardContent>

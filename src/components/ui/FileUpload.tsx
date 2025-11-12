@@ -7,6 +7,7 @@ import clsx from 'clsx';
 
 interface FileUploadProps {
   onUpload: (file: File, metadata: any) => Promise<void>;
+  onFileSelect?: (file: File) => void;
   accept?: string;
   maxSize?: number; // in MB
   className?: string;
@@ -14,6 +15,7 @@ interface FileUploadProps {
 
 export default function FileUpload({ 
   onUpload, 
+  onFileSelect,
   accept = "video/*", 
   maxSize = 100,
   className 
@@ -76,6 +78,10 @@ export default function FileUpload({
   };
 
   const handleFileSelect = async (file: File) => {
+    // Call onFileSelect callback if provided
+    if (onFileSelect) {
+      onFileSelect(file);
+    }
     console.log('File selected:', {
       name: file.name,
       type: file.type,

@@ -68,7 +68,16 @@ interface PromptPack {
   tone?: string;
 }
 
-const PLATFORM_OPTIONS = ['Instagram', 'TikTok', 'YouTube', 'Threads', 'Pinterest', 'Newsletter', 'Website', 'LinkedIn'];
+const PLATFORM_OPTIONS = [
+  'Instagram',
+  'TikTok',
+  'YouTube',
+  'Threads',
+  'Pinterest',
+  'Newsletter',
+  'Website',
+  'LinkedIn',
+];
 const STORAGE_KEY = 'ai-persona-wizard-blueprint';
 
 const groupedSurface =
@@ -84,7 +93,7 @@ const createEmptyPersona = (): PersonaData => ({
   brandVoice: '',
   platforms: [],
   successfulContent: '',
-  challenges: ''
+  challenges: '',
 });
 
 const samplePersonaBlueprint: PersonaBlueprint = {
@@ -96,7 +105,7 @@ const samplePersonaBlueprint: PersonaBlueprint = {
     medium: 'art photography printed on clothing',
     materials: 'organic cotton Stanley and Stella base garments',
     production: 'made to order, slow fashion, locally printed',
-    philosophy: "to look at something you've seen a thousand times before and see it differently"
+    philosophy: "to look at something you've seen a thousand times before and see it differently",
   },
   values: [
     'slow fashion',
@@ -105,20 +114,20 @@ const samplePersonaBlueprint: PersonaBlueprint = {
     'organic materials',
     'ethical craftsmanship',
     'minimalism',
-    'artistic integrity'
+    'artistic integrity',
   ],
   aesthetic: {
     palette: 'black and white only',
     style: 'minimal, bold, reflective',
     subjects: ['flowerscapes', 'naturescapes', 'landscapes', 'urbanscapes', 'skyscapes'],
-    mood: 'stillness, depth, perspective, mindfulness'
+    mood: 'stillness, depth, perspective, mindfulness',
   },
   audience: {
     profile:
       'design aware consumers, creatives, and conscious buyers who value meaning, simplicity, and authenticity',
     age_range: '20 to 40',
     values: ['sustainability', 'design', 'authenticity', 'craft'],
-    location: 'urban, global'
+    location: 'urban, global',
   },
   voice: {
     tone: 'grounded, reflective, minimal, poetic but clear',
@@ -126,36 +135,37 @@ const samplePersonaBlueprint: PersonaBlueprint = {
       capitalisation: 'sentence case only',
       no_em_dashes: true,
       sentence_length: 'short to medium for rhythm',
-      line_breaks: 'use double line spacing for pacing and visual calm'
+      line_breaks: 'use double line spacing for pacing and visual calm',
     },
     example_phrasing: [
       'a photograph of the sky becomes a moment you can wear.',
       'each scape² piece is made slowly, printed locally, and created to last.',
       'minimalism is not emptiness, it is space for meaning.',
-      'wear what you want to remember.'
-    ]
+      'wear what you want to remember.',
+    ],
   },
   content_pillars: [
     {
       name: 'Art and storytelling',
-      focus: 'explore the meaning or inspiration behind each scape'
+      focus: 'explore the meaning or inspiration behind each scape',
     },
     {
       name: 'Process and craft',
-      focus: 'show slow fashion, local printing, and ethical production'
+      focus: 'show slow fashion, local printing, and ethical production',
     },
     {
       name: 'Visual worlds',
-      focus: 'showcase scapes as visual meditations using still, minimal imagery'
+      focus: 'showcase scapes as visual meditations using still, minimal imagery',
     },
     {
       name: 'Sustainability and values',
-      focus: 'educate gently on organic cotton, fair production, and conscious creation'
+      focus: 'educate gently on organic cotton, fair production, and conscious creation',
     },
     {
       name: 'Philosophy of seeing',
-      focus: 'share reflective thoughts on perspective, stillness, and finding beauty in what is often overlooked'
-    }
+      focus:
+        'share reflective thoughts on perspective, stillness, and finding beauty in what is often overlooked',
+    },
   ],
   content_tone_keywords: [
     'minimal',
@@ -165,30 +175,30 @@ const samplePersonaBlueprint: PersonaBlueprint = {
     'quiet strength',
     'artistic',
     'ethical',
-    'timeless'
+    'timeless',
   ],
   platform_adaptations: {
     tiktok: {
       hook_style: 'lowercase poetic lines ending positively',
       voice: 'personal, intimate, visual',
-      cta: "encourage reflection or emotional connection such as 'if this makes you pause, leave a 🌿'"
+      cta: "encourage reflection or emotional connection such as 'if this makes you pause, leave a 🌿'",
     },
     instagram: {
       voice: 'editorial, serene, aesthetic driven',
-      focus: 'mood and composition of scapes with captions that read like short reflections'
+      focus: 'mood and composition of scapes with captions that read like short reflections',
     },
     threads_or_x: {
       voice: 'clear, contemplative, conversation starting',
-      style: 'sentence case, short reflections or behind the art insights'
-    }
+      style: 'sentence case, short reflections or behind the art insights',
+    },
   },
   sample_prompts: [
     'write an instagram caption about finding beauty in the ordinary through black and white photography',
     'create a tiktok post describing the process of turning a photograph into wearable art, focusing on slow fashion',
     'write a short reflective thread about how perspective changes what we see in nature and art',
     'create a caption introducing the concept of wearable art and why every scape² piece is made to order',
-    'write a reflective paragraph about what it means to see something familiar from a new angle'
-  ]
+    'write a reflective paragraph about what it means to see something familiar from a new angle',
+  ],
 };
 
 export default function PersonaWizard() {
@@ -197,7 +207,10 @@ export default function PersonaWizard() {
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [creating, setCreating] = useState(false);
   const [blueprintJSON, setBlueprintJSON] = useState('');
-  const [blueprintStatus, setBlueprintStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [blueprintStatus, setBlueprintStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const [activePersonaName, setActivePersonaName] = useState<string | null>(null);
   const [loadingPersonaBlueprint, setLoadingPersonaBlueprint] = useState(false);
@@ -215,22 +228,27 @@ export default function PersonaWizard() {
   const totalSteps = 5;
 
   const updatePersonaData = (field: keyof PersonaData, value: string | string[]) => {
-    setPersonaData(prev => ({ ...prev, [field]: value }));
+    setPersonaData((prev) => ({ ...prev, [field]: value }));
   };
 
   const generateComprehensivePrompt = () => {
     const contextParts = [];
-    
+
     if (personaData.name) contextParts.push(`**Persona Name:** ${personaData.name}`);
     if (personaData.niche) contextParts.push(`**Content Niche/Brand Type:** ${personaData.niche}`);
     if (personaData.expertise) contextParts.push(`**Expertise:** ${personaData.expertise}`);
     if (personaData.audience) contextParts.push(`**Target Audience:** ${personaData.audience}`);
-    if (personaData.businessGoals) contextParts.push(`**Business Goals:** ${personaData.businessGoals}`);
-    if (personaData.contentStyle) contextParts.push(`**Content Style:** ${personaData.contentStyle}`);
+    if (personaData.businessGoals)
+      contextParts.push(`**Business Goals:** ${personaData.businessGoals}`);
+    if (personaData.contentStyle)
+      contextParts.push(`**Content Style:** ${personaData.contentStyle}`);
     if (personaData.brandVoice) contextParts.push(`**Brand Voice:** ${personaData.brandVoice}`);
-    if (personaData.platforms.length > 0) contextParts.push(`**Platforms:** ${personaData.platforms.join(', ')}`);
-    if (personaData.successfulContent) contextParts.push(`**Most Successful Content:** ${personaData.successfulContent}`);
-    if (personaData.challenges) contextParts.push(`**Current Challenges:** ${personaData.challenges}`);
+    if (personaData.platforms.length > 0)
+      contextParts.push(`**Platforms:** ${personaData.platforms.join(', ')}`);
+    if (personaData.successfulContent)
+      contextParts.push(`**Most Successful Content:** ${personaData.successfulContent}`);
+    if (personaData.challenges)
+      contextParts.push(`**Current Challenges:** ${personaData.challenges}`);
 
     const prompt = `# Comprehensive Digital Persona Creation
 
@@ -309,8 +327,8 @@ Format your response clearly with sections matching the questions above.`;
           body: `${personaData.successfulContent.slice(0, 200)}...`,
           caption: `Expert insights on ${personaData.niche}`,
           tags: [personaData.niche.toLowerCase(), 'content', 'expert'],
-          engagement: 85.5
-        }
+          engagement: 85.5,
+        },
       ];
 
       const response = await fetch('/api/digital-me/personas', {
@@ -320,8 +338,8 @@ Format your response clearly with sections matching the questions above.`;
           name: personaData.name,
           description: personaData.expertise,
           niche: personaData.niche,
-          samples: sampleExamples
-        })
+          samples: sampleExamples,
+        }),
       });
 
       if (!response.ok) {
@@ -330,18 +348,21 @@ Format your response clearly with sections matching the questions above.`;
       }
 
       const result = await response.json();
-      
+
       // Set the active persona to the newly created one
       setActivePersonaId(result.persona.id);
-      
-      alert(`Persona "${personaData.name}" created successfully! You can now configure its blueprint and add more examples.`);
-      
+
+      alert(
+        `Persona "${personaData.name}" created successfully! You can now configure its blueprint and add more examples.`
+      );
+
       // Move to step 3 to configure the blueprint
       setStep(3);
-      
     } catch (error) {
       console.error('Failed to create persona:', error);
-      alert(`Failed to create persona: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `Failed to create persona: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     } finally {
       setCreating(false);
     }
@@ -377,17 +398,20 @@ Format your response clearly with sections matching the questions above.`;
           }
         : undefined,
       content_pillars: personaData.successfulContent
-        ? personaData.successfulContent.split('\n').filter(Boolean).map((line, index) => {
-            const [name, ...rest] = line.split(':');
-            return {
-              name: name?.trim() || `Pillar ${index + 1}`,
-              focus: rest.join(':').trim() || 'Focus to be detailed',
-            };
-          })
+        ? personaData.successfulContent
+            .split('\n')
+            .filter(Boolean)
+            .map((line, index) => {
+              const [name, ...rest] = line.split(':');
+              return {
+                name: name?.trim() || `Pillar ${index + 1}`,
+                focus: rest.join(':').trim() || 'Focus to be detailed',
+              };
+            })
         : undefined,
       sample_prompts: personaData.challenges
         ? personaData.challenges.split('\n').filter(Boolean)
-        : undefined
+        : undefined,
     };
   }, [personaData]);
 
@@ -396,7 +420,7 @@ Format your response clearly with sections matching the questions above.`;
       return;
     }
 
-    setPersonaData(prev => {
+    setPersonaData((prev) => {
       const current = { ...createEmptyPersona(), ...prev };
 
       const expertiseLines = [
@@ -404,7 +428,9 @@ Format your response clearly with sections matching the questions above.`;
         incoming.core_identity?.medium ? `Medium: ${incoming.core_identity.medium}` : '',
         incoming.core_identity?.materials ? `Materials: ${incoming.core_identity.materials}` : '',
         incoming.core_identity?.production ? `Process: ${incoming.core_identity.production}` : '',
-        incoming.core_identity?.philosophy ? `Philosophy: ${incoming.core_identity.philosophy}` : ''
+        incoming.core_identity?.philosophy
+          ? `Philosophy: ${incoming.core_identity.philosophy}`
+          : '',
       ]
         .filter(Boolean)
         .join('\n');
@@ -413,8 +439,10 @@ Format your response clearly with sections matching the questions above.`;
         ? [
             incoming.audience.profile,
             incoming.audience.age_range ? `Age: ${incoming.audience.age_range}` : '',
-            incoming.audience.values?.length ? `Values: ${incoming.audience.values.join(', ')}` : '',
-            incoming.audience.location ? `Location: ${incoming.audience.location}` : ''
+            incoming.audience.values?.length
+              ? `Values: ${incoming.audience.values.join(', ')}`
+              : '',
+            incoming.audience.location ? `Location: ${incoming.audience.location}` : '',
           ]
             .filter(Boolean)
             .join('\n')
@@ -424,7 +452,9 @@ Format your response clearly with sections matching the questions above.`;
         incoming.aesthetic?.style,
         incoming.aesthetic?.palette ? `Palette: ${incoming.aesthetic.palette}` : '',
         incoming.aesthetic?.mood ? `Mood: ${incoming.aesthetic.mood}` : '',
-        incoming.content_tone_keywords?.length ? `Keywords: ${incoming.content_tone_keywords.join(', ')}` : ''
+        incoming.content_tone_keywords?.length
+          ? `Keywords: ${incoming.content_tone_keywords.join(', ')}`
+          : '',
       ]
         .filter(Boolean)
         .join('\n');
@@ -432,10 +462,12 @@ Format your response clearly with sections matching the questions above.`;
       const brandVoiceBlock = incoming.voice
         ? [
             incoming.voice.tone ? `Tone: ${incoming.voice.tone}` : '',
-            incoming.voice.style_rules ? `Style Rules: ${JSON.stringify(incoming.voice.style_rules, null, 2)}` : '',
+            incoming.voice.style_rules
+              ? `Style Rules: ${JSON.stringify(incoming.voice.style_rules, null, 2)}`
+              : '',
             incoming.voice.example_phrasing?.length
               ? `Example phrasing:\n- ${incoming.voice.example_phrasing.join('\n- ')}`
-              : ''
+              : '',
           ]
             .filter(Boolean)
             .join('\n\n')
@@ -446,10 +478,12 @@ Format your response clearly with sections matching the questions above.`;
         : current.businessGoals;
 
       const successfulContentBlock = incoming.content_pillars
-        ? incoming.content_pillars.map(pillar => `${pillar.name}: ${pillar.focus}`).join('\n')
+        ? incoming.content_pillars.map((pillar) => `${pillar.name}: ${pillar.focus}`).join('\n')
         : current.successfulContent;
 
-      const challengesBlock = incoming.sample_prompts ? incoming.sample_prompts.join('\n') : current.challenges;
+      const challengesBlock = incoming.sample_prompts
+        ? incoming.sample_prompts.join('\n')
+        : current.challenges;
 
       return {
         ...current,
@@ -462,7 +496,7 @@ Format your response clearly with sections matching the questions above.`;
         brandVoice: brandVoiceBlock,
         platforms: Object.keys(incoming.platform_adaptations || {}),
         successfulContent: successfulContentBlock,
-        challenges: challengesBlock
+        challenges: challengesBlock,
       };
     });
   }, []);
@@ -473,13 +507,13 @@ Format your response clearly with sections matching the questions above.`;
       applyBlueprintToForm(parsed);
       flashStatus({
         type: 'success',
-        message: 'Persona blueprint imported and synced with the wizard.'
+        message: 'Persona blueprint imported and synced with the wizard.',
       });
     } catch (error) {
       console.error('Blueprint parse error:', error);
       flashStatus({
         type: 'error',
-        message: 'Unable to parse JSON. Please validate the syntax and try again.'
+        message: 'Unable to parse JSON. Please validate the syntax and try again.',
       });
     }
   };
@@ -497,7 +531,10 @@ Format your response clearly with sections matching the questions above.`;
       setBlueprintStatus({ type: 'success', message: 'Blueprint downloaded as JSON.' });
     } catch (error) {
       console.error('Blueprint download error:', error);
-      setBlueprintStatus({ type: 'error', message: 'Blueprint must be valid JSON before download.' });
+      setBlueprintStatus({
+        type: 'error',
+        message: 'Blueprint must be valid JSON before download.',
+      });
     }
   };
 
@@ -534,7 +571,7 @@ Format your response clearly with sections matching the questions above.`;
         const response = await fetch(`/api/digital-me/personas/${personaId}/blueprint`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          cache: 'no-store'
+          cache: 'no-store',
         });
 
         if (!response.ok) {
@@ -578,9 +615,9 @@ Format your response clearly with sections matching the questions above.`;
 
         flashStatus({
           type: 'success',
-          message: blueprintPayload 
+          message: blueprintPayload
             ? `Loaded ${persona?.name ?? 'persona'} blueprint.`
-            : `${persona?.name ?? 'This persona'} has no saved blueprint yet.`
+            : `${persona?.name ?? 'This persona'} has no saved blueprint yet.`,
         });
       } catch (error) {
         console.error('Failed to load persona blueprint:', error);
@@ -605,7 +642,7 @@ Format your response clearly with sections matching the questions above.`;
       personaData.name ? `${personaData.name} is` : '',
       personaData.niche,
       personaData.audience ? `for ${personaData.audience.split('\n')[0]}` : '',
-      personaData.brandVoice ? `with a voice that is ${personaData.brandVoice.split('\n')[0]}` : ''
+      personaData.brandVoice ? `with a voice that is ${personaData.brandVoice.split('\n')[0]}` : '',
     ]
       .filter(Boolean)
       .join(' ');
@@ -624,20 +661,20 @@ Format your response clearly with sections matching the questions above.`;
         id: 'context-bridge',
         title: 'Context Bridge Prompt',
         description: 'Load this persona into a fresh chat before asking for content.',
-        prompt: `You are helping me craft content for a persona. Memorise this JSON blueprint and acknowledge once you fully understand it.\n\n${blueprintString}\n\nWhen you understand, reply with: "ready for prompts as ${memoizedSummary}" and wait for my requests.`
+        prompt: `You are helping me craft content for a persona. Memorise this JSON blueprint and acknowledge once you fully understand it.\n\n${blueprintString}\n\nWhen you understand, reply with: "ready for prompts as ${memoizedSummary}" and wait for my requests.`,
       },
       {
         id: 'intake-interview',
         title: 'Persona Intake Interview',
         description: 'Gather any missing details, referencing the current blueprint.',
-        prompt: `Review the following persona blueprint and then ask me focused questions to fill gaps. Prioritise tone, emotional triggers, and content rituals we haven't detailed.\n\n${blueprintString}\n\nAsk one question at a time, referencing specifics so it feels collaborative.`
+        prompt: `Review the following persona blueprint and then ask me focused questions to fill gaps. Prioritise tone, emotional triggers, and content rituals we haven't detailed.\n\n${blueprintString}\n\nAsk one question at a time, referencing specifics so it feels collaborative.`,
       },
       {
         id: 'content-drafting',
         title: 'Content Drafting Companion',
         description: 'Give the persona to another chat and request new content instantly.',
-        prompt: `You are writing as ${memoizedSummary}\n\nPersona blueprint:\n${blueprintString}\n\nWhen I give you a brief, respond in this exact persona voice. Offer 3 variants at different energy levels (soft / balanced / bold) unless I specify otherwise.`
-      }
+        prompt: `You are writing as ${memoizedSummary}\n\nPersona blueprint:\n${blueprintString}\n\nWhen I give you a brief, respond in this exact persona voice. Offer 3 variants at different energy levels (soft / balanced / bold) unless I specify otherwise.`,
+      },
     ];
   }, [memoizedBlueprint, memoizedSummary]);
 
@@ -676,9 +713,9 @@ Format your response clearly with sections matching the questions above.`;
           blueprint: parsedBlueprint,
           guidancePrompts: {
             chatgptResponse: chatgptResponse.trim(),
-            savedAt: new Date().toISOString()
-          }
-        })
+            savedAt: new Date().toISOString(),
+          },
+        }),
       });
 
       if (!response.ok) {
@@ -691,11 +728,21 @@ Format your response clearly with sections matching the questions above.`;
       flashStatus({ type: 'success', message: 'ChatGPT response saved successfully!' });
     } catch (error) {
       console.error('Failed to save ChatGPT response:', error);
-      flashStatus({ type: 'error', message: error instanceof Error ? error.message : 'Unable to save response.' });
+      flashStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unable to save response.',
+      });
     } finally {
       setSavingResponse(false);
     }
-  }, [activePersonaId, activePersonaName, blueprintJSON, chatgptResponse, flashStatus, memoizedBlueprint]);
+  }, [
+    activePersonaId,
+    activePersonaName,
+    blueprintJSON,
+    chatgptResponse,
+    flashStatus,
+    memoizedBlueprint,
+  ]);
 
   const handleSaveBlueprint = useCallback(async () => {
     if (!activePersonaId) {
@@ -732,8 +779,9 @@ Format your response clearly with sections matching the questions above.`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           blueprint: parsedBlueprint,
-          guidancePrompts: Object.keys(guidancePromptsData).length > 0 ? guidancePromptsData : undefined
-        })
+          guidancePrompts:
+            Object.keys(guidancePromptsData).length > 0 ? guidancePromptsData : undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -746,11 +794,22 @@ Format your response clearly with sections matching the questions above.`;
       flashStatus({ type: 'success', message: 'Persona blueprint saved.' });
     } catch (error) {
       console.error('Failed to save persona blueprint:', error);
-      flashStatus({ type: 'error', message: error instanceof Error ? error.message : 'Unable to save blueprint.' });
+      flashStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unable to save blueprint.',
+      });
     } finally {
       setSavingBlueprint(false);
     }
-  }, [activePersonaId, activePersonaName, blueprintJSON, chatgptResponse, contextualPrompts, flashStatus, memoizedBlueprint]);
+  }, [
+    activePersonaId,
+    activePersonaName,
+    blueprintJSON,
+    chatgptResponse,
+    contextualPrompts,
+    flashStatus,
+    memoizedBlueprint,
+  ]);
 
   const nextStep = () => {
     if (step < totalSteps) setStep(step + 1);
@@ -766,12 +825,20 @@ Format your response clearly with sections matching the questions above.`;
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/dashboard/personas">
-            <Button variant="outline" className="rounded-full border-slate-200 bg-white/80 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-700">← Back to Personas</Button>
+            <Button
+              variant="outline"
+              className="rounded-full border-slate-200 bg-white/80 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-700"
+            >
+              ← Back to Personas
+            </Button>
           </Link>
           <div className="text-right">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">🧙‍♂️ AI Persona Blueprint Wizard</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              🧙‍♂️ AI Persona Blueprint Wizard
+            </h1>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Design personas you can reuse across AI tools, with JSON blueprints, guided prompts, and export options.
+              Design personas you can reuse across AI tools, with JSON blueprints, guided prompts,
+              and export options.
             </p>
           </div>
         </div>
@@ -792,13 +859,18 @@ Format your response clearly with sections matching the questions above.`;
                     applyBlueprintToForm(samplePersonaBlueprint);
                     flashStatus({
                       type: 'success',
-                      message: 'Loaded scape² sample blueprint into the workspace.'
+                      message: 'Loaded scape² sample blueprint into the workspace.',
                     });
                   }}
                 >
                   Load Example
                 </Button>
-                <Button variant="outline" size="sm" className="rounded-full" onClick={applyBlueprint}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={applyBlueprint}
+                >
                   Import JSON
                 </Button>
                 <Button
@@ -808,15 +880,25 @@ Format your response clearly with sections matching the questions above.`;
                   className="rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100"
                   onClick={handleSaveBlueprint}
                 >
-                  {savingBlueprint ? 'Saving…' : activePersonaId ? 'Save to Persona' : 'Select Persona'}
+                  {savingBlueprint
+                    ? 'Saving…'
+                    : activePersonaId
+                      ? 'Save to Persona'
+                      : 'Select Persona'}
                 </Button>
-                <Button variant="outline" size="sm" className="rounded-full border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800" onClick={downloadBlueprint}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+                  onClick={downloadBlueprint}
+                >
                   Download JSON
                 </Button>
               </div>
             </CardTitle>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              Paste a persona blueprint (like the example you shared) to override the wizard, or edit inline and export when you&apos;re happy.
+              Paste a persona blueprint (like the example you shared) to override the wizard, or
+              edit inline and export when you&apos;re happy.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 p-6">
@@ -830,16 +912,22 @@ Format your response clearly with sections matching the questions above.`;
                     </span>
                   </span>
                   {loadingPersonaBlueprint ? (
-                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">Refreshing persona data…</span>
+                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">
+                      Refreshing persona data…
+                    </span>
                   ) : (
-                    <Badge variant="secondary" className="rounded-full bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-200">
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-200"
+                    >
                       Synced with account persona
                     </Badge>
                   )}
                 </>
               ) : (
                 <span className="w-full rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200 px-4 py-2">
-                  No persona selected. Use the persona switcher at the top of the dashboard to link this wizard to an account persona.
+                  No persona selected. Use the persona switcher at the top of the dashboard to link
+                  this wizard to an account persona.
                 </span>
               )}
             </div>
@@ -862,10 +950,16 @@ Format your response clearly with sections matching the questions above.`;
               </div>
             )}
             <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <Badge variant="secondary" className="rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/80">
+              <Badge
+                variant="secondary"
+                className="rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/80"
+              >
                 Autosaves to browser
               </Badge>
-              <Badge variant="secondary" className="rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/80">
+              <Badge
+                variant="secondary"
+                className="rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/80"
+              >
                 Import to populate the wizard instantly
               </Badge>
             </div>
@@ -875,14 +969,19 @@ Format your response clearly with sections matching the questions above.`;
         {/* Progress */}
         <div className="rounded-3xl border border-white/60 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/70 backdrop-blur p-4 shadow-lg">
           <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Step {step} of {totalSteps}</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Step {step} of {totalSteps}
+            </span>
             <div className="flex-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-full h-2 overflow-hidden">
-              <div 
+              <div
                 className="bg-slate-900 dark:bg-slate-200 rounded-full h-2 transition-all"
                 style={{ width: `${(step / totalSteps) * 100}%` }}
               />
             </div>
-            <Badge variant="outline" className="rounded-full border-slate-300/70 dark:border-slate-700/60 px-3 py-1 text-xs text-slate-600 dark:text-slate-300">
+            <Badge
+              variant="outline"
+              className="rounded-full border-slate-300/70 dark:border-slate-700/60 px-3 py-1 text-xs text-slate-600 dark:text-slate-300"
+            >
               Guided wizard + JSON blueprint mode
             </Badge>
           </div>
@@ -900,9 +999,9 @@ Format your response clearly with sections matching the questions above.`;
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {step === 1 && 'Tell us about this persona and their expertise'}
               {step === 2 && 'Who do they create content for and what platforms?'}
-              {step === 3 && 'How do they communicate and what\'s their style?'}
+              {step === 3 && "How do they communicate and what's their style?"}
               {step === 4 && 'What works well and what are the challenges?'}
-              {step === 5 && 'Generate one comprehensive prompt and save ChatGPT\'s response'}
+              {step === 5 && "Generate one comprehensive prompt and save ChatGPT's response"}
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -910,7 +1009,12 @@ Format your response clearly with sections matching the questions above.`;
             {step === 1 && (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="name" className="text-sm font-medium text-slate-700 dark:text-slate-200">Persona Name</Label>
+                  <Label
+                    htmlFor="name"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Persona Name
+                  </Label>
                   <Input
                     id="name"
                     value={personaData.name}
@@ -920,7 +1024,12 @@ Format your response clearly with sections matching the questions above.`;
                   />
                 </div>
                 <div>
-                  <Label htmlFor="niche" className="text-sm font-medium text-slate-700 dark:text-slate-200">Content Niche / Brand Type</Label>
+                  <Label
+                    htmlFor="niche"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Content Niche / Brand Type
+                  </Label>
                   <Input
                     id="niche"
                     value={personaData.niche}
@@ -930,7 +1039,12 @@ Format your response clearly with sections matching the questions above.`;
                   />
                 </div>
                 <div>
-                  <Label htmlFor="expertise" className="text-sm font-medium text-slate-700 dark:text-slate-200">Your Expertise</Label>
+                  <Label
+                    htmlFor="expertise"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Your Expertise
+                  </Label>
                   <Textarea
                     id="expertise"
                     value={personaData.expertise}
@@ -946,7 +1060,12 @@ Format your response clearly with sections matching the questions above.`;
             {step === 2 && (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="audience" className="text-sm font-medium text-slate-700 dark:text-slate-200">Target Audience</Label>
+                  <Label
+                    htmlFor="audience"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Target Audience
+                  </Label>
                   <Textarea
                     id="audience"
                     value={personaData.audience}
@@ -956,7 +1075,9 @@ Format your response clearly with sections matching the questions above.`;
                   />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Primary Platforms</Label>
+                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Primary Platforms
+                  </Label>
                   <div className="flex flex-wrap gap-2">
                     {PLATFORM_OPTIONS.map((platform) => {
                       const isActive = personaData.platforms.includes(platform);
@@ -973,7 +1094,7 @@ Format your response clearly with sections matching the questions above.`;
                           )}
                           onClick={() => {
                             const platforms = isActive
-                              ? personaData.platforms.filter(p => p !== platform)
+                              ? personaData.platforms.filter((p) => p !== platform)
                               : [...personaData.platforms, platform];
                             updatePersonaData('platforms', platforms);
                           }}
@@ -985,7 +1106,12 @@ Format your response clearly with sections matching the questions above.`;
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="contentStyle" className="text-sm font-medium text-slate-700 dark:text-slate-200">Content Style</Label>
+                  <Label
+                    htmlFor="contentStyle"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Content Style
+                  </Label>
                   <Textarea
                     id="contentStyle"
                     value={personaData.contentStyle}
@@ -1001,7 +1127,12 @@ Format your response clearly with sections matching the questions above.`;
             {step === 3 && (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="brandVoice" className="text-sm font-medium text-slate-700 dark:text-slate-200">Brand Voice & Personality</Label>
+                  <Label
+                    htmlFor="brandVoice"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Brand Voice & Personality
+                  </Label>
                   <Textarea
                     id="brandVoice"
                     value={personaData.brandVoice}
@@ -1011,7 +1142,12 @@ Format your response clearly with sections matching the questions above.`;
                   />
                 </div>
                 <div>
-                  <Label htmlFor="businessGoals" className="text-sm font-medium text-slate-700 dark:text-slate-200">Business Goals</Label>
+                  <Label
+                    htmlFor="businessGoals"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Business Goals
+                  </Label>
                   <Textarea
                     id="businessGoals"
                     value={personaData.businessGoals}
@@ -1027,7 +1163,12 @@ Format your response clearly with sections matching the questions above.`;
             {step === 4 && (
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="successfulContent" className="text-sm font-medium text-slate-700 dark:text-slate-200">Most Successful Content</Label>
+                  <Label
+                    htmlFor="successfulContent"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Most Successful Content
+                  </Label>
                   <Textarea
                     id="successfulContent"
                     value={personaData.successfulContent}
@@ -1037,7 +1178,12 @@ Format your response clearly with sections matching the questions above.`;
                   />
                 </div>
                 <div>
-                  <Label htmlFor="challenges" className="text-sm font-medium text-slate-700 dark:text-slate-200">Current Challenges / Prompts to Collect</Label>
+                  <Label
+                    htmlFor="challenges"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
+                    Current Challenges / Prompts to Collect
+                  </Label>
                   <Textarea
                     id="challenges"
                     value={personaData.challenges}
@@ -1056,7 +1202,11 @@ Format your response clearly with sections matching the questions above.`;
                 <div className="space-y-4">
                   {!generatedPrompt && (
                     <div className="text-center py-10">
-                      <Button onClick={generateComprehensivePrompt} size="lg" className="rounded-full px-8 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100">
+                      <Button
+                        onClick={generateComprehensivePrompt}
+                        size="lg"
+                        className="rounded-full px-8 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100"
+                      >
                         🤖 Generate Comprehensive ChatGPT Prompt
                       </Button>
                       <p className="text-slate-600 dark:text-slate-300 text-sm mt-2">
@@ -1069,8 +1219,15 @@ Format your response clearly with sections matching the questions above.`;
                     <div className="space-y-4">
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">Your Comprehensive ChatGPT Prompt</Label>
-                          <Button onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')} variant="default" size="sm" className="rounded-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900">
+                          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                            Your Comprehensive ChatGPT Prompt
+                          </Label>
+                          <Button
+                            onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')}
+                            variant="default"
+                            size="sm"
+                            className="rounded-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
+                          >
                             📋 Copy All to Clipboard
                           </Button>
                         </div>
@@ -1081,26 +1238,40 @@ Format your response clearly with sections matching the questions above.`;
                           placeholder="Click 'Generate Comprehensive ChatGPT Prompt' to create your prompt..."
                         />
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                          💡 You can edit this prompt before copying if needed. Click &quot;Copy All to Clipboard&quot; to copy the entire prompt.
+                          💡 You can edit this prompt before copying if needed. Click &quot;Copy All
+                          to Clipboard&quot; to copy the entire prompt.
                         </p>
                       </div>
-                      
+
                       <div className="rounded-2xl border border-blue-200/70 dark:border-blue-800/60 bg-blue-50/60 dark:bg-blue-950/60 p-4">
-                        <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">🚀 Simple Workflow:</h4>
+                        <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
+                          🚀 Simple Workflow:
+                        </h4>
                         <ol className="text-sm space-y-2 list-decimal list-inside text-blue-800 dark:text-blue-300">
                           <li>Click &quot;Copy All to Clipboard&quot; above to copy the prompt</li>
                           <li>Open ChatGPT (GPT-4 recommended) and paste the prompt</li>
                           <li>ChatGPT will ask you questions - answer them all in the chat</li>
                           <li>Copy ChatGPT&apos;s complete response</li>
-                          <li>Paste it in the &quot;ChatGPT Response&quot; section below and click &quot;Save ChatGPT Response&quot;</li>
+                          <li>
+                            Paste it in the &quot;ChatGPT Response&quot; section below and click
+                            &quot;Save ChatGPT Response&quot;
+                          </li>
                         </ol>
                       </div>
 
                       <div className="flex gap-2">
-                        <Button onClick={() => setGeneratedPrompt('')} variant="outline" className="rounded-2xl flex-1">
+                        <Button
+                          onClick={() => setGeneratedPrompt('')}
+                          variant="outline"
+                          className="rounded-2xl flex-1"
+                        >
                           🔄 Regenerate Prompt
                         </Button>
-                        <Button onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')} variant="default" className="rounded-2xl flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900">
+                        <Button
+                          onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')}
+                          variant="default"
+                          className="rounded-2xl flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
+                        >
                           📋 Copy Prompt Again
                         </Button>
                       </div>
@@ -1112,7 +1283,9 @@ Format your response clearly with sections matching the questions above.`;
                 <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">ChatGPT Response (Paste Here)</Label>
+                      <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        ChatGPT Response (Paste Here)
+                      </Label>
                       {chatgptResponse && (
                         <Badge variant="secondary" className="rounded-full">
                           {chatgptResponse.length} characters
@@ -1131,8 +1304,8 @@ Format your response clearly with sections matching the questions above.`;
                   </div>
 
                   <div className="flex gap-3">
-                    <Button 
-                      onClick={handleSaveChatGPTResponse} 
+                    <Button
+                      onClick={handleSaveChatGPTResponse}
                       disabled={savingResponse || !chatgptResponse.trim() || !activePersonaId}
                       className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 disabled:opacity-50"
                     >
@@ -1148,7 +1321,11 @@ Format your response clearly with sections matching the questions above.`;
 
                 {/* Create Persona Button */}
                 <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
-                  <Button onClick={createPersona} disabled={creating} className="w-full rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900">
+                  <Button
+                    onClick={createPersona}
+                    disabled={creating}
+                    className="w-full rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
+                  >
                     {creating ? 'Creating Persona...' : '✨ Create AI Persona'}
                   </Button>
                 </div>
@@ -1157,21 +1334,25 @@ Format your response clearly with sections matching the questions above.`;
 
             {/* Navigation */}
             <div className="flex justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
-              <Button 
-                onClick={prevStep} 
-                variant="outline" 
+              <Button
+                onClick={prevStep}
+                variant="outline"
                 disabled={step === 1}
                 className="rounded-full"
               >
                 ← Previous
               </Button>
-              
+
               {step < totalSteps ? (
-                <Button 
+                <Button
                   onClick={nextStep}
                   disabled={
-                    (step === 1 && (!personaData.name || !personaData.niche || !personaData.expertise)) ||
-                    (step === 2 && (!personaData.audience || !personaData.contentStyle || personaData.platforms.length === 0)) ||
+                    (step === 1 &&
+                      (!personaData.name || !personaData.niche || !personaData.expertise)) ||
+                    (step === 2 &&
+                      (!personaData.audience ||
+                        !personaData.contentStyle ||
+                        personaData.platforms.length === 0)) ||
                     (step === 3 && (!personaData.brandVoice || !personaData.businessGoals)) ||
                     (step === 4 && (!personaData.successfulContent || !personaData.challenges))
                   }
@@ -1180,7 +1361,12 @@ Format your response clearly with sections matching the questions above.`;
                   Next →
                 </Button>
               ) : (
-                <Badge variant="secondary" className="rounded-full px-4 py-2 text-slate-600 dark:text-slate-300">Ready to Generate</Badge>
+                <Badge
+                  variant="secondary"
+                  className="rounded-full px-4 py-2 text-slate-600 dark:text-slate-300"
+                >
+                  Ready to Generate
+                </Badge>
               )}
             </div>
           </CardContent>
@@ -1190,44 +1376,80 @@ Format your response clearly with sections matching the questions above.`;
         {step > 1 && (
           <Card className={cn(glassCard, 'mt-6')}>
             <CardHeader>
-              <CardTitle className="text-lg text-slate-900 dark:text-slate-50">📋 Persona Preview</CardTitle>
+              <CardTitle className="text-lg text-slate-900 dark:text-slate-50">
+                📋 Persona Preview
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <p><span className="font-semibold text-slate-900 dark:text-slate-100">Name:</span> {personaData.name || 'Not set'}</p>
-                  <p><span className="font-semibold text-slate-900 dark:text-slate-100">Niche:</span> {personaData.niche || 'Not set'}</p>
-                  <p><span className="font-semibold text-slate-900 dark:text-slate-100">Platforms:</span> {personaData.platforms.join(', ') || 'None selected'}</p>
+                  <p>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Name:</span>{' '}
+                    {personaData.name || 'Not set'}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Niche:</span>{' '}
+                    {personaData.niche || 'Not set'}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      Platforms:
+                    </span>{' '}
+                    {personaData.platforms.join(', ') || 'None selected'}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <p><span className="font-semibold text-slate-900 dark:text-slate-100">Audience:</span> {personaData.audience ? `${personaData.audience.slice(0, 120)}${personaData.audience.length > 120 ? '…' : ''}` : 'Not set'}</p>
-                  <p><span className="font-semibold text-slate-900 dark:text-slate-100">Style:</span> {personaData.contentStyle ? `${personaData.contentStyle.slice(0, 120)}${personaData.contentStyle.length > 120 ? '…' : ''}` : 'Not set'}</p>
-                  <p><span className="font-semibold text-slate-900 dark:text-slate-100">Voice:</span> {personaData.brandVoice ? `${personaData.brandVoice.slice(0, 120)}${personaData.brandVoice.length > 120 ? '…' : ''}` : 'Not set'}</p>
+                  <p>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      Audience:
+                    </span>{' '}
+                    {personaData.audience
+                      ? `${personaData.audience.slice(0, 120)}${personaData.audience.length > 120 ? '…' : ''}`
+                      : 'Not set'}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Style:</span>{' '}
+                    {personaData.contentStyle
+                      ? `${personaData.contentStyle.slice(0, 120)}${personaData.contentStyle.length > 120 ? '…' : ''}`
+                      : 'Not set'}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Voice:</span>{' '}
+                    {personaData.brandVoice
+                      ? `${personaData.brandVoice.slice(0, 120)}${personaData.brandVoice.length > 120 ? '…' : ''}`
+                      : 'Not set'}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-
-
         {/* Help Card */}
         <Card className={cn(glassCard, 'mt-6 mb-10')}>
           <CardHeader>
-            <CardTitle className="text-sm text-slate-900 dark:text-slate-50">💡 Tips for Better Personas</CardTitle>
+            <CardTitle className="text-sm text-slate-900 dark:text-slate-50">
+              💡 Tips for Better Personas
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600 dark:text-slate-300">
               <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4">
-                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">🎯 Be Specific</h4>
+                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">
+                  🎯 Be Specific
+                </h4>
                 <p>The more specific you are, the better your AI persona will be.</p>
               </div>
               <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4">
-                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">📈 Include Performance Data</h4>
+                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">
+                  📈 Include Performance Data
+                </h4>
                 <p>Mention what content performs well and why.</p>
               </div>
               <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4">
-                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">🗣️ Define Your Voice</h4>
+                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">
+                  🗣️ Define Your Voice
+                </h4>
                 <p>Describe how you communicate and connect with your audience.</p>
               </div>
             </div>
