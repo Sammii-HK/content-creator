@@ -111,9 +111,11 @@ export default function Dashboard() {
           <PersonaSwitcher />
 
           {/* Main Content */}
-          <div className="flex-1 space-y-8 p-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex-1 overflow-auto">
+            <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
+              <div className="space-y-8">
+                {/* Quick Stats */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -189,8 +191,8 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Quick Actions */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Link href="/dashboard/upload" className="block">
                 <Card className="group h-full cursor-pointer transition-all duration-200 hover:shadow-elevated hover:scale-[1.02] active:scale-[0.98]">
                   <CardContent className="p-6">
@@ -272,8 +274,8 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            {/* Recent Activity & Content */}
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                {/* Recent Activity & Content */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Recent Videos */}
               {loading ? (
                 <Card>
@@ -393,6 +395,8 @@ export default function Dashboard() {
                   </div>
                 </CardContent>
               </Card>
+                </div>
+              </div>
             </div>
           </div>
         </MainContent>

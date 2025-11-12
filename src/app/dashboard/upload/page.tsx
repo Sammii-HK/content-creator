@@ -20,6 +20,7 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [videoMetadata, setVideoMetadata] = useState({
     name: '',
     description: '',
@@ -28,6 +29,12 @@ export default function UploadPage() {
   });
 
   const handleFileSelect = (file: File) => {
+    // Validate it's a video
+    if (file.type.startsWith('image/')) {
+      alert('Please select a video file, not an image.');
+      return;
+    }
+    
     setSelectedFile(file);
     setVideoMetadata({
       name: file.name.replace(/\.[^/.]+$/, ""),
@@ -35,6 +42,31 @@ export default function UploadPage() {
       category: 'general',
       tags: []
     });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      const videoFile = files.find(f => 
+        f.type.startsWith('video/') || 
+        f.name.toLowerCase().match(/\.(mov|mp4|m4v)$/i)
+      ) || files[0];
+      
+      handleFileSelect(videoFile);
+    }
   };
 
   const handleUpload = async (file: File, metadata: any) => {
@@ -128,9 +160,10 @@ export default function UploadPage() {
 
           <div className="flex-1 overflow-auto">
             <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {/* Upload Section - Left Column */}
-                <div className="lg:col-span-2 space-y-6">
+              {/* Desktop: Side-by-side layout */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {/* Left: Compact Upload Box */}
+                <div className="space-y-6">
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -138,18 +171,69 @@ export default function UploadPage() {
                         Upload Video
                       </CardTitle>
                       <CardDescription>
-                        Drag & drop or click to select • Unlimited size with R2
+                        Drag & drop or click to select
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <FileUpload 
-                        onUpload={handleUpload} 
-                        onFileSelect={handleFileSelect}
-                        maxSize={500} 
-                      />
+                      {/* Compact drag-drop area */}
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileSelect(file);
+                          }}
+                          className="hidden"
+                          id="file-upload-input"
+                        />
+                        <label
+                          htmlFor="file-upload-input"
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          className={`flex flex-col items-center justify-center h-48 border-2 border-dashed rounded-lg transition-all cursor-pointer group ${
+                            isDragOver
+                              ? 'border-primary bg-primary/5 scale-[1.02]'
+                              : 'border-border bg-background-secondary/50 hover:border-primary hover:bg-background-secondary'
+                          }`}
+                        >
+                          <Upload className="h-12 w-12 text-muted-foreground group-hover:text-primary mb-3 transition-colors" />
+                          <p className="text-sm font-medium text-foreground mb-1">
+                            Drop video here or click to browse
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Unlimited size • Direct to R2
+                          </p>
+                        </label>
+                        
+                        {selectedFile && (
+                          <div className="mt-4 p-3 rounded-lg bg-background-secondary border border-border">
+                            <div className="flex items-center gap-3">
+                              <Video className="h-5 w-5 text-primary" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedFile(null);
+                                  setVideoMetadata({ name: '', description: '', category: 'general', tags: [] });
+                                }}
+                              >
+                                Change
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       
                       {uploading && uploadProgress > 0 && (
-                        <div className="mt-6 space-y-2">
+                        <div className="mt-4 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">Uploading...</span>
                             <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
@@ -159,9 +243,11 @@ export default function UploadPage() {
                       )}
                     </CardContent>
                   </Card>
+                </div>
 
-                  {/* Video Details - Only show when file is selected */}
-                  {selectedFile && !uploading && (
+                {/* Right: Video Details Form */}
+                <div className="space-y-6">
+                  {selectedFile && !uploading ? (
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -169,7 +255,7 @@ export default function UploadPage() {
                           Video Details
                         </CardTitle>
                         <CardDescription>
-                          Add metadata to help organize your content
+                          Add metadata before uploading
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -190,7 +276,7 @@ export default function UploadPage() {
                             value={videoMetadata.description}
                             onChange={(e) => setVideoMetadata({ ...videoMetadata, description: e.target.value })}
                             placeholder="Describe your video..."
-                            rows={3}
+                            rows={4}
                           />
                         </div>
                         
@@ -200,7 +286,7 @@ export default function UploadPage() {
                             id="category"
                             value={videoMetadata.category}
                             onChange={(e) => setVideoMetadata({ ...videoMetadata, category: e.target.value })}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <option value="general">General</option>
                             <option value="personal">Personal</option>
@@ -210,53 +296,64 @@ export default function UploadPage() {
                           </select>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Video className="h-4 w-4" />
-                          <span>{selectedFile.name}</span>
-                          <span className="ml-auto">
-                            {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
-                          </span>
-                        </div>
+                        <Button 
+                          onClick={() => selectedFile && handleUpload(selectedFile, videoMetadata)}
+                          className="w-full"
+                          disabled={!videoMetadata.name.trim()}
+                        >
+                          <Upload className="h-4 w-4" />
+                          Upload Video
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-dashed">
+                      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                        <FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
+                        <p className="text-sm text-muted-foreground">
+                          Select a video to add details
+                        </p>
                       </CardContent>
                     </Card>
                   )}
 
-                  {/* Recent Uploads */}
-                  {recentUploads.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <CheckCircle className="h-5 w-5 text-success" />
-                          Recent Uploads
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {recentUploads.map((upload, index) => (
-                            <div key={index} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-background-secondary">
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
-                                <CheckCircle className="h-5 w-5 text-success" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{upload.name}</p>
-                                <p className="text-sm text-muted-foreground">{upload.duration}s • {upload.category}</p>
-                              </div>
-                              <Link href={`/dashboard/video-editor/${upload.id}`}>
-                                <Button size="sm" variant="outline">
-                                  <Scissors className="h-4 w-4" />
-                                  <span className="hidden sm:inline">Segment</span>
-                                </Button>
-                              </Link>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
+              </div>
 
-                {/* Sidebar - Right Column */}
-                <div className="space-y-6">
+              {/* Recent Uploads - Full Width Below */}
+              {recentUploads.length > 0 && (
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-success" />
+                      Recent Uploads
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {recentUploads.map((upload, index) => (
+                        <div key={index} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-background-secondary">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
+                            <CheckCircle className="h-5 w-5 text-success" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate text-sm">{upload.name}</p>
+                            <p className="text-xs text-muted-foreground">{upload.duration}s • {upload.category}</p>
+                          </div>
+                          <Link href={`/dashboard/video-editor/${upload.id}`}>
+                            <Button size="sm" variant="outline">
+                              <Scissors className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Sidebar - Right Column */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {/* Best Practices - Modern & Airy */}
                   <Card className="border-primary/20 bg-gradient-to-br from-background to-background-secondary/50">
                     <CardHeader>
@@ -358,7 +455,6 @@ export default function UploadPage() {
                       </div>
                     </CardContent>
                   </Card>
-                </div>
               </div>
             </div>
           </div>
