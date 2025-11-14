@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -36,6 +36,8 @@ export default function UploadPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastProcessedFiles = useRef<Set<string>>(new Set());
   const [videoMetadata, setVideoMetadata] = useState<
     Record<
       string,
@@ -48,37 +50,58 @@ export default function UploadPage() {
     >
   >({});
 
+  // Check for files periodically when input might have been used (iOS Photos picker workaround)
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (
+        fileInputRef.current &&
+        fileInputRef.current.files &&
+        fileInputRef.current.files.length > 0
+      ) {
+        const files = Array.from(fileInputRef.current.files);
+        // Create a signature for these files to avoid reprocessing
+        const fileSignature = files.map((f) => `${f.name}-${f.size}-${f.lastModified}`).join('|');
+
+        // Only process if we haven't seen these exact files before
+        if (!lastProcessedFiles.current.has(fileSignature) && files.length > 0) {
+          lastProcessedFiles.current.add(fileSignature);
+          handleFileSelect(files);
+          // Clear after processing
+          setTimeout(() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+              lastProcessedFiles.current.delete(fileSignature);
+            }
+          }, 1000);
+        }
+      }
+    }, 300);
+
+    return () => clearInterval(checkInterval);
+  }, []);
+
   const handleFileSelect = (files: File[]) => {
-    console.log('handleFileSelect called with', files.length, 'files');
+    if (!files || files.length === 0) {
+      return;
+    }
 
     const videoFiles = files.filter((file) => {
       // Accept video files or files without a type (iOS sometimes doesn't set type)
       if (file.type && file.type.startsWith('image/')) {
         return false;
       }
-      // If no type is set, assume it's a video (common on iOS)
       return true;
     });
 
-    if (videoFiles.length !== files.length) {
-      alert(
-        `Skipped ${files.length - videoFiles.length} non-video file(s). Only videos can be uploaded.`
-      );
-    }
-
     if (videoFiles.length === 0) {
-      console.log('No video files to add');
       return;
     }
 
     // Add new files to selection
     setSelectedFiles((prev) => {
       const newFiles = [...prev];
-      let addedCount = 0;
 
       videoFiles.forEach((file) => {
-        // Use a more unique key for iOS files that might have same name
-        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
         const exists = newFiles.find(
           (f) =>
             f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
@@ -86,8 +109,7 @@ export default function UploadPage() {
 
         if (!exists) {
           newFiles.push(file);
-          addedCount++;
-          // Initialize metadata for each file
+          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
           setVideoMetadata((prevMeta) => ({
             ...prevMeta,
             [fileKey]: {
@@ -100,7 +122,6 @@ export default function UploadPage() {
         }
       });
 
-      console.log(`Added ${addedCount} new files. Total: ${newFiles.length}`);
       return newFiles;
     });
   };
@@ -310,25 +331,30 @@ export default function UploadPage() {
                       {/* Compact drag-drop area */}
                       <div className="relative">
                         <input
+                          ref={fileInputRef}
                           type="file"
                           accept="video/*"
                           multiple
                           onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            console.log(
-                              'Files selected:',
-                              files.length,
-                              files.map((f) => f.name)
-                            );
+                            const input = e.target as HTMLInputElement;
+                            if (!input || !input.files) {
+                              return;
+                            }
+
+                            const fileList = input.files;
+                            const files = Array.from(fileList);
+
+                            // Handle iOS Photos picker selection
                             if (files.length > 0) {
                               handleFileSelect(files);
                             }
-                            // Reset input after a small delay to allow iOS to process
+
+                            // Reset after processing to allow selecting more files
                             setTimeout(() => {
-                              if (e.target) {
-                                e.target.value = '';
+                              if (input) {
+                                input.value = '';
                               }
-                            }, 100);
+                            }, 200);
                           }}
                           className="hidden"
                           id="file-upload-input"
@@ -349,7 +375,7 @@ export default function UploadPage() {
                             Drop videos here or click to browse
                           </p>
                           <p className="text-xs text-muted-foreground text-center px-4">
-                            Select multiple videos at once • Tap again to add more • Upload when
+                            Tap to select videos • Tap multiple times to add more • Upload when
                             ready
                           </p>
                         </label>
