@@ -2,13 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import FileUpload from '@/components/ui/FileUpload';
 import {
   ArrowLeft,
   CheckCircle,
   Upload,
   Video,
-  FileText,
   Tag,
   Sparkles,
   Lightbulb,
@@ -21,15 +19,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SidebarProvider, Sidebar, MainContent, MobileMenuButton } from '@/components/ui/sidebar';
 import PersonaSwitcher from '@/components/persona-switcher';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 
 export default function UploadPage() {
-  const [recentUploads, setRecentUploads] = useState<any[]>([]);
+  const [recentUploads, setRecentUploads] = useState<
+    Array<{
+      id: string;
+      name: string;
+      duration: number;
+      category: string;
+    }>
+  >([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -48,10 +49,14 @@ export default function UploadPage() {
   >({});
 
   const handleFileSelect = (files: File[]) => {
+    console.log('handleFileSelect called with', files.length, 'files');
+
     const videoFiles = files.filter((file) => {
-      if (file.type.startsWith('image/')) {
+      // Accept video files or files without a type (iOS sometimes doesn't set type)
+      if (file.type && file.type.startsWith('image/')) {
         return false;
       }
+      // If no type is set, assume it's a video (common on iOS)
       return true;
     });
 
@@ -61,18 +66,31 @@ export default function UploadPage() {
       );
     }
 
-    if (videoFiles.length === 0) return;
+    if (videoFiles.length === 0) {
+      console.log('No video files to add');
+      return;
+    }
 
     // Add new files to selection
     setSelectedFiles((prev) => {
       const newFiles = [...prev];
+      let addedCount = 0;
+
       videoFiles.forEach((file) => {
-        if (!newFiles.find((f) => f.name === file.name && f.size === file.size)) {
+        // Use a more unique key for iOS files that might have same name
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        const exists = newFiles.find(
+          (f) =>
+            f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
+        );
+
+        if (!exists) {
           newFiles.push(file);
+          addedCount++;
           // Initialize metadata for each file
           setVideoMetadata((prevMeta) => ({
             ...prevMeta,
-            [file.name]: {
+            [fileKey]: {
               name: file.name.replace(/\.[^/.]+$/, ''),
               description: '',
               category: 'general',
@@ -81,6 +99,8 @@ export default function UploadPage() {
           }));
         }
       });
+
+      console.log(`Added ${addedCount} new files. Total: ${newFiles.length}`);
       return newFiles;
     });
   };
@@ -106,16 +126,24 @@ export default function UploadPage() {
   };
 
   const removeFile = (fileName: string) => {
-    setSelectedFiles((prev) => prev.filter((f) => f.name !== fileName));
-    setVideoMetadata((prev) => {
-      const next = { ...prev };
-      delete next[fileName];
-      return next;
+    setSelectedFiles((prev) => {
+      const filtered = prev.filter((f) => f.name !== fileName);
+      // Also clean up metadata for removed files
+      setVideoMetadata((prevMeta) => {
+        const next = { ...prevMeta };
+        Object.keys(next).forEach((key) => {
+          if (key.startsWith(fileName)) {
+            delete next[key];
+          }
+        });
+        return next;
+      });
+      return filtered;
     });
   };
 
   const handleUpload = async (file: File, fileName: string) => {
-    const fileId = `${fileName}-${file.size}`;
+    const fileId = `${file.name}-${file.size}-${file.lastModified}`;
 
     // Skip if already uploading
     if (uploadingFiles.has(fileId)) return;
@@ -133,7 +161,8 @@ export default function UploadPage() {
         );
       }
 
-      const metadata = videoMetadata[fileName] || {
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+      const metadata = videoMetadata[fileKey] || {
         name: file.name.replace(/\.[^/.]+$/, ''),
         description: '',
         category: 'general',
@@ -171,7 +200,7 @@ export default function UploadPage() {
       setRecentUploads((prev) => [result.broll, ...prev].slice(0, 5));
 
       // Remove file from selection after successful upload
-      removeFile(fileName);
+      removeFile(file.name);
 
       return result;
     } catch (error) {
@@ -206,7 +235,7 @@ export default function UploadPage() {
           setUploadProgress(Math.round((completed / total) * 100));
         } catch (error) {
           console.error(`Failed to upload ${file.name}:`, error);
-          // Continue with other files
+          // Continue with other files even if one fails
         }
       }
 
@@ -286,11 +315,20 @@ export default function UploadPage() {
                           multiple
                           onChange={(e) => {
                             const files = Array.from(e.target.files || []);
+                            console.log(
+                              'Files selected:',
+                              files.length,
+                              files.map((f) => f.name)
+                            );
                             if (files.length > 0) {
                               handleFileSelect(files);
-                              // Reset input so same files can be selected again if needed
-                              e.target.value = '';
                             }
+                            // Reset input after a small delay to allow iOS to process
+                            setTimeout(() => {
+                              if (e.target) {
+                                e.target.value = '';
+                              }
+                            }, 100);
                           }}
                           className="hidden"
                           id="file-upload-input"
@@ -335,11 +373,12 @@ export default function UploadPage() {
                               </Button>
                             </div>
                             <div className="max-h-48 overflow-y-auto space-y-2">
-                              {selectedFiles.map((file) => {
-                                const isUploading = uploadingFiles.has(`${file.name}-${file.size}`);
+                              {selectedFiles.map((file, index) => {
+                                const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+                                const isUploading = uploadingFiles.has(fileId);
                                 return (
                                   <div
-                                    key={`${file.name}-${file.size}`}
+                                    key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
                                     className="p-3 rounded-lg bg-background-secondary border border-border"
                                   >
                                     <div className="flex items-center gap-3">
