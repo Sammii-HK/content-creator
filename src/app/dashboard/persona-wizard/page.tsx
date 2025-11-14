@@ -677,12 +677,65 @@ Create with me:
 
   const glassCard = groupedSurface;
 
-  const handleSaveChatGPTResponse = useCallback(async () => {
-    if (!activePersonaId) {
-      flashStatus({ type: 'error', message: 'Select a persona using the switcher before saving.' });
-      return;
+  // Extract name and niche from ChatGPT response
+  const extractPersonaInfo = (response: string): { name: string; niche: string } => {
+    const lines = response
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l);
+
+    // Try to find name and niche in common patterns
+    let name = '';
+    let niche = '';
+
+    // Look for patterns like "Persona Name:", "Brand Name:", "Name:", etc.
+    const namePatterns = [
+      /(?:persona|brand|name)[\s:]+(.+)/i,
+      /^#+\s*(.+)$/m, // Markdown headers
+      /^(.+?)(?:\s*[-–—]\s*|$)/m, // First line before dash
+    ];
+
+    for (const pattern of namePatterns) {
+      const match = response.match(pattern);
+      if (match && match[1]) {
+        name = match[1]
+          .trim()
+          .replace(/^#+\s*/, '')
+          .substring(0, 50);
+        break;
+      }
     }
 
+    // Look for niche/brand type
+    const nichePatterns = [
+      /(?:niche|brand\s*type|category)[\s:]+(.+)/i,
+      /(?:content|focus|specialty)[\s:]+(.+)/i,
+    ];
+
+    for (const pattern of nichePatterns) {
+      const match = response.match(pattern);
+      if (match && match[1]) {
+        niche = match[1].trim().substring(0, 100);
+        break;
+      }
+    }
+
+    // Fallback: use first meaningful line as name, second as niche
+    if (!name && lines.length > 0) {
+      name = lines[0].replace(/^#+\s*/, '').substring(0, 50);
+    }
+    if (!niche && lines.length > 1) {
+      niche = lines[1].replace(/^#+\s*/, '').substring(0, 100);
+    }
+
+    // Final fallbacks
+    if (!name) name = 'New Persona';
+    if (!niche) niche = 'Content Creator';
+
+    return { name, niche };
+  };
+
+  const handleSaveChatGPTResponse = useCallback(async () => {
     if (!chatgptResponse.trim()) {
       flashStatus({ type: 'error', message: 'Please paste ChatGPT response before saving.' });
       return;
@@ -690,6 +743,50 @@ Create with me:
 
     try {
       setSavingResponse(true);
+
+      let currentPersonaId = activePersonaId;
+
+      // If no persona exists, create one from ChatGPT response
+      if (!currentPersonaId) {
+        const { name, niche } = extractPersonaInfo(chatgptResponse);
+
+        // Prompt user for name if we couldn't extract a good one
+        const finalName =
+          name === 'New Persona' ? prompt('Enter a name for this persona:', name) || name : name;
+
+        if (!finalName || finalName.trim() === '') {
+          throw new Error('Persona name is required. Please enter a name.');
+        }
+
+        // Create persona
+        const createResponse = await fetch('/api/digital-me/personas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: finalName.trim(),
+            description: `Persona created from ChatGPT response`,
+            niche: niche || 'Content Creator',
+            samples: [],
+          }),
+        });
+
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json().catch(() => ({}));
+          throw new Error(errorData.details || 'Failed to create persona');
+        }
+
+        const createResult = await createResponse.json();
+        currentPersonaId = createResult.persona.id;
+        setActivePersonaId(currentPersonaId);
+        setActivePersonaName(createResult.persona.name);
+
+        // Update personaData with extracted info
+        setPersonaData((prev) => ({
+          ...prev,
+          name: finalName.trim(),
+          niche: niche || 'Content Creator',
+        }));
+      }
 
       let parsedBlueprint: PersonaBlueprint;
 
@@ -703,7 +800,7 @@ Create with me:
         parsedBlueprint = memoizedBlueprint;
       }
 
-      const response = await fetch(`/api/digital-me/personas/${activePersonaId}/blueprint`, {
+      const response = await fetch(`/api/digital-me/personas/${currentPersonaId}/blueprint`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -722,7 +819,10 @@ Create with me:
 
       const payload = await response.json();
       setActivePersonaName(payload.persona?.name ?? activePersonaName);
-      flashStatus({ type: 'success', message: 'ChatGPT response saved successfully!' });
+      flashStatus({
+        type: 'success',
+        message: 'ChatGPT response saved successfully! Persona created if needed.',
+      });
     } catch (error) {
       console.error('Failed to save ChatGPT response:', error);
       flashStatus({
@@ -739,6 +839,9 @@ Create with me:
     chatgptResponse,
     flashStatus,
     memoizedBlueprint,
+    setActivePersonaId,
+    setActivePersonaName,
+    setPersonaData,
   ]);
 
   const handleSaveBlueprint = useCallback(async () => {
@@ -1414,15 +1517,19 @@ Create with me:
                   <div className="flex gap-3">
                     <Button
                       onClick={handleSaveChatGPTResponse}
-                      disabled={savingResponse || !chatgptResponse.trim() || !activePersonaId}
+                      disabled={savingResponse || !chatgptResponse.trim()}
                       className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 disabled:opacity-50"
                     >
-                      {savingResponse ? 'Saving...' : '💾 Save ChatGPT Response'}
+                      {savingResponse
+                        ? 'Saving...'
+                        : activePersonaId
+                          ? '💾 Save ChatGPT Response'
+                          : '💾 Create Persona & Save Response'}
                     </Button>
                     {!activePersonaId && (
-                      <Badge variant="secondary" className="rounded-full px-4 py-2 self-center">
-                        Select a persona to save
-                      </Badge>
+                      <p className="text-xs text-center text-muted-foreground">
+                        A new persona will be created automatically from your ChatGPT response
+                      </p>
                     )}
                   </div>
                 </div>
