@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { llmService } from '@/lib/llm';
 import { videoRenderer, type VideoTemplate } from '@/lib/video';
 import { templateService } from '@/lib/templates';
+import { requireAuth } from '@/lib/auth';
 import { requirePersona } from '@/lib/persona-context';
 import { digitalMeService } from '@/lib/digitalMe';
 import { z } from 'zod';
@@ -20,6 +21,7 @@ const GenerateRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const {
       theme,
@@ -193,6 +195,7 @@ export async function POST(request: NextRequest) {
             templateId: template.id,
             brollId: broll.id,
             fileUrl: videoUrl,
+            userId: user.id,
             features: {
               ...features,
               hashtags: content.hashtags,

@@ -158,7 +158,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Auto-categorization based on content analysis
+// Auto-categorization based on content analysis (unused but kept for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function detectCategory(name: string, tags: string[]): string {
   const text = `${name} ${tags.join(' ')}`.toLowerCase();
   

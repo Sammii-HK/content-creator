@@ -5,6 +5,19 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
+  // Create a default user for seeding
+  const defaultUser = await prisma.user.upsert({
+    where: { email: 'seed@example.com' },
+    update: {},
+    create: {
+      email: 'seed@example.com',
+      password: '$2a$10$placeholder', // Placeholder hash - not for real use
+      name: 'Seed User'
+    }
+  });
+
+  console.log(`✅ Created/updated seed user`);
+
   // Create default templates
   const templates = await Promise.all([
     prisma.template.create({
@@ -149,7 +162,8 @@ async function main() {
         fileUrl: '/placeholder/city-timelapse.mp4',
         duration: 30,
         category: 'urban',
-        tags: ['city', 'traffic', 'lights', 'fast', 'energy']
+        tags: ['city', 'traffic', 'lights', 'fast', 'energy'],
+        userId: defaultUser.id
       }
     }),
     prisma.broll.create({
@@ -159,7 +173,8 @@ async function main() {
         fileUrl: '/placeholder/nature-scenes.mp4',
         duration: 45,
         category: 'nature',
-        tags: ['forest', 'mountains', 'peaceful', 'calm', 'green']
+        tags: ['forest', 'mountains', 'peaceful', 'calm', 'green'],
+        userId: defaultUser.id
       }
     }),
     prisma.broll.create({
@@ -169,7 +184,8 @@ async function main() {
         fileUrl: '/placeholder/tech-setup.mp4',
         duration: 20,
         category: 'technology',
-        tags: ['tech', 'workspace', 'modern', 'devices', 'clean']
+        tags: ['tech', 'workspace', 'modern', 'devices', 'clean'],
+        userId: defaultUser.id
       }
     }),
     prisma.broll.create({
@@ -179,7 +195,8 @@ async function main() {
         fileUrl: '/placeholder/food-prep.mp4',
         duration: 25,
         category: 'lifestyle',
-        tags: ['food', 'cooking', 'kitchen', 'fresh', 'delicious']
+        tags: ['food', 'cooking', 'kitchen', 'fresh', 'delicious'],
+        userId: defaultUser.id
       }
     }),
     prisma.broll.create({
@@ -189,7 +206,8 @@ async function main() {
         fileUrl: '/placeholder/abstract-motion.mp4',
         duration: 40,
         category: 'abstract',
-        tags: ['abstract', 'colorful', 'motion', 'patterns', 'creative']
+        tags: ['abstract', 'colorful', 'motion', 'patterns', 'creative'],
+        userId: defaultUser.id
       }
     })
   ]);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,11 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function IntegrationsPage() {
   const [connectionStatus, setConnectionStatus] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    checkConnections();
-  }, []);
-
-  const checkConnections = async () => {
+  const checkConnections = useCallback(async () => {
     const integrations = [
       'openai', 'r2', 'succulent', 'midjourney', 'nano-banana', 
       'runway', 'stability', 'heygen', 'elevenlabs', 'pika'
@@ -33,7 +29,11 @@ export default function IntegrationsPage() {
     }
 
     setConnectionStatus(status);
-  };
+  }, []);
+
+  useEffect(() => {
+    checkConnections();
+  }, [checkConnections]);
 
   const aiTools = [
     {
