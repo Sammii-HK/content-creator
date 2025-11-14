@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, Sidebar, MainContent, MobileMenuButton } from '@/components/ui/sidebar';
+import { AuthGuard } from '@/components/auth-guard';
 import PersonaSwitcher from '@/components/persona-switcher';
 import { 
   Upload, 
@@ -82,9 +83,10 @@ export default function Dashboard() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen bg-background lg:flex-row">
-        <Sidebar />
+    <AuthGuard>
+      <SidebarProvider>
+        <div className="flex min-h-screen bg-background lg:flex-row">
+          <Sidebar />
         
         <MainContent className="flex flex-col">
           {/* Header */}
@@ -415,5 +417,6 @@ export default function Dashboard() {
         </MainContent>
       </div>
     </SidebarProvider>
+    </AuthGuard>
   );
 }
