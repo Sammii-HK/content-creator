@@ -102,20 +102,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       <Link href={item.href} onClick={() => setMobileOpen(false)}>
         <div
           className={cn(
-            "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-background-secondary",
+            "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200",
             isActive 
-              ? "bg-primary text-primary-foreground shadow-soft hover:bg-primary-hover" 
-              : "text-foreground-secondary hover:text-foreground",
-            collapsed && "justify-center px-2"
+              ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
+              : "text-foreground hover:bg-background-secondary hover:text-foreground",
+            collapsed && "justify-center px-3"
           )}
           title={collapsed ? item.title : undefined}
         >
-          <item.icon className={cn("h-5 w-5 flex-shrink-0", collapsed && "h-6 w-6")} />
+          <item.icon className={cn("h-6 w-6 flex-shrink-0", collapsed && "h-7 w-7")} />
           {!collapsed && (
             <>
               <span className="truncate">{item.title}</span>
               {item.badge && (
-                <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                <span className="ml-auto rounded-full bg-primary-foreground/20 px-3 py-1 text-sm font-medium text-primary-foreground">
                   {item.badge}
                 </span>
               )}
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
           )}
           {/* Tooltip for collapsed state */}
           {collapsed && (
-            <div className="pointer-events-none absolute left-full ml-2 z-50 hidden rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100 lg:block">
+            <div className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-lg bg-foreground px-3 py-2 text-sm font-medium text-background opacity-0 shadow-xl transition-opacity group-hover:opacity-100 lg:block whitespace-nowrap">
               {item.title}
             </div>
           )}
@@ -145,20 +145,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background/95 backdrop-blur-xl transition-all duration-300 ease-in-out lg:relative lg:z-40",
-          collapsed ? "w-16" : "w-64",
+          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background transition-all duration-300 ease-in-out lg:relative lg:z-40 shadow-lg",
+          collapsed ? "w-20" : "w-72",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           className
         )}
       >
         {/* Header */}
-        <div className="flex h-16 items-center justify-between border-b border-border px-4">
+        <div className="flex h-20 items-center justify-between border-b border-border bg-background-secondary/50 px-6">
           {!collapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Sparkles className="h-4 w-4" />
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
+                <Sparkles className="h-5 w-5" />
               </div>
-              <span className="font-semibold text-foreground">Content Studio</span>
+              <span className="text-lg font-bold text-foreground">Content Studio</span>
             </Link>
           )}
           
@@ -167,12 +167,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex"
+            className="hidden lg:flex h-10 w-10"
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-5 w-5" />
             ) : (
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-5 w-5" />
             )}
           </Button>
 
@@ -181,23 +181,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             variant="ghost"
             size="icon"
             onClick={() => setMobileOpen(false)}
-            className="lg:hidden"
+            className="lg:hidden h-10 w-10"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Navigation */}
-        <div className="flex flex-1 flex-col gap-2 p-4">
-          <nav className="flex flex-1 flex-col gap-1">
+        <div className="flex flex-1 flex-col gap-3 p-6 overflow-y-auto">
+          <nav className="flex flex-1 flex-col gap-2">
             {navItems.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
           </nav>
 
           {/* Bottom navigation */}
-          <div className="border-t border-border pt-4">
-            <nav className="flex flex-col gap-1">
+          <div className="border-t border-border pt-4 mt-auto">
+            <nav className="flex flex-col gap-2">
               {bottomNavItems.map((item) => (
                 <NavLink key={item.href} item={item} />
               ))}
