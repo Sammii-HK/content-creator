@@ -1,20 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [dbStatus, setDbStatus] = useState<{ checked: boolean; ready: boolean; message?: string }>({ checked: false, ready: false });
+  const { login, user } = useAuth();
   const router = useRouter();
+
+  // Check database status on mount
+  useEffect(() => {
+    const checkDb = async () => {
+      try {
+        const response = await fetch('/api/auth/check-db');
+        const data = await response.json();
+        setDbStatus({ checked: true, ready: data.success, message: data.message });
+      } catch {
+        setDbStatus({ checked: true, ready: false, message: 'Could not check database status' });
+      }
+    };
+    checkDb();
+  }, []);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +46,11 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push('/dashboard');
+      router.refresh(); // Refresh to update auth state
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      setError(errorMessage);
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -44,10 +69,26 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {dbStatus.checked && !dbStatus.ready && (
+            <div className="mb-4 rounded-lg bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-medium">Database Not Ready</span>
+              </div>
+              <p className="mt-1 text-xs">{dbStatus.message}</p>
+              <p className="mt-2 text-xs opacity-90">
+                Run: <code className="bg-background px-1 py-0.5 rounded">npx prisma migrate deploy</code>
+              </p>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{error}</span>
+                </div>
               </div>
             )}
             
