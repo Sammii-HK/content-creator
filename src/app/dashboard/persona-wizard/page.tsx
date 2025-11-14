@@ -994,6 +994,88 @@ Create with me:
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Prompt Generation - Always Available at Top */}
+            <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="text-4xl">🤖</div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-foreground mb-2">
+                      Generate Your ChatGPT Prompt (Skip Manual Steps!)
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      <strong>No need to fill out forms!</strong> Generate a comprehensive prompt
+                      you can paste into ChatGPT with all your context. ChatGPT will guide you
+                      through answering all the questions, then paste the response back here.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={() => {
+                          generateComprehensivePrompt();
+                          setStep(5);
+                        }}
+                        size="lg"
+                        variant={generatedPrompt ? 'outline' : 'default'}
+                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                      >
+                        {generatedPrompt ? '🔄 Regenerate Prompt' : '🤖 Generate Prompt Now'}
+                      </Button>
+                      {generatedPrompt && (
+                        <>
+                          <Button
+                            onClick={() =>
+                              handleCopy(
+                                generatedPrompt,
+                                '✅ Prompt copied! Ready to paste in ChatGPT'
+                              )
+                            }
+                            size="lg"
+                            className="flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 shadow-lg"
+                          >
+                            📋 Copy to Clipboard
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => setStep(5)}
+                            className="shrink-0"
+                          >
+                            View Full Section →
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Optional: Manual Form Steps */}
+            {step < 5 && (
+              <Card className="border-dashed opacity-60">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium mb-1 text-muted-foreground">
+                        Optional: Fill Out Manually
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        You can fill out the form below if you prefer, or skip straight to using
+                        ChatGPT above
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep(step === 1 ? 2 : step === 2 ? 3 : step === 3 ? 4 : 5)}
+                    >
+                      Skip →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Step 1: Basic Info */}
             {step === 1 && (
               <div className="space-y-4">
@@ -1187,30 +1269,52 @@ Create with me:
             {/* Step 5: Generated Prompt */}
             {step === 5 && (
               <div className="space-y-6">
-                {/* Always Visible: Generate & Copy Button */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    onClick={() => {
-                      if (!generatedPrompt) {
-                        generateComprehensivePrompt();
-                      }
-                    }}
-                    size="lg"
-                    variant={generatedPrompt ? 'outline' : 'default'}
-                    className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
-                  >
-                    {generatedPrompt ? '🔄 Regenerate Prompt' : '🤖 Generate ChatGPT Prompt'}
-                  </Button>
-                  {generatedPrompt && (
-                    <Button
-                      onClick={() => handleCopy(generatedPrompt, '✅ Prompt copied to clipboard!')}
-                      size="lg"
-                      className="flex-1 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
-                    >
-                      📋 Copy Prompt to Clipboard
-                    </Button>
-                  )}
-                </div>
+                {/* Prominent Header */}
+                <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="text-4xl">🤖</div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-foreground mb-2">
+                          Copy This Prompt to Use in ChatGPT
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          This prompt includes all your context. Paste it into ChatGPT along with
+                          any additional information about yourself. ChatGPT will guide you through
+                          answering all the questions.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Button
+                            onClick={() => {
+                              if (!generatedPrompt) {
+                                generateComprehensivePrompt();
+                              }
+                            }}
+                            size="lg"
+                            variant={generatedPrompt ? 'outline' : 'default'}
+                            className="flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
+                          >
+                            {generatedPrompt ? '🔄 Regenerate Prompt' : '🤖 Generate Prompt'}
+                          </Button>
+                          {generatedPrompt && (
+                            <Button
+                              onClick={() =>
+                                handleCopy(
+                                  generatedPrompt,
+                                  '✅ Prompt copied! Ready to paste in ChatGPT'
+                                )
+                              }
+                              size="lg"
+                              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                            >
+                              📋 Copy to Clipboard
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Generate Prompt Section */}
                 <div className="space-y-4">
