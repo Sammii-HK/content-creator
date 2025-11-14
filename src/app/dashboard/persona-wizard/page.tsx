@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -943,733 +943,107 @@ Create with me:
           </div>
         </div>
 
-        {/* Blueprint Ingest */}
-        <Card className={cn(glassCard, 'p-0')}>
-          <CardHeader className="border-b border-white/60 dark:border-slate-800/60">
-            <CardTitle className="flex items-center justify-between text-lg text-slate-900 dark:text-slate-50">
-              <span>📦 Persona Blueprint Workspace</span>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-full text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
-                  onClick={() => {
-                    const pretty = JSON.stringify(samplePersonaBlueprint, null, 2);
-                    setBlueprintJSON(pretty);
-                    applyBlueprintToForm(samplePersonaBlueprint);
-                    flashStatus({
-                      type: 'success',
-                      message: 'Loaded scape² sample blueprint into the workspace.',
-                    });
-                  }}
-                >
-                  Load Example
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={applyBlueprint}
-                >
-                  Import JSON
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  disabled={savingBlueprint}
-                  className="rounded-full bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100"
-                  onClick={handleSaveBlueprint}
-                >
-                  {savingBlueprint
-                    ? 'Saving…'
-                    : activePersonaId
-                      ? 'Save to Persona'
-                      : 'Select Persona'}
-                </Button>
-              </div>
-            </CardTitle>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Paste a persona blueprint (like the example you shared) to override the wizard, or
-              edit inline and export when you&apos;re happy.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4 p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-              {activePersonaId ? (
-                <>
-                  <span className="text-slate-600 dark:text-slate-300">
-                    Editing for persona:{' '}
-                    <span className="font-medium text-slate-900 dark:text-slate-100">
-                      {activePersonaName || 'Loading…'}
-                    </span>
-                  </span>
-                  {loadingPersonaBlueprint ? (
-                    <span className="text-slate-500 dark:text-slate-400 animate-pulse">
-                      Refreshing persona data…
-                    </span>
-                  ) : (
-                    <Badge
-                      variant="secondary"
-                      className="rounded-full bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-200"
-                    >
-                      Synced with account persona
-                    </Badge>
-                  )}
-                </>
-              ) : (
-                <span className="w-full rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200 px-4 py-2">
-                  No persona selected. Use the persona switcher at the top of the dashboard to link
-                  this wizard to an account persona.
-                </span>
-              )}
-            </div>
-            <Textarea
-              value={blueprintJSON}
-              onChange={(e) => setBlueprintJSON(e.target.value)}
-              placeholder="Paste or compose your persona blueprint JSON here..."
-              className="min-h-[280px] font-mono text-xs md:text-sm leading-relaxed bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 border-slate-200/70 dark:border-slate-700/70 rounded-2xl shadow-inner"
-            />
-            {blueprintStatus && (
-              <div
-                className={cn(
-                  'rounded-xl px-4 py-3 text-sm',
-                  blueprintStatus.type === 'success'
-                    ? 'bg-green-50 text-green-800 border border-green-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:border-emerald-500/40'
-                    : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-200 dark:border-red-500/40'
-                )}
-              >
-                {blueprintStatus.message}
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <Badge
-                variant="secondary"
-                className="rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/80"
-              >
-                Autosaves to browser
-              </Badge>
-              <Badge
-                variant="secondary"
-                className="rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/80"
-              >
-                Import to populate the wizard instantly
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Progress */}
-        <div className="rounded-3xl border border-white/60 dark:border-slate-800/60 bg-white/70 dark:bg-slate-900/70 backdrop-blur p-4 shadow-lg">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              Step {step} of {totalSteps}
-            </span>
-            <div className="flex-1 bg-slate-200/60 dark:bg-slate-800/60 rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-slate-900 dark:bg-slate-200 rounded-full h-2 transition-all"
-                style={{ width: `${(step / totalSteps) * 100}%` }}
-              />
-            </div>
-            <Badge
-              variant="outline"
-              className="rounded-full border-slate-300/70 dark:border-slate-700/60 px-3 py-1 text-xs text-slate-600 dark:text-slate-300"
-            >
-              Guided wizard + JSON blueprint mode
-            </Badge>
-          </div>
-        </div>
-
-        <Card className={cn(glassCard, 'overflow-hidden')}>
-          <CardHeader className="bg-white/80 dark:bg-slate-900/75 border-b border-white/60 dark:border-slate-800/60">
-            <CardTitle className="text-xl text-slate-900 dark:text-slate-50">
-              {step === 1 && '🎯 Basic Information'}
-              {step === 2 && '👥 Audience & Content'}
-              {step === 3 && '🎨 Style & Voice'}
-              {step === 4 && '📊 Performance & Goals'}
-              {step === 5 && '🤖 Generate & Save ChatGPT Response'}
-            </CardTitle>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              {step === 1 && 'Tell us about this persona and their expertise'}
-              {step === 2 && 'Who do they create content for and what platforms?'}
-              {step === 3 && "How do they communicate and what's their style?"}
-              {step === 4 && 'What works well and what are the challenges?'}
-              {step === 5 && "Generate one comprehensive prompt and save ChatGPT's response"}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Prompt Generation - Always Available at Top */}
-            <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="text-4xl">🤖</div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground mb-2">
-                      Generate Your ChatGPT Prompt (Skip Manual Steps!)
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      <strong>No need to fill out forms!</strong> Generate a comprehensive prompt
-                      you can paste into ChatGPT with all your context. ChatGPT will guide you
-                      through answering all the questions, then paste the response back here.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        onClick={() => {
-                          generateComprehensivePrompt();
-                          setStep(5);
-                        }}
-                        size="lg"
-                        variant={generatedPrompt ? 'outline' : 'default'}
-                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
-                      >
-                        {generatedPrompt ? '🔄 Regenerate Prompt' : '🤖 Generate Prompt Now'}
-                      </Button>
-                      {generatedPrompt && (
-                        <>
-                          <Button
-                            onClick={() =>
-                              handleCopy(
-                                generatedPrompt,
-                                '✅ Prompt copied! Ready to paste in ChatGPT'
-                              )
-                            }
-                            size="lg"
-                            className="flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 shadow-lg"
-                          >
-                            📋 Copy to Clipboard
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="lg"
-                            onClick={() => setStep(5)}
-                            className="shrink-0"
-                          >
-                            View Full Section →
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Optional: Manual Form Steps */}
-            {step < 5 && (
-              <Card className="border-dashed opacity-60">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium mb-1 text-muted-foreground">
-                        Optional: Fill Out Manually
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        You can fill out the form below if you prefer, or skip straight to using
-                        ChatGPT above
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setStep(step === 1 ? 2 : step === 2 ? 3 : step === 3 ? 4 : 5)}
-                    >
-                      Skip →
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Step 1: Basic Info */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <div>
-                  <Label
-                    htmlFor="name"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Persona Name
-                  </Label>
-                  <Input
-                    id="name"
-                    value={personaData.name}
-                    onChange={(e) => updatePersonaData('name', e.target.value)}
-                    placeholder="e.g., scape², Minimal Storyteller, Conscious Futurist"
-                    className="rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 text-slate-900 dark:text-slate-100 dark:bg-[#0b1220]"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="niche"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Content Niche / Brand Type
-                  </Label>
-                  <Input
-                    id="niche"
-                    value={personaData.niche}
-                    onChange={(e) => updatePersonaData('niche', e.target.value)}
-                    placeholder="e.g., wearable art and slow fashion, regenerative beauty studio"
-                    className="rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 text-slate-900 dark:text-slate-100 dark:bg-[#0b1220]"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="expertise"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Your Expertise
-                  </Label>
-                  <Textarea
-                    id="expertise"
-                    value={personaData.expertise}
-                    onChange={(e) => updatePersonaData('expertise', e.target.value)}
-                    placeholder="What are you an expert in? What unique knowledge or experience do you bring?"
-                    className="h-32 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Audience & Platforms */}
-            {step === 2 && (
-              <div className="space-y-4">
-                <div>
-                  <Label
-                    htmlFor="audience"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Target Audience
-                  </Label>
-                  <Textarea
-                    id="audience"
-                    value={personaData.audience}
-                    onChange={(e) => updatePersonaData('audience', e.target.value)}
-                    placeholder="Who do you create content for? Demographics, interests, pain points, goals..."
-                    className="h-32 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                    Primary Platforms
-                  </Label>
-                  <div className="flex flex-wrap gap-2">
-                    {PLATFORM_OPTIONS.map((platform) => {
-                      const isActive = personaData.platforms.includes(platform);
-                      return (
-                        <Button
-                          key={platform}
-                          type="button"
-                          variant={isActive ? 'default' : 'outline'}
-                          className={cn(
-                            'rounded-full px-4 py-2 text-sm transition-all',
-                            isActive
-                              ? 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100'
-                              : 'border-slate-200/70 dark:border-slate-700/60 bg-white/70 dark:bg-transparent hover:border-slate-300 dark:hover:border-slate-500'
-                          )}
-                          onClick={() => {
-                            const platforms = isActive
-                              ? personaData.platforms.filter((p) => p !== platform)
-                              : [...personaData.platforms, platform];
-                            updatePersonaData('platforms', platforms);
-                          }}
-                        >
-                          {platform}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <Label
-                    htmlFor="contentStyle"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Content Style
-                  </Label>
-                  <Textarea
-                    id="contentStyle"
-                    value={personaData.contentStyle}
-                    onChange={(e) => updatePersonaData('contentStyle', e.target.value)}
-                    placeholder="How do you create content? Educational, entertaining, inspirational? What formats work best?"
-                    className="h-32 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Voice & Style */}
-            {step === 3 && (
-              <div className="space-y-4">
-                <div>
-                  <Label
-                    htmlFor="brandVoice"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Brand Voice & Personality
-                  </Label>
-                  <Textarea
-                    id="brandVoice"
-                    value={personaData.brandVoice}
-                    onChange={(e) => updatePersonaData('brandVoice', e.target.value)}
-                    placeholder="How do you communicate? Friendly, professional, casual, inspiring? What's your personality like in content?"
-                    className="h-36 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="businessGoals"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Business Goals
-                  </Label>
-                  <Textarea
-                    id="businessGoals"
-                    value={personaData.businessGoals}
-                    onChange={(e) => updatePersonaData('businessGoals', e.target.value)}
-                    placeholder="What are you trying to achieve? Brand awareness, product sales, community building, education?"
-                    className="h-32 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Performance & Challenges */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <div>
-                  <Label
-                    htmlFor="successfulContent"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Most Successful Content
-                  </Label>
-                  <Textarea
-                    id="successfulContent"
-                    value={personaData.successfulContent}
-                    onChange={(e) => updatePersonaData('successfulContent', e.target.value)}
-                    placeholder="Describe your best-performing posts. What worked? What got the most engagement?"
-                    className="h-36 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-                <div>
-                  <Label
-                    htmlFor="challenges"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                  >
-                    Current Challenges / Prompts to Collect
-                  </Label>
-                  <Textarea
-                    id="challenges"
-                    value={personaData.challenges}
-                    onChange={(e) => updatePersonaData('challenges', e.target.value)}
-                    placeholder="What struggles do you have with content creation? What would you like to improve? Or list the prompts you ask your persona."
-                    className="h-32 rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white/90 dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Generated Prompt */}
-            {step === 5 && (
-              <div className="space-y-6">
-                {/* Prominent Header */}
-                <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="text-4xl">🤖</div>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-foreground mb-2">
-                          Copy This Prompt to Use in ChatGPT
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          This prompt includes all your context. Paste it into ChatGPT along with
-                          any additional information about yourself. ChatGPT will guide you through
-                          answering all the questions.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <Button
-                            onClick={() => {
-                              if (!generatedPrompt) {
-                                generateComprehensivePrompt();
-                              }
-                            }}
-                            size="lg"
-                            variant={generatedPrompt ? 'outline' : 'default'}
-                            className="flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
-                          >
-                            {generatedPrompt ? '🔄 Regenerate Prompt' : '🤖 Generate Prompt'}
-                          </Button>
-                          {generatedPrompt && (
-                            <Button
-                              onClick={() =>
-                                handleCopy(
-                                  generatedPrompt,
-                                  '✅ Prompt copied! Ready to paste in ChatGPT'
-                                )
-                              }
-                              size="lg"
-                              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
-                            >
-                              📋 Copy to Clipboard
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Generate Prompt Section */}
-                <div className="space-y-4">
-                  {!generatedPrompt && (
-                    <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
-                      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                        <div className="text-4xl mb-4">📝</div>
-                        <h3 className="text-lg font-semibold mb-2">
-                          Ready to Generate Your Prompt
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-6 max-w-md">
-                          Click &quot;Generate ChatGPT Prompt&quot; above to create a comprehensive
-                          prompt with all your context. Then copy it to use in ChatGPT.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {generatedPrompt && (
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <Label className="text-base font-semibold text-slate-900 dark:text-slate-50">
-                            Your Complete ChatGPT Prompt (Ready to Copy)
-                          </Label>
-                        </div>
-                        <Textarea
-                          value={generatedPrompt}
-                          onChange={(e) => setGeneratedPrompt(e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          className="h-96 font-mono text-sm rounded-2xl border-2 border-primary/20 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                          placeholder="Your prompt will appear here..."
-                        />
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            💡 Click in the box to select all, or use the copy button above
-                          </p>
-                          <Button
-                            onClick={() => handleCopy(generatedPrompt, '✅ Copied!')}
-                            variant="outline"
-                            size="sm"
-                            className="rounded-full"
-                          >
-                            📋 Copy Again
-                          </Button>
-                        </div>
-                      </div>
-
-                      <Card className="border-primary/20 bg-primary/5">
-                        <CardContent className="p-4">
-                          <h4 className="font-semibold text-primary mb-3 flex items-center gap-2">
-                            🚀 How to Use This Prompt:
-                          </h4>
-                          <ol className="text-sm space-y-2 list-decimal list-inside text-foreground">
-                            <li>
-                              Click &quot;Copy Prompt to Clipboard&quot; button above (or click in
-                              the text box and Cmd+C)
-                            </li>
-                            <li>Open ChatGPT, Claude, or any GPT tool and paste the prompt</li>
-                            <li>Add any additional context about yourself if needed</li>
-                            <li>ChatGPT will guide you through answering all the questions</li>
-                            <li>Copy ChatGPT&apos;s complete response</li>
-                            <li>
-                              Paste it in the &quot;ChatGPT Response&quot; section below and save
-                            </li>
-                          </ol>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-
-                {/* ChatGPT Response Section */}
-                <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        ChatGPT Response (Paste Here)
-                      </Label>
-                      {chatgptResponse && (
-                        <Badge variant="secondary" className="rounded-full">
-                          {chatgptResponse.length} characters
-                        </Badge>
-                      )}
-                    </div>
-                    <Textarea
-                      value={chatgptResponse}
-                      onChange={(e) => setChatgptResponse(e.target.value)}
-                      placeholder="Paste ChatGPT's complete response here after answering all the questions..."
-                      className="min-h-[300px] font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
-                    />
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                      This response will be saved with your persona blueprint for future reference.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleSaveChatGPTResponse}
-                      disabled={savingResponse || !chatgptResponse.trim()}
-                      className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 disabled:opacity-50"
-                    >
-                      {savingResponse
-                        ? 'Saving...'
-                        : activePersonaId
-                          ? '💾 Save ChatGPT Response'
-                          : '💾 Create Persona & Save Response'}
-                    </Button>
-                    {!activePersonaId && (
-                      <p className="text-xs text-center text-muted-foreground">
-                        A new persona will be created automatically from your ChatGPT response
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Create Persona Button */}
-                <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
-                  <Button
-                    onClick={createPersona}
-                    disabled={creating}
-                    className="w-full rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
-                  >
-                    {creating ? 'Creating Persona...' : '✨ Create AI Persona'}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation */}
-            <div className="flex justify-between pt-6 border-t border-slate-100 dark:border-slate-800">
-              <Button
-                onClick={prevStep}
-                variant="outline"
-                disabled={step === 1}
-                className="rounded-full"
-              >
-                ← Previous
-              </Button>
-
-              {step < totalSteps ? (
-                <Button
-                  onClick={nextStep}
-                  disabled={
-                    (step === 1 &&
-                      (!personaData.name || !personaData.niche || !personaData.expertise)) ||
-                    (step === 2 &&
-                      (!personaData.audience ||
-                        !personaData.contentStyle ||
-                        personaData.platforms.length === 0)) ||
-                    (step === 3 && (!personaData.brandVoice || !personaData.businessGoals)) ||
-                    (step === 4 && (!personaData.successfulContent || !personaData.challenges))
-                  }
-                  className="rounded-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
-                >
-                  Next →
-                </Button>
-              ) : (
-                <Badge
-                  variant="secondary"
-                  className="rounded-full px-4 py-2 text-slate-600 dark:text-slate-300"
-                >
-                  Ready to Generate
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Preview Card */}
-        {step > 1 && (
-          <Card className={cn(glassCard, 'mt-6')}>
-            <CardHeader>
-              <CardTitle className="text-lg text-slate-900 dark:text-slate-50">
-                📋 Persona Preview
-              </CardTitle>
+        {/* Simple Two-Step Flow */}
+        <div className="space-y-6">
+          {/* Step 1: Generate & Copy Prompt */}
+          <Card className="border-2 border-primary/30 shadow-lg">
+            <CardHeader className="bg-primary/5">
+              <CardTitle className="text-2xl">Step 1: Generate Your ChatGPT Prompt</CardTitle>
+              <CardDescription>
+                Generate a prompt you can paste into ChatGPT. ChatGPT will guide you through all the
+                questions.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <p>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">Name:</span>{' '}
-                    {personaData.name || 'Not set'}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">Niche:</span>{' '}
-                    {personaData.niche || 'Not set'}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      Platforms:
-                    </span>{' '}
-                    {personaData.platforms.join(', ') || 'None selected'}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <p>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      Audience:
-                    </span>{' '}
-                    {personaData.audience
-                      ? `${personaData.audience.slice(0, 120)}${personaData.audience.length > 120 ? '…' : ''}`
-                      : 'Not set'}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">Style:</span>{' '}
-                    {personaData.contentStyle
-                      ? `${personaData.contentStyle.slice(0, 120)}${personaData.contentStyle.length > 120 ? '…' : ''}`
-                      : 'Not set'}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">Voice:</span>{' '}
-                    {personaData.brandVoice
-                      ? `${personaData.brandVoice.slice(0, 120)}${personaData.brandVoice.length > 120 ? '…' : ''}`
-                      : 'Not set'}
-                  </p>
-                </div>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => {
+                    generateComprehensivePrompt();
+                  }}
+                  size="lg"
+                  variant={generatedPrompt ? 'outline' : 'default'}
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {generatedPrompt ? '🔄 Regenerate' : '🤖 Generate Prompt'}
+                </Button>
+                {generatedPrompt && (
+                  <Button
+                    onClick={() => handleCopy(generatedPrompt, '✅ Copied! Paste into ChatGPT now')}
+                    size="lg"
+                    className="flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
+                  >
+                    📋 Copy Prompt
+                  </Button>
+                )}
               </div>
+
+              {generatedPrompt && (
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Your Prompt (Ready to Copy)</Label>
+                  <Textarea
+                    value={generatedPrompt}
+                    onChange={(e) => setGeneratedPrompt(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    className="h-64 font-mono text-sm"
+                    placeholder="Your prompt will appear here..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    💡 Click in the box to select all, then copy (Cmd+C / Ctrl+C)
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
 
-        {/* Help Card */}
-        <Card className={cn(glassCard, 'mt-6 mb-10')}>
-          <CardHeader>
-            <CardTitle className="text-sm text-slate-900 dark:text-slate-50">
-              💡 Tips for Better Personas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600 dark:text-slate-300">
-              <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4">
-                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">
-                  🎯 Be Specific
-                </h4>
-                <p>The more specific you are, the better your AI persona will be.</p>
+          {/* Step 2: Paste Response & Save */}
+          <Card className="border-2 border-success/30 shadow-lg">
+            <CardHeader className="bg-success/5">
+              <CardTitle className="text-2xl">Step 2: Paste ChatGPT Response & Save</CardTitle>
+              <CardDescription>
+                After ChatGPT guides you through the questions, paste its complete response here and
+                save.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">ChatGPT Response</Label>
+                <Textarea
+                  value={chatgptResponse}
+                  onChange={(e) => setChatgptResponse(e.target.value)}
+                  placeholder="Paste ChatGPT's complete response here..."
+                  className="min-h-[300px] font-mono text-sm"
+                />
+                {chatgptResponse && (
+                  <p className="text-xs text-muted-foreground">
+                    {chatgptResponse.length} characters
+                  </p>
+                )}
               </div>
-              <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4">
-                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">
-                  📈 Include Performance Data
-                </h4>
-                <p>Mention what content performs well and why.</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white/85 dark:bg-[#0f172a] p-4">
-                <h4 className="font-medium mb-1 text-slate-800 dark:text-slate-100">
-                  🗣️ Define Your Voice
-                </h4>
-                <p>Describe how you communicate and connect with your audience.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+
+              <Button
+                onClick={handleSaveChatGPTResponse}
+                disabled={savingResponse || !chatgptResponse.trim()}
+                size="lg"
+                className="w-full bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50"
+              >
+                {savingResponse
+                  ? 'Saving...'
+                  : activePersonaId
+                    ? '💾 Save Response'
+                    : '💾 Create Persona & Save'}
+              </Button>
+
+              {!activePersonaId && chatgptResponse.trim() && (
+                <p className="text-xs text-center text-muted-foreground">
+                  A new persona will be created automatically from your response
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Hidden: Old form steps - keeping for backward compatibility but hidden */}
+        {/* All old form code removed for simplicity - only showing simple two-step flow above */}
       </div>
     </div>
   );

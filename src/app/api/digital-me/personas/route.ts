@@ -15,7 +15,7 @@ const CreatePersonaSchema = z.object({
     caption: z.string().optional(),
     tags: z.array(z.string()).optional(),
     engagement: z.number().optional()
-  })).min(1, 'At least one sample is required')
+  })).default([]) // Make samples optional - can create persona without samples
 });
 
 // Get all personas
@@ -120,52 +120,67 @@ export async function POST(request: NextRequest) {
         name,
         description: description || `AI voice for ${niche} content`,
         niche,
-        summary: `Learning ${niche} voice from ${samples.length} examples...`,
+        summary: samples.length > 0 
+          ? `Learning ${niche} voice from ${samples.length} examples...`
+          : `${name} persona for ${niche}`,
         preferredTones: ['authentic'],
         topThemes: [niche],
         lexicalTraits: {}
       }
     });
 
-    // Store voice examples for this persona
-    await Promise.all(samples.map(async (sample) => {
-      // Create embedding
-      const embedding = await digitalMeService.createEmbeddings([`${sample.hook} ${sample.body}`]);
-      
-      return db.voiceExample.create({
-        data: {
-          personaId: persona.id,
-          theme: sample.theme,
-          tone: sample.tone,
-          hook: sample.hook,
-          body: sample.body,
-          caption: sample.caption,
-          tags: sample.tags || [],
-          engagement: sample.engagement,
-          embedding: embedding[0]
-        }
-      });
-    }));
+    // Store voice examples for this persona (if provided)
+    if (samples.length > 0) {
+      await Promise.all(samples.map(async (sample) => {
+        // Create embedding
+        const embedding = await digitalMeService.createEmbeddings([`${sample.hook} ${sample.body}`]);
+        
+        return db.voiceExample.create({
+          data: {
+            personaId: persona.id,
+            theme: sample.theme,
+            tone: sample.tone,
+            hook: sample.hook,
+            body: sample.body,
+            caption: sample.caption,
+            tags: sample.tags || [],
+            engagement: sample.engagement,
+            embedding: embedding[0]
+          }
+        });
+      }));
 
-    // Analyze voice and update persona
-    const sampleTexts = samples.map(s => `${s.hook} ${s.body}`);
-    const analysis = await digitalMeService.analyzeVoiceFromSamples(sampleTexts);
+      // Analyze voice and update persona (only if we have samples)
+      const sampleTexts = samples.map(s => `${s.hook} ${s.body}`);
+      try {
+        const analysis = await digitalMeService.analyzeVoiceFromSamples(sampleTexts);
 
-    const updatedPersona = await db.voiceProfile.update({
-      where: { id: persona.id },
-      data: {
-        summary: `${name} persona: ${analysis.tone} tone, focuses on ${analysis.themes.slice(0, 3).join(', ')}`,
-        preferredTones: [analysis.tone, ...analysis.writingStyle.personality.slice(0, 2)],
-        topThemes: analysis.themes.slice(0, 5),
-        lexicalTraits: analysis.writingStyle
+        const updatedPersona = await db.voiceProfile.update({
+          where: { id: persona.id },
+          data: {
+            summary: `${name} persona: ${analysis.tone} tone, focuses on ${analysis.themes.slice(0, 3).join(', ')}`,
+            preferredTones: [analysis.tone, ...analysis.writingStyle.personality.slice(0, 2)],
+            topThemes: analysis.themes.slice(0, 5),
+            lexicalTraits: analysis.writingStyle
+          }
+        });
+        
+        console.log('✅ Persona created with voice analysis:', updatedPersona.name);
+        return NextResponse.json({
+          success: true,
+          persona: updatedPersona
+        });
+      } catch (error) {
+        console.error('Voice analysis failed, returning basic persona:', error);
+        // Continue with basic persona if analysis fails
       }
-    });
+    }
 
-    console.log('✅ Persona created:', updatedPersona.name);
+    console.log('✅ Persona created:', persona.name);
 
     return NextResponse.json({
       success: true,
-      persona: updatedPersona,
+      persona: persona,
       message: `${name} persona created with ${samples.length} training examples`
     });
 
