@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -31,7 +31,6 @@ export default function UploadPage() {
       category: string;
     }>
   >([]);
-  const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
@@ -50,6 +49,189 @@ export default function UploadPage() {
     >
   >({});
 
+  const removeFile = useCallback((fileName: string) => {
+    setSelectedFiles((prev) => {
+      const filtered = prev.filter((f) => f.name !== fileName);
+      // Also clean up metadata for removed files
+      setVideoMetadata((prevMeta) => {
+        const next = { ...prevMeta };
+        Object.keys(next).forEach((key) => {
+          if (key.startsWith(fileName)) {
+            delete next[key];
+          }
+        });
+        return next;
+      });
+      return filtered;
+    });
+  }, []);
+
+  const handleUpload = useCallback(
+    async (file: File, fileName: string) => {
+      const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+
+      // Skip if already uploading
+      if (uploadingFiles.has(fileId)) {
+        console.log(`Skipping ${fileName} - already uploading`);
+        return;
+      }
+
+      setUploadingFiles((prev) => new Set(prev).add(fileId));
+      console.log(`Starting upload for ${fileName} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+
+      try {
+        // Get active persona from localStorage
+        const activePersonaId =
+          typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
+
+        if (!activePersonaId) {
+          throw new Error(
+            'Please select a persona before uploading videos. Use the persona switcher at the top of the page.'
+          );
+        }
+
+        const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+        const metadata = videoMetadata[fileKey] || {
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          description: '',
+          category: 'general',
+          tags: [],
+        };
+
+        console.log(`Uploading ${fileName} to R2...`);
+        const { ClientR2Uploader } = await import('@/lib/r2-storage');
+        const uploader = new ClientR2Uploader();
+
+        const uploadResult = await uploader.uploadFile(file);
+        console.log(`R2 upload successful for ${fileName}:`, uploadResult.url);
+
+        // Save to database
+        const fileSizeMB = file.size / (1024 * 1024);
+        const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
+
+        console.log(`Saving ${fileName} to database...`);
+        const dbResponse = await fetch('/api/broll/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: metadata.name || file.name.replace(/\.[^/.]+$/, ''),
+            description: metadata.description || `Video: ${file.name}`,
+            fileUrl: uploadResult.url,
+            duration: estimatedDuration,
+            category: metadata.category || 'general',
+            tags: metadata.tags || [],
+            personaId: activePersonaId,
+          }),
+        });
+
+        if (!dbResponse.ok) {
+          const errorText = await dbResponse.text();
+          console.error(`Database save failed for ${fileName}:`, dbResponse.status, errorText);
+          throw new Error(`Database save failed: ${dbResponse.status} ${errorText}`);
+        }
+
+        const result = await dbResponse.json();
+        console.log(`Successfully uploaded ${fileName}`);
+        setRecentUploads((prev) => [result.broll, ...prev].slice(0, 5));
+
+        // Remove file from selection after successful upload (for auto-upload)
+        removeFile(file.name);
+
+        return result;
+      } catch (error) {
+        console.error(`Upload failed for ${fileName}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Full error details:', {
+          fileName,
+          fileSize: file.size,
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        throw new Error(`${fileName}: ${errorMessage}`);
+      } finally {
+        setUploadingFiles((prev) => {
+          const next = new Set(prev);
+          next.delete(fileId);
+          return next;
+        });
+      }
+    },
+    [videoMetadata, uploadingFiles, removeFile]
+  );
+
+  const handleFileSelect = useCallback(
+    async (files: File[]) => {
+      if (!files || files.length === 0) {
+        return;
+      }
+
+      const videoFiles = files.filter((file) => {
+        // Accept video files or files without a type (iOS sometimes doesn't set type)
+        if (file.type && file.type.startsWith('image/')) {
+          return false;
+        }
+        return true;
+      });
+
+      if (videoFiles.length === 0) {
+        return;
+      }
+
+      // Add new files to selection and auto-upload them
+      const newFilesToUpload: File[] = [];
+
+      setSelectedFiles((prev) => {
+        const newFiles = [...prev];
+
+        videoFiles.forEach((file) => {
+          const exists = newFiles.find(
+            (f) =>
+              f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
+          );
+
+          if (!exists) {
+            newFiles.push(file);
+            newFilesToUpload.push(file);
+            const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+            setVideoMetadata((prevMeta) => ({
+              ...prevMeta,
+              [fileKey]: {
+                name: file.name.replace(/\.[^/.]+$/, ''),
+                description: '',
+                category: 'general',
+                tags: [],
+              },
+            }));
+          }
+        });
+
+        return newFiles;
+      });
+
+      // Auto-upload new files
+      if (newFilesToUpload.length > 0) {
+        console.log(`Auto-uploading ${newFilesToUpload.length} video(s)...`);
+        // Upload files in parallel and track progress
+        let completed = 0;
+        const total = newFilesToUpload.length;
+
+        newFilesToUpload.forEach((file) => {
+          handleUpload(file, file.name)
+            .then(() => {
+              completed++;
+              setUploadProgress(Math.round((completed / total) * 100));
+            })
+            .catch((error) => {
+              console.error(`Auto-upload failed for ${file.name}:`, error);
+              completed++;
+              setUploadProgress(Math.round((completed / total) * 100));
+            });
+        });
+      }
+    },
+    [handleUpload]
+  );
+
   // Check for files periodically when input might have been used (iOS Photos picker workaround)
   useEffect(() => {
     const checkInterval = setInterval(() => {
@@ -65,7 +247,7 @@ export default function UploadPage() {
         // Only process if we haven't seen these exact files before
         if (!lastProcessedFiles.current.has(fileSignature) && files.length > 0) {
           lastProcessedFiles.current.add(fileSignature);
-          handleFileSelect(files);
+          handleFileSelect(files).catch(console.error);
           // Clear after processing
           setTimeout(() => {
             if (fileInputRef.current) {
@@ -78,53 +260,7 @@ export default function UploadPage() {
     }, 300);
 
     return () => clearInterval(checkInterval);
-  }, []);
-
-  const handleFileSelect = (files: File[]) => {
-    if (!files || files.length === 0) {
-      return;
-    }
-
-    const videoFiles = files.filter((file) => {
-      // Accept video files or files without a type (iOS sometimes doesn't set type)
-      if (file.type && file.type.startsWith('image/')) {
-        return false;
-      }
-      return true;
-    });
-
-    if (videoFiles.length === 0) {
-      return;
-    }
-
-    // Add new files to selection
-    setSelectedFiles((prev) => {
-      const newFiles = [...prev];
-
-      videoFiles.forEach((file) => {
-        const exists = newFiles.find(
-          (f) =>
-            f.name === file.name && f.size === file.size && f.lastModified === file.lastModified
-        );
-
-        if (!exists) {
-          newFiles.push(file);
-          const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-          setVideoMetadata((prevMeta) => ({
-            ...prevMeta,
-            [fileKey]: {
-              name: file.name.replace(/\.[^/.]+$/, ''),
-              description: '',
-              category: 'general',
-              tags: [],
-            },
-          }));
-        }
-      });
-
-      return newFiles;
-    });
-  };
+  }, [handleFileSelect]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -143,131 +279,6 @@ export default function UploadPage() {
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileSelect(files);
-    }
-  };
-
-  const removeFile = (fileName: string) => {
-    setSelectedFiles((prev) => {
-      const filtered = prev.filter((f) => f.name !== fileName);
-      // Also clean up metadata for removed files
-      setVideoMetadata((prevMeta) => {
-        const next = { ...prevMeta };
-        Object.keys(next).forEach((key) => {
-          if (key.startsWith(fileName)) {
-            delete next[key];
-          }
-        });
-        return next;
-      });
-      return filtered;
-    });
-  };
-
-  const handleUpload = async (file: File, fileName: string) => {
-    const fileId = `${file.name}-${file.size}-${file.lastModified}`;
-
-    // Skip if already uploading
-    if (uploadingFiles.has(fileId)) return;
-
-    setUploadingFiles((prev) => new Set(prev).add(fileId));
-
-    try {
-      // Get active persona from localStorage
-      const activePersonaId =
-        typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
-
-      if (!activePersonaId) {
-        throw new Error(
-          'Please select a persona before uploading videos. Use the persona switcher at the top of the page.'
-        );
-      }
-
-      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-      const metadata = videoMetadata[fileKey] || {
-        name: file.name.replace(/\.[^/.]+$/, ''),
-        description: '',
-        category: 'general',
-        tags: [],
-      };
-
-      const { ClientR2Uploader } = await import('@/lib/r2-storage');
-      const uploader = new ClientR2Uploader();
-
-      const uploadResult = await uploader.uploadFile(file);
-
-      // Save to database
-      const fileSizeMB = file.size / (1024 * 1024);
-      const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
-
-      const dbResponse = await fetch('/api/broll/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: metadata.name || file.name.replace(/\.[^/.]+$/, ''),
-          description: metadata.description || `Video: ${file.name}`,
-          fileUrl: uploadResult.url,
-          duration: estimatedDuration,
-          category: metadata.category || 'general',
-          tags: metadata.tags || [],
-          personaId: activePersonaId,
-        }),
-      });
-
-      if (!dbResponse.ok) {
-        throw new Error('Database save failed');
-      }
-
-      const result = await dbResponse.json();
-      setRecentUploads((prev) => [result.broll, ...prev].slice(0, 5));
-
-      // Remove file from selection after successful upload
-      removeFile(file.name);
-
-      return result;
-    } catch (error) {
-      console.error(`Upload failed for ${fileName}:`, error);
-      alert(
-        `Failed to upload ${fileName}: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-      throw error;
-    } finally {
-      setUploadingFiles((prev) => {
-        const next = new Set(prev);
-        next.delete(fileId);
-        return next;
-      });
-    }
-  };
-
-  const handleUploadAll = async () => {
-    if (selectedFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadProgress(0);
-
-    try {
-      const total = selectedFiles.length;
-      let completed = 0;
-
-      for (const file of selectedFiles) {
-        try {
-          await handleUpload(file, file.name);
-          completed++;
-          setUploadProgress(Math.round((completed / total) * 100));
-        } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
-          // Continue with other files even if one fails
-        }
-      }
-
-      if (completed === total) {
-        // All uploaded successfully
-        setSelectedFiles([]);
-        setVideoMetadata({});
-      }
-    } finally {
-      setUploading(false);
-      setTimeout(() => setUploadProgress(0), 2000);
     }
   };
 
@@ -375,8 +386,8 @@ export default function UploadPage() {
                             Drop videos here or click to browse
                           </p>
                           <p className="text-xs text-muted-foreground text-center px-4">
-                            Tap to select videos • Tap multiple times to add more • Upload when
-                            ready
+                            Tap to select videos • Videos upload automatically • Tap again to add
+                            more
                           </p>
                         </label>
 
@@ -385,7 +396,7 @@ export default function UploadPage() {
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-medium text-foreground">
                                 {selectedFiles.length} video{selectedFiles.length !== 1 ? 's' : ''}{' '}
-                                selected
+                                {uploadingFiles.size > 0 ? 'uploading' : 'selected'}
                               </p>
                               <Button
                                 size="sm"
@@ -394,6 +405,7 @@ export default function UploadPage() {
                                   setSelectedFiles([]);
                                   setVideoMetadata({});
                                 }}
+                                disabled={uploadingFiles.size > 0}
                               >
                                 Clear All
                               </Button>
@@ -409,7 +421,7 @@ export default function UploadPage() {
                                   >
                                     <div className="flex items-center gap-3">
                                       <Video
-                                        className={`h-5 w-5 ${isUploading ? 'text-primary animate-pulse' : 'text-primary'}`}
+                                        className={`h-5 w-5 ${isUploading ? 'text-primary animate-pulse' : 'text-muted-foreground'}`}
                                       />
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium truncate">{file.name}</p>
@@ -433,34 +445,15 @@ export default function UploadPage() {
                                 );
                               })}
                             </div>
-                          </div>
-                        )}
 
-                        {/* Upload Button - Always visible, sticky on mobile */}
-                        {selectedFiles.length > 0 && (
-                          <div
-                            className={`mt-4 space-y-2 ${uploading ? '' : 'sticky bottom-0 bg-background pt-4 pb-2 z-10'}`}
-                          >
-                            {!uploading ? (
-                              <>
-                                <Button
-                                  onClick={handleUploadAll}
-                                  className="w-full shadow-lg"
-                                  size="lg"
-                                  disabled={uploadingFiles.size > 0}
-                                >
-                                  <Upload className="h-5 w-5 mr-2" />
-                                  Upload {selectedFiles.length} Video
-                                  {selectedFiles.length !== 1 ? 's' : ''}
-                                </Button>
-                                <p className="text-xs text-center text-muted-foreground">
-                                  Tap &quot;Browse&quot; again to add more videos
-                                </p>
-                              </>
-                            ) : (
-                              <div className="space-y-2">
+                            {/* Upload Progress */}
+                            {uploadingFiles.size > 0 && (
+                              <div className="mt-4 space-y-2">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium">Uploading...</span>
+                                  <span className="text-sm font-medium">
+                                    Uploading {uploadingFiles.size} video
+                                    {uploadingFiles.size !== 1 ? 's' : ''}...
+                                  </span>
                                   <span className="text-sm text-muted-foreground">
                                     {uploadProgress}%
                                   </span>
