@@ -966,6 +966,26 @@ Create with me:
                 >
                   {generatedPrompt ? '🔄 Regenerate' : '🤖 Generate Prompt'}
                 </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text.trim()) {
+                        setGeneratedPrompt(text);
+                        flashStatus({ type: 'success', message: 'Prompt pasted from clipboard!' });
+                      } else {
+                        flashStatus({ type: 'error', message: 'Clipboard is empty' });
+                      }
+                    } catch {
+                      flashStatus({ type: 'error', message: 'Unable to read clipboard' });
+                    }
+                  }}
+                  size="lg"
+                  variant="outline"
+                  className="flex-1"
+                >
+                  📥 Paste External Prompt
+                </Button>
                 {generatedPrompt && (
                   <Button
                     onClick={() => handleCopy(generatedPrompt, '✅ Copied! Paste into ChatGPT now')}
@@ -977,21 +997,41 @@ Create with me:
                 )}
               </div>
 
-              {generatedPrompt && (
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">Your Prompt (Ready to Copy)</Label>
-                  <Textarea
-                    value={generatedPrompt}
-                    onChange={(e) => setGeneratedPrompt(e.target.value)}
-                    onFocus={(e) => e.target.select()}
-                    className="h-64 font-mono text-sm"
-                    placeholder="Your prompt will appear here..."
-                  />
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">
+                  Your Prompt {generatedPrompt ? '(Ready to Copy)' : '(Generate or Paste)'}
+                </Label>
+                <Textarea
+                  value={generatedPrompt}
+                  onChange={(e) => setGeneratedPrompt(e.target.value)}
+                  onFocus={(e) => {
+                    if (generatedPrompt) {
+                      e.target.select();
+                    }
+                  }}
+                  onPaste={(e) => {
+                    // Allow pasting directly into textarea
+                    const pastedText = e.clipboardData.getData('text');
+                    if (pastedText && !generatedPrompt) {
+                      setGeneratedPrompt(pastedText);
+                      flashStatus({ type: 'success', message: 'Prompt pasted!' });
+                    }
+                  }}
+                  className="h-64 font-mono text-sm"
+                  placeholder="Generate a prompt above, or paste your externally created prompt here..."
+                />
+                {generatedPrompt ? (
                   <p className="text-xs text-muted-foreground">
-                    💡 Click in the box to select all, then copy (Cmd+C / Ctrl+C)
+                    💡 Click in the box to select all, then copy (Cmd+C / Ctrl+C) to paste into
+                    ChatGPT
                   </p>
-                </div>
-              )}
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    💡 Click &quot;Generate Prompt&quot; to create one, or paste your own prompt
+                    directly into the box above
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
