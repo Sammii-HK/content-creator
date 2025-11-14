@@ -43,15 +43,28 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
-      // Cleanup placeholder videos first
-      await fetch('/api/broll/cleanup', { method: 'POST' });
+      // Get active persona from localStorage
+      const activePersonaId = typeof window !== 'undefined' 
+        ? localStorage.getItem('activePersona') 
+        : null;
 
-      // Fetch real videos
-      const response = await fetch('/api/broll');
+      // Fetch videos for the active persona
+      const url = activePersonaId 
+        ? `/api/broll?personaId=${activePersonaId}`
+        : '/api/broll';
+      
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
+        // Only show real videos (not placeholders)
         const realVideos = (data.broll || []).filter((v: Video) => 
-          v.fileUrl.includes('r2.dev') || v.fileUrl.includes('r2.cloudflarestorage.com')
+          v.fileUrl && (
+            v.fileUrl.includes('r2.dev') || 
+            v.fileUrl.includes('r2.cloudflarestorage.com') ||
+            v.fileUrl.includes('https://') // Any real URL, not placeholder
+          ) && !v.fileUrl.includes('/placeholder/') &&
+          !v.fileUrl.includes('example.com') &&
+          !v.fileUrl.includes('test.mp4')
         );
         setVideos(realVideos);
       }

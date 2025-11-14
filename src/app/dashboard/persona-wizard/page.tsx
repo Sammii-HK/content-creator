@@ -1187,84 +1187,98 @@ Create with me:
             {/* Step 5: Generated Prompt */}
             {step === 5 && (
               <div className="space-y-6">
+                {/* Always Visible: Generate & Copy Button */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={() => {
+                      if (!generatedPrompt) {
+                        generateComprehensivePrompt();
+                      }
+                    }}
+                    size="lg"
+                    variant={generatedPrompt ? 'outline' : 'default'}
+                    className="flex-1 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
+                  >
+                    {generatedPrompt ? '🔄 Regenerate Prompt' : '🤖 Generate ChatGPT Prompt'}
+                  </Button>
+                  {generatedPrompt && (
+                    <Button
+                      onClick={() => handleCopy(generatedPrompt, '✅ Prompt copied to clipboard!')}
+                      size="lg"
+                      className="flex-1 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg"
+                    >
+                      📋 Copy Prompt to Clipboard
+                    </Button>
+                  )}
+                </div>
+
                 {/* Generate Prompt Section */}
                 <div className="space-y-4">
                   {!generatedPrompt && (
-                    <div className="text-center py-10">
-                      <Button
-                        onClick={generateComprehensivePrompt}
-                        size="lg"
-                        className="rounded-full px-8 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-100"
-                      >
-                        🤖 Generate Comprehensive ChatGPT Prompt
-                      </Button>
-                      <p className="text-slate-600 dark:text-slate-300 text-sm mt-2">
-                        Create one prompt with all your context - answer everything at once
-                      </p>
-                    </div>
+                    <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+                      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="text-4xl mb-4">📝</div>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Ready to Generate Your Prompt
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                          Click &quot;Generate ChatGPT Prompt&quot; above to create a comprehensive
+                          prompt with all your context. Then copy it to use in ChatGPT.
+                        </p>
+                      </CardContent>
+                    </Card>
                   )}
 
                   {generatedPrompt && (
                     <div className="space-y-4">
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                            Your Comprehensive ChatGPT Prompt
+                          <Label className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                            Your Complete ChatGPT Prompt (Ready to Copy)
                           </Label>
-                          <Button
-                            onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')}
-                            variant="default"
-                            size="sm"
-                            className="rounded-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
-                          >
-                            📋 Copy All to Clipboard
-                          </Button>
                         </div>
                         <Textarea
                           value={generatedPrompt}
                           onChange={(e) => setGeneratedPrompt(e.target.value)}
                           onFocus={(e) => e.target.select()}
-                          className="h-96 font-mono text-sm rounded-2xl border-slate-200/70 dark:border-slate-700 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed select-all"
-                          placeholder="Click 'Generate Comprehensive ChatGPT Prompt' to create your prompt..."
+                          className="h-96 font-mono text-sm rounded-2xl border-2 border-primary/20 bg-white dark:bg-[#0b1220] text-slate-900 dark:text-slate-100 leading-relaxed"
+                          placeholder="Your prompt will appear here..."
                         />
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                          💡 You can edit this prompt before copying if needed. Click &quot;Copy All
-                          to Clipboard&quot; to copy the entire prompt.
-                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            💡 Click in the box to select all, or use the copy button above
+                          </p>
+                          <Button
+                            onClick={() => handleCopy(generatedPrompt, '✅ Copied!')}
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                          >
+                            📋 Copy Again
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="rounded-2xl border border-blue-200/70 dark:border-blue-800/60 bg-blue-50/60 dark:bg-blue-950/60 p-4">
-                        <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
-                          🚀 Simple Workflow:
-                        </h4>
-                        <ol className="text-sm space-y-2 list-decimal list-inside text-blue-800 dark:text-blue-300">
-                          <li>Click &quot;Copy All to Clipboard&quot; above to copy the prompt</li>
-                          <li>Open ChatGPT (GPT-4 recommended) and paste the prompt</li>
-                          <li>ChatGPT will ask you questions - answer them all in the chat</li>
-                          <li>Copy ChatGPT&apos;s complete response</li>
-                          <li>
-                            Paste it in the &quot;ChatGPT Response&quot; section below and click
-                            &quot;Save ChatGPT Response&quot;
-                          </li>
-                        </ol>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => setGeneratedPrompt('')}
-                          variant="outline"
-                          className="rounded-2xl flex-1"
-                        >
-                          🔄 Regenerate Prompt
-                        </Button>
-                        <Button
-                          onClick={() => handleCopy(generatedPrompt, 'Prompt copied!')}
-                          variant="default"
-                          className="rounded-2xl flex-1 bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-200 dark:text-slate-900"
-                        >
-                          📋 Copy Prompt Again
-                        </Button>
-                      </div>
+                      <Card className="border-primary/20 bg-primary/5">
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold text-primary mb-3 flex items-center gap-2">
+                            🚀 How to Use This Prompt:
+                          </h4>
+                          <ol className="text-sm space-y-2 list-decimal list-inside text-foreground">
+                            <li>
+                              Click &quot;Copy Prompt to Clipboard&quot; button above (or click in
+                              the text box and Cmd+C)
+                            </li>
+                            <li>Open ChatGPT, Claude, or any GPT tool and paste the prompt</li>
+                            <li>Add any additional context about yourself if needed</li>
+                            <li>ChatGPT will guide you through answering all the questions</li>
+                            <li>Copy ChatGPT&apos;s complete response</li>
+                            <li>
+                              Paste it in the &quot;ChatGPT Response&quot; section below and save
+                            </li>
+                          </ol>
+                        </CardContent>
+                      </Card>
                     </div>
                   )}
                 </div>

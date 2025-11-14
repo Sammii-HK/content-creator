@@ -3,7 +3,20 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import FileUpload from '@/components/ui/FileUpload';
-import { ArrowLeft, CheckCircle, Upload, Video, FileText, Tag, Sparkles, Lightbulb, Cloud, Zap, Scissors } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle,
+  Upload,
+  Video,
+  FileText,
+  Tag,
+  Sparkles,
+  Lightbulb,
+  Cloud,
+  Zap,
+  Scissors,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,28 +32,56 @@ export default function UploadPage() {
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [isDragOver, setIsDragOver] = useState(false);
-  const [videoMetadata, setVideoMetadata] = useState({
-    name: '',
-    description: '',
-    category: 'general',
-    tags: [] as string[]
-  });
+  const [videoMetadata, setVideoMetadata] = useState<
+    Record<
+      string,
+      {
+        name: string;
+        description: string;
+        category: string;
+        tags: string[];
+      }
+    >
+  >({});
 
-  const handleFileSelect = (file: File) => {
-    // Validate it's a video
-    if (file.type.startsWith('image/')) {
-      alert('Please select a video file, not an image.');
-      return;
+  const handleFileSelect = (files: File[]) => {
+    const videoFiles = files.filter((file) => {
+      if (file.type.startsWith('image/')) {
+        return false;
+      }
+      return true;
+    });
+
+    if (videoFiles.length !== files.length) {
+      alert(
+        `Skipped ${files.length - videoFiles.length} non-video file(s). Only videos can be uploaded.`
+      );
     }
-    
-    setSelectedFile(file);
-    setVideoMetadata({
-      name: file.name.replace(/\.[^/.]+$/, ""),
-      description: '',
-      category: 'general',
-      tags: []
+
+    if (videoFiles.length === 0) return;
+
+    // Add new files to selection
+    setSelectedFiles((prev) => {
+      const newFiles = [...prev];
+      videoFiles.forEach((file) => {
+        if (!newFiles.find((f) => f.name === file.name && f.size === file.size)) {
+          newFiles.push(file);
+          // Initialize metadata for each file
+          setVideoMetadata((prevMeta) => ({
+            ...prevMeta,
+            [file.name]: {
+              name: file.name.replace(/\.[^/.]+$/, ''),
+              description: '',
+              category: 'general',
+              tags: [],
+            },
+          }));
+        }
+      });
+      return newFiles;
     });
   };
 
@@ -57,46 +98,69 @@ export default function UploadPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      const videoFile = files.find(f => 
-        f.type.startsWith('video/') || 
-        f.name.toLowerCase().match(/\.(mov|mp4|m4v)$/i)
-      ) || files[0];
-      
-      handleFileSelect(videoFile);
+      handleFileSelect(files);
     }
   };
 
-  const handleUpload = async (file: File, metadata: any) => {
-    console.log('🚀 Starting R2 upload...');
-    setUploading(true);
-    setUploadProgress(10);
-    
+  const removeFile = (fileName: string) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== fileName));
+    setVideoMetadata((prev) => {
+      const next = { ...prev };
+      delete next[fileName];
+      return next;
+    });
+  };
+
+  const handleUpload = async (file: File, fileName: string) => {
+    const fileId = `${fileName}-${file.size}`;
+
+    // Skip if already uploading
+    if (uploadingFiles.has(fileId)) return;
+
+    setUploadingFiles((prev) => new Set(prev).add(fileId));
+
     try {
+      // Get active persona from localStorage
+      const activePersonaId =
+        typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
+
+      if (!activePersonaId) {
+        throw new Error(
+          'Please select a persona before uploading videos. Use the persona switcher at the top of the page.'
+        );
+      }
+
+      const metadata = videoMetadata[fileName] || {
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        description: '',
+        category: 'general',
+        tags: [],
+      };
+
       const { ClientR2Uploader } = await import('@/lib/r2-storage');
       const uploader = new ClientR2Uploader();
 
-      setUploadProgress(30);
       const uploadResult = await uploader.uploadFile(file);
-      setUploadProgress(70);
 
       // Save to database
       const fileSizeMB = file.size / (1024 * 1024);
       const estimatedDuration = Math.max(5, Math.min(300, Math.round(fileSizeMB * 8)));
-      
+
       const dbResponse = await fetch('/api/broll/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: videoMetadata.name || metadata.name || file.name.replace(/\.[^/.]+$/, ""),
-          description: videoMetadata.description || metadata.description || `Video: ${file.name}`,
+          name: metadata.name || file.name.replace(/\.[^/.]+$/, ''),
+          description: metadata.description || `Video: ${file.name}`,
           fileUrl: uploadResult.url,
           duration: estimatedDuration,
-          category: videoMetadata.category || metadata.category || 'general',
-          tags: videoMetadata.tags.length > 0 ? videoMetadata.tags : (metadata.tags || [])
-        })
+          category: metadata.category || 'general',
+          tags: metadata.tags || [],
+          personaId: activePersonaId,
+        }),
       });
 
       if (!dbResponse.ok) {
@@ -104,14 +168,53 @@ export default function UploadPage() {
       }
 
       const result = await dbResponse.json();
-      setRecentUploads(prev => [result.broll, ...prev].slice(0, 5));
-      setUploadProgress(100);
-      
-      // Reset after successful upload
-      setSelectedFile(null);
-      setVideoMetadata({ name: '', description: '', category: 'general', tags: [] });
-      
+      setRecentUploads((prev) => [result.broll, ...prev].slice(0, 5));
+
+      // Remove file from selection after successful upload
+      removeFile(fileName);
+
       return result;
+    } catch (error) {
+      console.error(`Upload failed for ${fileName}:`, error);
+      alert(
+        `Failed to upload ${fileName}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
+    } finally {
+      setUploadingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
+    }
+  };
+
+  const handleUploadAll = async () => {
+    if (selectedFiles.length === 0) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const total = selectedFiles.length;
+      let completed = 0;
+
+      for (const file of selectedFiles) {
+        try {
+          await handleUpload(file, file.name);
+          completed++;
+          setUploadProgress(Math.round((completed / total) * 100));
+        } catch (error) {
+          console.error(`Failed to upload ${file.name}:`, error);
+          // Continue with other files
+        }
+      }
+
+      if (completed === total) {
+        // All uploaded successfully
+        setSelectedFiles([]);
+        setVideoMetadata({});
+      }
     } finally {
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 2000);
@@ -122,13 +225,13 @@ export default function UploadPage() {
     <SidebarProvider>
       <div className="flex min-h-screen bg-background lg:flex-row">
         <Sidebar />
-        
+
         <MainContent className="flex flex-col">
           {/* Header */}
           <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-xl">
             <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
               <MobileMenuButton />
-              
+
               <div className="flex flex-1 items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Link href="/dashboard">
@@ -139,10 +242,12 @@ export default function UploadPage() {
                   </Link>
                   <div>
                     <h1 className="text-xl font-semibold text-foreground">Upload Content</h1>
-                    <p className="text-sm text-foreground-muted">Add videos to your AI content library</p>
+                    <p className="text-sm text-foreground-muted">
+                      Add videos to your AI content library
+                    </p>
                   </div>
                 </div>
-                
+
                 {recentUploads.length > 0 && (
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{recentUploads.length} recent</Badge>
@@ -170,9 +275,7 @@ export default function UploadPage() {
                         <Upload className="h-5 w-5" />
                         Upload Video
                       </CardTitle>
-                      <CardDescription>
-                        Drag & drop or click to select
-                      </CardDescription>
+                      <CardDescription>Drag & drop or click to select</CardDescription>
                     </CardHeader>
                     <CardContent>
                       {/* Compact drag-drop area */}
@@ -180,9 +283,14 @@ export default function UploadPage() {
                         <input
                           type="file"
                           accept="video/*"
+                          multiple
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileSelect(file);
+                            const files = Array.from(e.target.files || []);
+                            if (files.length > 0) {
+                              handleFileSelect(files);
+                              // Reset input so same files can be selected again if needed
+                              e.target.value = '';
+                            }
                           }}
                           className="hidden"
                           id="file-upload-input"
@@ -200,124 +308,110 @@ export default function UploadPage() {
                         >
                           <Upload className="h-12 w-12 text-muted-foreground group-hover:text-primary mb-3 transition-colors" />
                           <p className="text-sm font-medium text-foreground mb-1">
-                            Drop video here or click to browse
+                            Drop videos here or click to browse
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Unlimited size • Direct to R2
+                          <p className="text-xs text-muted-foreground text-center px-4">
+                            Select multiple videos at once • Tap again to add more • Upload when
+                            ready
                           </p>
                         </label>
-                        
-                        {selectedFile && (
-                          <div className="mt-4 p-3 rounded-lg bg-background-secondary border border-border">
-                            <div className="flex items-center gap-3">
-                              <Video className="h-5 w-5 text-primary" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
-                                </p>
-                              </div>
+
+                        {selectedFiles.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium text-foreground">
+                                {selectedFiles.length} video{selectedFiles.length !== 1 ? 's' : ''}{' '}
+                                selected
+                              </p>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
                                 onClick={() => {
-                                  setSelectedFile(null);
-                                  setVideoMetadata({ name: '', description: '', category: 'general', tags: [] });
+                                  setSelectedFiles([]);
+                                  setVideoMetadata({});
                                 }}
                               >
-                                Change
+                                Clear All
                               </Button>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto space-y-2">
+                              {selectedFiles.map((file) => {
+                                const isUploading = uploadingFiles.has(`${file.name}-${file.size}`);
+                                return (
+                                  <div
+                                    key={`${file.name}-${file.size}`}
+                                    className="p-3 rounded-lg bg-background-secondary border border-border"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <Video
+                                        className={`h-5 w-5 ${isUploading ? 'text-primary animate-pulse' : 'text-primary'}`}
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{file.name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {(file.size / (1024 * 1024)).toFixed(1)} MB
+                                          {isUploading && ' • Uploading...'}
+                                        </p>
+                                      </div>
+                                      {!isUploading && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => removeFile(file.name)}
+                                          className="text-destructive hover:text-destructive"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
-                      </div>
-                      
-                      {uploading && uploadProgress > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Uploading...</span>
-                            <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+
+                        {/* Upload Button - Always visible, sticky on mobile */}
+                        {selectedFiles.length > 0 && (
+                          <div
+                            className={`mt-4 space-y-2 ${uploading ? '' : 'sticky bottom-0 bg-background pt-4 pb-2 z-10'}`}
+                          >
+                            {!uploading ? (
+                              <>
+                                <Button
+                                  onClick={handleUploadAll}
+                                  className="w-full shadow-lg"
+                                  size="lg"
+                                  disabled={uploadingFiles.size > 0}
+                                >
+                                  <Upload className="h-5 w-5 mr-2" />
+                                  Upload {selectedFiles.length} Video
+                                  {selectedFiles.length !== 1 ? 's' : ''}
+                                </Button>
+                                <p className="text-xs text-center text-muted-foreground">
+                                  Tap &quot;Browse&quot; again to add more videos
+                                </p>
+                              </>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">Uploading...</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {uploadProgress}%
+                                  </span>
+                                </div>
+                                <Progress value={uploadProgress} className="h-2" />
+                              </div>
+                            )}
                           </div>
-                          <Progress value={uploadProgress} className="h-2" />
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Right: Video Details Form */}
-                <div className="space-y-6">
-                  {selectedFile && !uploading ? (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          Video Details
-                        </CardTitle>
-                        <CardDescription>
-                          Add metadata before uploading
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Video Name</Label>
-                          <Input
-                            id="name"
-                            value={videoMetadata.name}
-                            onChange={(e) => setVideoMetadata({ ...videoMetadata, name: e.target.value })}
-                            placeholder="Enter video name"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea
-                            id="description"
-                            value={videoMetadata.description}
-                            onChange={(e) => setVideoMetadata({ ...videoMetadata, description: e.target.value })}
-                            placeholder="Describe your video..."
-                            rows={4}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="category">Category</Label>
-                          <select
-                            id="category"
-                            value={videoMetadata.category}
-                            onChange={(e) => setVideoMetadata({ ...videoMetadata, category: e.target.value })}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <option value="general">General</option>
-                            <option value="personal">Personal</option>
-                            <option value="product">Product</option>
-                            <option value="tutorial">Tutorial</option>
-                            <option value="entertainment">Entertainment</option>
-                          </select>
-                        </div>
-                        
-                        <Button 
-                          onClick={() => selectedFile && handleUpload(selectedFile, videoMetadata)}
-                          className="w-full"
-                          disabled={!videoMetadata.name.trim()}
-                        >
-                          <Upload className="h-4 w-4" />
-                          Upload Video
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Card className="border-dashed">
-                      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                        <FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                        <p className="text-sm text-muted-foreground">
-                          Select a video to add details
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                </div>
+                {/* Right: Info Cards */}
+                <div className="space-y-6"></div>
               </div>
 
               {/* Recent Uploads - Full Width Below */}
@@ -332,13 +426,18 @@ export default function UploadPage() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {recentUploads.map((upload, index) => (
-                        <div key={index} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-background-secondary">
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-background-secondary"
+                        >
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
                             <CheckCircle className="h-5 w-5 text-success" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate text-sm">{upload.name}</p>
-                            <p className="text-xs text-muted-foreground">{upload.duration}s • {upload.category}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {upload.duration}s • {upload.category}
+                            </p>
                           </div>
                           <Link href={`/dashboard/video-editor/${upload.id}`}>
                             <Button size="sm" variant="outline">
@@ -354,107 +453,123 @@ export default function UploadPage() {
 
               {/* Sidebar - Right Column */}
               <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Best Practices - Modern & Airy */}
-                  <Card className="border-primary/20 bg-gradient-to-br from-background to-background-secondary/50">
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                          <Lightbulb className="h-5 w-5 text-primary" />
+                {/* Best Practices - Modern & Airy */}
+                <Card className="border-primary/20 bg-gradient-to-br from-background to-background-secondary/50">
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <Lightbulb className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Best Practices</CardTitle>
+                        <CardDescription>Tips for better content</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success/10">
+                          <CheckCircle className="h-4 w-4 text-success" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Best Practices</CardTitle>
-                          <CardDescription>Tips for better content</CardDescription>
+                          <p className="font-medium text-sm">High-quality source</p>
+                          <p className="text-xs text-muted-foreground">
+                            Upload the best quality you have for maximum flexibility
+                          </p>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success/10">
-                            <CheckCircle className="h-4 w-4 text-success" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">High-quality source</p>
-                            <p className="text-xs text-muted-foreground">Upload the best quality you have for maximum flexibility</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                            <Tag className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">Descriptive names</p>
-                            <p className="text-xs text-muted-foreground">Use clear, searchable names to find videos easily</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-warning/10">
-                            <Sparkles className="h-4 w-4 text-warning" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">Add categories</p>
-                            <p className="text-xs text-muted-foreground">Organize with categories and tags for better AI training</p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
 
-                  {/* Quick Actions */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Zap className="h-5 w-5" />
-                        Quick Actions
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <Link href="/dashboard/content" className="block">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Video className="h-4 w-4" />
-                          View All Videos
-                        </Button>
-                      </Link>
-                      <Link href="/dashboard/create-images" className="block">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Sparkles className="h-4 w-4" />
-                          Create AI Images
-                        </Button>
-                      </Link>
-                      <Link href="/dashboard/persona-wizard" className="block">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Sparkles className="h-4 w-4" />
-                          Create AI Persona
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                          <Tag className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Descriptive names</p>
+                          <p className="text-xs text-muted-foreground">
+                            Use clear, searchable names to find videos easily
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* R2 Storage Info */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Cloud className="h-5 w-5" />
-                        Storage Info
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between rounded-lg border border-border bg-background-secondary/50 p-3">
-                        <span className="text-sm text-muted-foreground">File Size Limit</span>
-                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">Unlimited</Badge>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-warning/10">
+                          <Sparkles className="h-4 w-4 text-warning" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Add categories</p>
+                          <p className="text-xs text-muted-foreground">
+                            Organize with categories and tags for better AI training
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between rounded-lg border border-border bg-background-secondary/50 p-3">
-                        <span className="text-sm text-muted-foreground">Storage Cost</span>
-                        <Badge variant="outline">~$0.015/GB</Badge>
-                      </div>
-                      <div className="flex items-center justify-between rounded-lg border border-border bg-background-secondary/50 p-3">
-                        <span className="text-sm text-muted-foreground">Upload Speed</span>
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">Direct to R2</Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Actions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5" />
+                      Quick Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Link href="/dashboard/content" className="block">
+                      <Button variant="outline" className="w-full justify-start">
+                        <Video className="h-4 w-4" />
+                        View All Videos
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/create-images" className="block">
+                      <Button variant="outline" className="w-full justify-start">
+                        <Sparkles className="h-4 w-4" />
+                        Create AI Images
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/persona-wizard" className="block">
+                      <Button variant="outline" className="w-full justify-start">
+                        <Sparkles className="h-4 w-4" />
+                        Create AI Persona
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+
+                {/* R2 Storage Info */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Cloud className="h-5 w-5" />
+                      Storage Info
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background-secondary/50 p-3">
+                      <span className="text-sm text-muted-foreground">File Size Limit</span>
+                      <Badge
+                        variant="outline"
+                        className="bg-success/10 text-success border-success/20"
+                      >
+                        Unlimited
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background-secondary/50 p-3">
+                      <span className="text-sm text-muted-foreground">Storage Cost</span>
+                      <Badge variant="outline">~$0.015/GB</Badge>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border bg-background-secondary/50 p-3">
+                      <span className="text-sm text-muted-foreground">Upload Speed</span>
+                      <Badge
+                        variant="outline"
+                        className="bg-primary/10 text-primary border-primary/20"
+                      >
+                        Direct to R2
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>
