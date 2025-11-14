@@ -59,10 +59,10 @@ export default function SimpleVideoEditor() {
 
   useEffect(() => {
     if (params.id) {
-      fetchVideo();
-      fetchSegments();
+      void fetchVideo();
+      void fetchSegments();
     }
-  }, [params.id]);
+  }, [params.id, fetchVideo, fetchSegments]);
 
   const markStart = () => {
     setStartTime(currentTime);

@@ -32,7 +32,7 @@ export default function IntegrationsPage() {
   }, []);
 
   useEffect(() => {
-    checkConnections();
+    void checkConnections();
   }, [checkConnections]);
 
   const aiTools = [

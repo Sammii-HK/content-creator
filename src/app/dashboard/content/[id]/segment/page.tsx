@@ -34,7 +34,13 @@ export default function VideoSegmentation() {
   const [recordStart, setRecordStart] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
-  const [templateSuggestions, setTemplateSuggestions] = useState<any[]>([]);
+  interface TemplateSuggestion {
+    templateType: string;
+    reasoning: string;
+    confidence: number;
+    requiredSegments: Array<{ type: string }>;
+  }
+  const [templateSuggestions, setTemplateSuggestions] = useState<TemplateSuggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
@@ -435,7 +441,7 @@ export default function VideoSegmentation() {
               ) : templateSuggestions.length === 0 ? (
                 <div className="text-center py-4">
                   <p className="text-muted-foreground text-sm">
-                    Click "Get Suggestions" to see AI template recommendations
+                    Click &quot;Get Suggestions&quot; to see AI template recommendations
                   </p>
                 </div>
               ) : (
@@ -457,7 +463,7 @@ export default function VideoSegmentation() {
                       </div>
                       
                       <div className="text-xs text-muted-foreground">
-                        Needs: {suggestion.requiredSegments.map((req: any) => req.type).join(', ')}
+                        Needs: {suggestion.requiredSegments.map((req: { type: string }) => req.type).join(', ')}
                       </div>
                       
                       <div className="mt-2">
