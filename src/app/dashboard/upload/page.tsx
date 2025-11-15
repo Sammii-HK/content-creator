@@ -34,6 +34,11 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
+  const [uploadStatus, setUploadStatus] = useState<
+    Record<string, 'uploading' | 'success' | 'error'>
+  >({});
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalUploading, setTotalUploading] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastProcessedFiles = useRef<Set<string>>(new Set());
@@ -208,24 +213,64 @@ export default function UploadPage() {
         return newFiles;
       });
 
-      // Auto-upload new files
+      // Auto-upload new files in parallel
       if (newFilesToUpload.length > 0) {
-        console.log(`Auto-uploading ${newFilesToUpload.length} video(s)...`);
-        // Upload files in parallel and track progress
-        let completed = 0;
-        const total = newFilesToUpload.length;
+        console.log(`Auto-uploading ${newFilesToUpload.length} video(s) in parallel...`);
 
+        const total = newFilesToUpload.length;
+        setTotalUploading(total);
+        setCompletedCount(0);
+        setUploadProgress(0);
+
+        // Initialize upload status for all files
+        const initialStatus: Record<string, 'uploading' | 'success' | 'error'> = {};
         newFilesToUpload.forEach((file) => {
-          handleUpload(file, file.name)
-            .then(() => {
-              completed++;
-              setUploadProgress(Math.round((completed / total) * 100));
-            })
-            .catch((error) => {
-              console.error(`Auto-upload failed for ${file.name}:`, error);
-              completed++;
-              setUploadProgress(Math.round((completed / total) * 100));
+          const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+          initialStatus[fileId] = 'uploading';
+        });
+        setUploadStatus((prev) => ({ ...prev, ...initialStatus }));
+
+        // Upload all files in parallel using Promise.allSettled
+        const uploadPromises = newFilesToUpload.map(async (file) => {
+          const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+          try {
+            await handleUpload(file, file.name);
+            setUploadStatus((prev) => ({ ...prev, [fileId]: 'success' }));
+            setCompletedCount((prev) => {
+              const newCount = prev + 1;
+              setUploadProgress(Math.round((newCount / total) * 100));
+              return newCount;
             });
+            return { success: true, fileId, fileName: file.name };
+          } catch (error) {
+            console.error(`Auto-upload failed for ${file.name}:`, error);
+            setUploadStatus((prev) => ({ ...prev, [fileId]: 'error' }));
+            setCompletedCount((prev) => {
+              const newCount = prev + 1;
+              setUploadProgress(Math.round((newCount / total) * 100));
+              return newCount;
+            });
+            return { success: false, fileId, fileName: file.name, error };
+          }
+        });
+
+        // Wait for all uploads to complete
+        Promise.allSettled(uploadPromises).then((results) => {
+          const successful = results.filter(
+            (r) => r.status === 'fulfilled' && r.value.success
+          ).length;
+          const failed = total - successful;
+
+          if (failed > 0) {
+            console.warn(`${failed} upload(s) failed out of ${total}`);
+          }
+
+          // Reset after a delay
+          setTimeout(() => {
+            setTotalUploading(0);
+            setCompletedCount(0);
+            setUploadProgress(0);
+          }, 2000);
         });
       }
     },
@@ -410,27 +455,49 @@ export default function UploadPage() {
                                 Clear All
                               </Button>
                             </div>
-                            <div className="max-h-48 overflow-y-auto space-y-2">
+                            <div className="max-h-64 overflow-y-auto space-y-2">
                               {selectedFiles.map((file, index) => {
                                 const fileId = `${file.name}-${file.size}-${file.lastModified}`;
                                 const isUploading = uploadingFiles.has(fileId);
+                                const status =
+                                  uploadStatus[fileId] || (isUploading ? 'uploading' : undefined);
+
                                 return (
                                   <div
                                     key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
-                                    className="p-3 rounded-lg bg-background-secondary border border-border"
+                                    className={`p-3 rounded-lg border transition-colors ${
+                                      status === 'success'
+                                        ? 'bg-success/10 border-success/30'
+                                        : status === 'error'
+                                          ? 'bg-destructive/10 border-destructive/30'
+                                          : isUploading
+                                            ? 'bg-primary/10 border-primary/30'
+                                            : 'bg-background-secondary border-border'
+                                    }`}
                                   >
                                     <div className="flex items-center gap-3">
-                                      <Video
-                                        className={`h-5 w-5 ${isUploading ? 'text-primary animate-pulse' : 'text-muted-foreground'}`}
-                                      />
+                                      {status === 'success' ? (
+                                        <CheckCircle className="h-5 w-5 text-success" />
+                                      ) : status === 'error' ? (
+                                        <X className="h-5 w-5 text-destructive" />
+                                      ) : isUploading ? (
+                                        <div className="relative h-5 w-5">
+                                          <Video className="h-5 w-5 text-primary animate-pulse" />
+                                          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                                        </div>
+                                      ) : (
+                                        <Video className="h-5 w-5 text-muted-foreground" />
+                                      )}
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium truncate">{file.name}</p>
                                         <p className="text-xs text-muted-foreground">
                                           {(file.size / (1024 * 1024)).toFixed(1)} MB
-                                          {isUploading && ' • Uploading...'}
+                                          {status === 'success' && ' • Uploaded'}
+                                          {status === 'error' && ' • Failed'}
+                                          {isUploading && !status && ' • Uploading...'}
                                         </p>
                                       </div>
-                                      {!isUploading && (
+                                      {!isUploading && status !== 'uploading' && (
                                         <Button
                                           size="sm"
                                           variant="ghost"
@@ -446,13 +513,13 @@ export default function UploadPage() {
                               })}
                             </div>
 
-                            {/* Upload Progress */}
-                            {uploadingFiles.size > 0 && (
+                            {/* Upload Progress - Show when uploading */}
+                            {totalUploading > 0 && (
                               <div className="mt-4 space-y-2">
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm font-medium">
-                                    Uploading {uploadingFiles.size} video
-                                    {uploadingFiles.size !== 1 ? 's' : ''}...
+                                    Uploading {completedCount} of {totalUploading} video
+                                    {totalUploading !== 1 ? 's' : ''}...
                                   </span>
                                   <span className="text-sm text-muted-foreground">
                                     {uploadProgress}%
