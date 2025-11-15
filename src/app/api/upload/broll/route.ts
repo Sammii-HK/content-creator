@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ClientR2Uploader } from '@/lib/r2-storage';
 import { z } from 'zod';
+import { requireAuth } from '@/lib/auth';
 import { requirePersona } from '@/lib/persona-context';
 
 const UploadBrollSchema = z.object({
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest) {
   console.log('=== B-roll Upload Request Started ===');
   
   try {
+    const user = await requireAuth(request);
+    
     // R2 can handle large files - no size limit check needed
     console.log('Processing upload with R2 (no size limits)');
 
@@ -100,7 +103,8 @@ export async function POST(request: NextRequest) {
         category: autoCategory,
         tags,
         isActive: true,
-        personaId
+        personaId,
+        userId: user.id
       }
     });
 
@@ -118,6 +122,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('B-roll upload failed:', error);
+    
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -147,7 +158,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Auto-categorization based on content analysis
+// Auto-categorization based on content analysis (unused but kept for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function detectCategory(name: string, tags: string[]): string {
   const text = `${name} ${tags.join(' ')}`.toLowerCase();
   

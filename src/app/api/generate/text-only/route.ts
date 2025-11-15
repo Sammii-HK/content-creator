@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { llmService } from '@/lib/llm';
 import { templateService } from '@/lib/templates';
+import { requireAuth } from '@/lib/auth';
 import { requirePersona } from '@/lib/persona-context';
 import { digitalMeService } from '@/lib/digitalMe';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ const GenerateTextOnlySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const {
       theme,
@@ -169,6 +171,7 @@ export async function POST(request: NextRequest) {
             templateId: template.id,
             brollId: null, // No B-roll used
             fileUrl: '', // No video file generated
+            userId: user.id,
             features
           }
         });

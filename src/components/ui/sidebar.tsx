@@ -2,9 +2,10 @@
 
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth-context';
 import { 
   Home,
   Upload,
@@ -18,7 +19,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 
 interface SidebarContextType {
@@ -94,6 +96,8 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar();
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
 
   const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
     const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -105,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200",
             isActive 
               ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
-              : "text-foreground hover:bg-background-secondary hover:text-foreground",
+              : "text-foreground hover:bg-background hover:text-foreground",
             collapsed && "justify-center px-3"
           )}
           title={collapsed ? item.title : undefined}
@@ -145,14 +149,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background transition-all duration-300 ease-in-out lg:relative lg:z-40 shadow-lg",
+          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background-secondary transition-all duration-300 ease-in-out lg:relative lg:z-40 shadow-xl backdrop-blur-xl",
           collapsed ? "w-20" : "w-72",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           className
         )}
+        style={{
+          backgroundColor: 'var(--background-secondary)',
+          backdropFilter: 'blur(20px)',
+        }}
       >
         {/* Header */}
-        <div className="flex h-20 items-center justify-between border-b border-border bg-background-secondary/50 px-6">
+        <div className="flex h-20 items-center justify-between border-b border-border bg-background-secondary px-6">
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
@@ -188,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         </div>
 
         {/* Navigation */}
-        <div className="flex flex-1 flex-col gap-3 p-6 overflow-y-auto">
+        <div className="flex flex-1 flex-col gap-3 p-6 overflow-y-auto bg-background-secondary">
           <nav className="flex flex-1 flex-col gap-2">
             {navItems.map((item) => (
               <NavLink key={item.href} item={item} />
@@ -197,10 +205,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
           {/* Bottom navigation */}
           <div className="border-t border-border pt-4 mt-auto">
+            {/* User info */}
+            {user && !collapsed && (
+              <div className="mb-4 rounded-lg bg-background p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                    {user.email.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {user.name || user.email.split('@')[0]}
+                    </p>
+                    <p className="truncate text-xs text-foreground-muted">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <nav className="flex flex-col gap-2">
               {bottomNavItems.map((item) => (
                 <NavLink key={item.href} item={item} />
               ))}
+              
+              {/* Logout button */}
+              <button
+                onClick={async () => {
+                  await logout();
+                  router.push('/login');
+                }}
+                className={cn(
+                  "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200 text-foreground hover:bg-destructive/10 hover:text-destructive",
+                  collapsed && "justify-center px-3"
+                )}
+                title={collapsed ? 'Logout' : undefined}
+              >
+                <LogOut className={cn("h-6 w-6 flex-shrink-0", collapsed && "h-7 w-7")} />
+                {!collapsed && <span className="truncate">Logout</span>}
+              </button>
             </nav>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { requireAuth } from '@/lib/auth';
 import { requirePersona } from '@/lib/persona-context';
 
 const AddBrollSchema = z.object({
@@ -15,6 +16,7 @@ const AddBrollSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const data = AddBrollSchema.parse(body);
 
@@ -25,6 +27,7 @@ export async function POST(request: NextRequest) {
     const brollEntry = await db.broll.create({
       data: {
         ...data,
+        userId: user.id,
         isActive: true
       }
     });

@@ -41,15 +41,15 @@ export default function Home() {
             </p>
             
             <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
-              <Link href="/dashboard">
+              <Link href="/register">
                 <Button size="lg" className="w-full sm:w-auto">
                   <Play className="mr-2 h-4 w-4" />
-                  Start Creating
+                  Get Started
                 </Button>
               </Link>
-              <Link href="/dashboard/generate">
+              <Link href="/login">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  View Demo
+                  Sign In
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -142,7 +142,7 @@ export default function Home() {
               Join thousands of creators who are already using AI to scale their content production.
             </p>
             <div className="mt-8">
-              <Link href="/dashboard">
+              <Link href="/register">
                 <Button size="lg">
                   Get Started Today
                   <ArrowRight className="ml-2 h-4 w-4" />
