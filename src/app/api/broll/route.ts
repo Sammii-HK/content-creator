@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { requireAuth } from '@/lib/auth';
 import { requirePersona } from '@/lib/persona-context';
 
 const CreateBrollSchema = z.object({
@@ -15,6 +16,7 @@ const CreateBrollSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const active = searchParams.get('active');
@@ -24,7 +26,10 @@ export async function GET(request: NextRequest) {
 
     await requirePersona(personaId);
 
-    const where: Record<string, unknown> = { personaId };
+    const where: Record<string, unknown> = { 
+      userId: user.id,
+      personaId 
+    };
     
     if (category) {
       where.category = category;
@@ -55,6 +60,14 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Failed to fetch B-roll items:', error);
+    
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -64,6 +77,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const data = CreateBrollSchema.parse(body);
 
@@ -72,6 +86,7 @@ export async function POST(request: NextRequest) {
     const broll = await db.broll.create({
       data: {
         ...data,
+        userId: user.id,
         isActive: true
       }
     });
@@ -83,6 +98,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('B-roll creation failed:', error);
+    
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

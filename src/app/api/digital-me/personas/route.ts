@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
 import { digitalMeService } from '@/lib/digitalMe';
 import { z } from 'zod';
 
@@ -109,6 +110,7 @@ export async function GET() {
 // Create new persona
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth(request);
     const body = await request.json();
     const { name, description, niche, samples } = CreatePersonaSchema.parse(body);
 
@@ -125,7 +127,8 @@ export async function POST(request: NextRequest) {
           : `${name} persona for ${niche}`,
         preferredTones: ['authentic'],
         topThemes: [niche],
-        lexicalTraits: {}
+        lexicalTraits: {},
+        userId: user.id
       }
     });
 

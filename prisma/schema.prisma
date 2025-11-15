@@ -10,6 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Hashed password
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  videos    Video[]
+  broll     Broll[]
+  personas  VoiceProfile[]
+  templates Template[]
+  
+  @@map("users")
+}
+
 model Video {
   id         String    @id @default(cuid())
   theme      String
@@ -24,8 +41,10 @@ model Video {
   features   Json?     // Visual/textual features for ML
   createdAt  DateTime  @default(now())
   personaId  String?
+  userId     String    // Owner of this video
   
   // Relations
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   template      Template?        @relation(fields: [templateId], references: [id])
   broll         Broll?           @relation(fields: [brollId], references: [id])
   brollSegment  BrollSegment?    @relation(fields: [brollSegmentId], references: [id])
@@ -66,8 +85,10 @@ model Template {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   personaId   String?
+  userId      String?   // Owner of this template
   
   // Relations
+  user     User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent   Template?  @relation("TemplateEvolution", fields: [parentId], references: [id])
   children Template[] @relation("TemplateEvolution")
   videos   Video[]
@@ -100,8 +121,10 @@ model Broll {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   personaId   String?
+  userId      String   // Owner of this broll
   
   // Relations
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   videos   Video[]
   segments BrollSegment[]
   persona  VoiceProfile? @relation(fields: [personaId], references: [id])
@@ -226,8 +249,10 @@ model VoiceProfile {
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  userId         String   // Owner of this persona
   
   // Relations
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   examples VoiceExample[]
   templates Template[]
   videos    Video[]
