@@ -10,29 +10,87 @@ const renderTextOverlay = (
   scene: Record<string, unknown>,
   content: Record<string, string>
 ) => {
-  const text = replaceVariables((scene.text as any).content, content);
-  const style = (scene.text as any).style;
-  const pos = (scene.text as any).position;
+  try {
+    // Safely extract text properties with defaults
+    const sceneText = (scene.text as any) || {};
+    const textContent = sceneText.content || '';
+    const style = sceneText.style || {};
+    const pos = sceneText.position || { x: 50, y: 50 };
 
-  // Calculate position in pixels
-  const x = (pos.x / 100) * ctx.canvas.width;
-  const y = (pos.y / 100) * ctx.canvas.height;
+    // Replace template variables
+    const text = replaceVariables(textContent, content);
+    if (!text || text.trim() === '') {
+      return; // Don't render empty text
+    }
 
-  // Set text properties
-  ctx.font = `${style.fontWeight} ${style.fontSize}px Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+    // Calculate position in pixels (position is percentage 0-100)
+    const x = (pos.x / 100) * ctx.canvas.width;
+    const y = (pos.y / 100) * ctx.canvas.height;
 
-  // Add text stroke/outline
-  if (style.stroke && style.strokeWidth) {
-    ctx.strokeStyle = style.stroke;
-    ctx.lineWidth = style.strokeWidth;
-    ctx.strokeText(text, x, y);
+    // Set text properties with defaults
+    const fontSize = style.fontSize || 48;
+    const fontWeight = style.fontWeight || 'bold';
+    const fontFamily = style.fontFamily || 'Arial, sans-serif';
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Add text stroke/outline if specified
+    if (style.stroke && style.strokeWidth) {
+      ctx.strokeStyle = style.stroke;
+      ctx.lineWidth = style.strokeWidth;
+      ctx.strokeText(text, x, y);
+    }
+
+    // Fill text with color
+    ctx.fillStyle = style.color || '#ffffff';
+    ctx.fillText(text, x, y);
+  } catch (error) {
+    console.error('Error rendering text overlay:', error, {
+      scene,
+      availableContent: Object.keys(content),
+    });
   }
+};
 
-  // Fill text
-  ctx.fillStyle = style.color;
-  ctx.fillText(text, x, y);
+// Shared function to calculate scene-to-video mapping
+const getSceneVideoMapping = (
+  scenes: any[],
+  sourceVideoDuration: number
+): Array<{
+  outputStart: number;
+  outputEnd: number;
+  videoStart: number;
+  videoEnd: number;
+  scene: any;
+}> => {
+  return scenes.map((scene: any, index: number) => {
+    if (scene.videoStart !== undefined && scene.videoEnd !== undefined) {
+      // Use explicit video segment if provided
+      return {
+        outputStart: scene.start,
+        outputEnd: scene.end,
+        videoStart: scene.videoStart,
+        videoEnd: scene.videoEnd,
+        scene: scene,
+      };
+    } else {
+      // Distribute scenes evenly across source video
+      const sceneDuration = scene.end - scene.start;
+      const totalScenes = scenes.length;
+      const videoSegmentDuration = sourceVideoDuration / totalScenes;
+      const videoStart = index * videoSegmentDuration;
+      const videoEnd = Math.min(videoStart + sceneDuration, sourceVideoDuration);
+
+      return {
+        outputStart: scene.start,
+        outputEnd: scene.end,
+        videoStart: videoStart,
+        videoEnd: videoEnd,
+        scene: scene,
+      };
+    }
+  });
 };
 
 const replaceVariables = (text: string, content: Record<string, string>): string => {
@@ -88,6 +146,8 @@ export default function VideoGenerator({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
   const previewAnimationRef = useRef<number | null>(null);
+  const previewStartTimeRef = useRef<number | null>(null);
+  const previewLastSceneIndexRef = useRef<number>(-1);
 
   const generateVideo = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -163,34 +223,8 @@ export default function VideoGenerator({
       const duration = ((template.duration as number) || 10) * 1000; // Convert to milliseconds
       const sourceVideoDuration = video.duration || 30; // Fallback if duration not available
 
-      // Map scenes to source video times
-      // If scene has videoStart/videoEnd, use those; otherwise distribute evenly
-      const sceneVideoMapping = scenes.map((scene: any, index: number) => {
-        if (scene.videoStart !== undefined && scene.videoEnd !== undefined) {
-          return {
-            outputStart: scene.start,
-            outputEnd: scene.end,
-            videoStart: scene.videoStart,
-            videoEnd: scene.videoEnd,
-            scene: scene,
-          };
-        } else {
-          // Distribute scenes evenly across source video
-          const sceneDuration = scene.end - scene.start;
-          const totalScenes = scenes.length;
-          const videoSegmentDuration = sourceVideoDuration / totalScenes;
-          const videoStart = index * videoSegmentDuration;
-          const videoEnd = Math.min(videoStart + sceneDuration, sourceVideoDuration);
-
-          return {
-            outputStart: scene.start,
-            outputEnd: scene.end,
-            videoStart: videoStart,
-            videoEnd: videoEnd,
-            scene: scene,
-          };
-        }
-      });
+      // Map scenes to source video times using shared function
+      const sceneVideoMapping = getSceneVideoMapping(scenes, sourceVideoDuration);
 
       console.log('🎬 Scene-to-video mapping:', sceneVideoMapping);
 
@@ -259,9 +293,10 @@ export default function VideoGenerator({
           const expectedVideoTime = targetVideoTime;
           const drift = Math.abs(currentVideoTime - expectedVideoTime);
 
-          // If video has drifted more than 0.2 seconds, correct it
-          if (drift > 0.2) {
-            video.currentTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
+          // If video has drifted more than 0.15 seconds, correct it (reduced for smoother playback)
+          if (drift > 0.15) {
+            const seekTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
+            video.currentTime = seekTime;
           }
         }
 
@@ -352,7 +387,7 @@ export default function VideoGenerator({
     a.click();
   };
 
-  // Preview rendering function
+  // Preview rendering function - uses same scene mapping logic as generation
   const renderPreviewFrame = () => {
     if (
       !videoRef.current ||
@@ -365,6 +400,8 @@ export default function VideoGenerator({
         cancelAnimationFrame(previewAnimationRef.current);
         previewAnimationRef.current = null;
       }
+      previewStartTimeRef.current = null;
+      previewLastSceneIndexRef.current = -1;
       return;
     }
 
@@ -374,6 +411,11 @@ export default function VideoGenerator({
     if (!ctx) {
       previewAnimationRef.current = requestAnimationFrame(renderPreviewFrame);
       return;
+    }
+
+    // Initialize preview start time if not set
+    if (previewStartTimeRef.current === null) {
+      previewStartTimeRef.current = Date.now();
     }
 
     // Set canvas internal resolution (for rendering quality)
@@ -388,35 +430,84 @@ export default function VideoGenerator({
     ctx.clearRect(0, 0, displayWidth, displayHeight);
 
     // Draw video frame
-    if (video.readyState >= 2 && video.videoWidth > 0) {
-      const videoAspect = video.videoWidth / video.videoHeight;
-      const targetAspect = 9 / 16;
-
-      let drawWidth, drawHeight, drawX, drawY;
-
-      if (videoAspect > targetAspect) {
-        drawHeight = displayHeight;
-        drawWidth = drawHeight * videoAspect;
-        drawX = (displayWidth - drawWidth) / 2;
-        drawY = 0;
-      } else {
-        drawWidth = displayWidth;
-        drawHeight = drawWidth / videoAspect;
-        drawX = 0;
-        drawY = (displayHeight - drawHeight) / 2;
-      }
-
-      ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-
-      // Render text overlay for current scene
+    if (video.readyState >= 2 && video.videoWidth > 0 && video.duration > 0) {
       const scenes = (template.scenes as any[]) || [];
-      if (scenes.length > 0) {
-        const videoTime = video.currentTime;
-        const scene =
-          scenes.find((s: any) => videoTime >= s.start && videoTime < s.end) ||
-          scenes[currentScene];
-        if (scene) {
-          renderTextOverlay(ctx, scene, content);
+      const templateDuration = ((template.duration as number) || 10) * 1000; // milliseconds
+      const sourceVideoDuration = video.duration;
+
+      // Calculate output time based on elapsed preview time (looping)
+      const elapsed = Date.now() - previewStartTimeRef.current;
+      const outputTime = (elapsed % templateDuration) / 1000; // Output video time in seconds
+
+      // Get scene-to-video mapping using shared function
+      const sceneVideoMapping = getSceneVideoMapping(scenes, sourceVideoDuration);
+
+      // Find current scene based on output time
+      const currentMapping =
+        sceneVideoMapping.find(
+          (m: any) => outputTime >= m.outputStart && outputTime < m.outputEnd
+        ) || sceneVideoMapping[0];
+
+      if (currentMapping) {
+        // Calculate position within current scene (0-1)
+        const sceneProgress =
+          (outputTime - currentMapping.outputStart) /
+          (currentMapping.outputEnd - currentMapping.outputStart);
+
+        // Map to source video time
+        const targetVideoTime =
+          currentMapping.videoStart +
+          sceneProgress * (currentMapping.videoEnd - currentMapping.videoStart);
+
+        // Seek video to correct position if scene changed or drifted
+        const currentSceneIndex = sceneVideoMapping.indexOf(currentMapping);
+        const currentVideoTime = video.currentTime;
+        const drift = Math.abs(currentVideoTime - targetVideoTime);
+
+        if (currentSceneIndex !== previewLastSceneIndexRef.current) {
+          // Scene changed - seek to start of this scene's video segment
+          const seekTime = Math.max(0, Math.min(currentMapping.videoStart, sourceVideoDuration));
+          if (Math.abs(video.currentTime - seekTime) > 0.1) {
+            video.currentTime = seekTime;
+          }
+          previewLastSceneIndexRef.current = currentSceneIndex;
+          setCurrentScene(currentSceneIndex);
+        } else if (drift > 0.2) {
+          // Within same scene but drifted - correct position (reduced threshold for smoother playback)
+          const seekTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
+          video.currentTime = seekTime;
+        }
+
+        // Ensure video is playing
+        if (video.paused) {
+          video.play().catch(console.error);
+        }
+
+        // Draw video frame (crop to vertical)
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const targetAspect = 9 / 16;
+
+        let drawWidth, drawHeight, drawX, drawY;
+
+        if (videoAspect > targetAspect) {
+          // Video is wider - crop sides
+          drawHeight = displayHeight;
+          drawWidth = drawHeight * videoAspect;
+          drawX = (displayWidth - drawWidth) / 2;
+          drawY = 0;
+        } else {
+          // Video is taller - crop top/bottom
+          drawWidth = displayWidth;
+          drawHeight = drawWidth / videoAspect;
+          drawX = 0;
+          drawY = (displayHeight - drawHeight) / 2;
+        }
+
+        ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+
+        // Render text overlay for current scene
+        if (currentMapping.scene && currentMapping.scene.text) {
+          renderTextOverlay(ctx, currentMapping.scene, content);
         }
       }
     }
@@ -434,30 +525,25 @@ export default function VideoGenerator({
       canvasRef.current
     ) {
       const video = videoRef.current;
+
+      // Reset preview timing when video metadata loads
       const handleLoadedMetadata = () => {
+        previewStartTimeRef.current = Date.now();
+        previewLastSceneIndexRef.current = -1;
         if (video.readyState >= 2) {
+          const scenes = (template.scenes as any[]) || [];
+          if (scenes.length > 0 && video.duration > 0) {
+            const sceneVideoMapping = getSceneVideoMapping(scenes, video.duration);
+            if (sceneVideoMapping.length > 0) {
+              video.currentTime = sceneVideoMapping[0].videoStart;
+            }
+          }
           video.play().catch(console.error);
           renderPreviewFrame();
         }
       };
 
-      const handleTimeUpdate = () => {
-        // Update scene based on video time
-        const scenes = (template.scenes as any[]) || [];
-        if (scenes.length > 0) {
-          const videoTime = video.currentTime;
-          const scene = scenes.find((s: any) => videoTime >= s.start && videoTime < s.end);
-          if (scene) {
-            const sceneIndex = scenes.indexOf(scene);
-            if (sceneIndex !== currentScene) {
-              setCurrentScene(sceneIndex);
-            }
-          }
-        }
-      };
-
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('timeupdate', handleTimeUpdate);
 
       if (video.readyState >= 2) {
         video.play().catch(console.error);
@@ -466,7 +552,6 @@ export default function VideoGenerator({
 
       return () => {
         video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        video.removeEventListener('timeupdate', handleTimeUpdate);
         if (previewAnimationRef.current) {
           cancelAnimationFrame(previewAnimationRef.current);
         }
@@ -521,11 +606,6 @@ export default function VideoGenerator({
             muted
             loop
             playsInline
-            onLoadedMetadata={() => {
-              if (videoRef.current && isPreviewMode && !isGenerating && !generatedVideo) {
-                videoRef.current.play().catch(console.error);
-              }
-            }}
           />
 
           {/* Canvas for preview and generation */}
