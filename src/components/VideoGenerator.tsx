@@ -627,7 +627,11 @@ export default function VideoGenerator({
             {Object.entries(content)
               .map(([k, v]) => {
                 const valueStr =
-                  typeof v === 'string' ? v : Array.isArray(v) ? v.join(', ') : String(v || '');
+                  typeof v === 'string'
+                    ? v
+                    : Array.isArray(v)
+                      ? (v as unknown as string[]).join(', ')
+                      : String(v || '');
                 return `${k}: "${valueStr.slice(0, 30)}${valueStr.length > 30 ? '...' : ''}"`;
               })
               .join(', ')}

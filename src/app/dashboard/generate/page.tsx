@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import VideoGenerator from '@/components/VideoGenerator';
@@ -21,7 +21,7 @@ interface BrollVideo {
   duration: number;
 }
 
-export default function GenerateVideo() {
+function GenerateVideoContent() {
   const searchParams = useSearchParams();
   const videoIdFromUrl = searchParams?.get('videoId');
 
@@ -944,5 +944,19 @@ export default function GenerateVideo() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function GenerateVideo() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      }
+    >
+      <GenerateVideoContent />
+    </Suspense>
   );
 }
