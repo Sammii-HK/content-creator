@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
-import { 
+import {
   Home,
   Upload,
   Scissors,
@@ -20,7 +20,10 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  FileText,
+  Video,
+  TestTube,
 } from 'lucide-react';
 
 interface SidebarContextType {
@@ -77,7 +80,10 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: 'Dashboard', href: '/dashboard', icon: Home },
   { title: 'Upload', href: '/dashboard/upload', icon: Upload },
-  { title: 'Content', href: '/dashboard/content', icon: Scissors },
+  { title: 'B-roll', href: '/dashboard/broll', icon: Video },
+  { title: 'Generated', href: '/dashboard/content', icon: Scissors },
+  { title: 'Templates', href: '/dashboard/templates/new', icon: FileText },
+  { title: 'Test Templates', href: '/dashboard/templates/test', icon: TestTube },
   { title: 'AI Images', href: '/dashboard/create-images', icon: Palette },
   { title: 'AI Studio', href: '/dashboard/ai-studio', icon: Sparkles },
   { title: 'Personas', href: '/dashboard/personas', icon: Brain },
@@ -101,20 +107,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
   const NavLink: React.FC<{ item: NavItem }> = ({ item }) => {
     const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-    
+
     return (
       <Link href={item.href} onClick={() => setMobileOpen(false)}>
         <div
           className={cn(
-            "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200",
-            isActive 
-              ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
-              : "text-foreground hover:bg-background hover:text-foreground",
-            collapsed && "justify-center px-3"
+            'group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200',
+            isActive
+              ? 'bg-primary text-primary-foreground shadow-md hover:bg-primary/90'
+              : 'text-foreground hover:bg-background hover:text-foreground',
+            collapsed && 'justify-center px-3'
           )}
           title={collapsed ? item.title : undefined}
         >
-          <item.icon className={cn("h-6 w-6 flex-shrink-0", collapsed && "h-7 w-7")} />
+          <item.icon className={cn('h-6 w-6 flex-shrink-0', collapsed && 'h-7 w-7')} />
           {!collapsed && (
             <>
               <span className="truncate">{item.title}</span>
@@ -149,9 +155,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background-secondary transition-all duration-300 ease-in-out lg:relative lg:z-40 shadow-xl backdrop-blur-xl",
-          collapsed ? "w-20" : "w-72",
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-background-secondary transition-all duration-300 ease-in-out lg:relative lg:z-40 shadow-xl backdrop-blur-xl',
+          collapsed ? 'w-20' : 'w-72',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           className
         )}
         style={{
@@ -169,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
               <span className="text-lg font-bold text-foreground">Content Studio</span>
             </Link>
           )}
-          
+
           {/* Desktop collapse button */}
           <Button
             variant="ghost"
@@ -177,11 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             onClick={() => setCollapsed(!collapsed)}
             className="hidden lg:flex h-10 w-10"
           >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <ChevronLeft className="h-5 w-5" />
-            )}
+            {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
           </Button>
 
           {/* Mobile close button */}
@@ -216,19 +218,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                     <p className="truncate text-sm font-medium text-foreground">
                       {user.name || user.email.split('@')[0]}
                     </p>
-                    <p className="truncate text-xs text-foreground-muted">
-                      {user.email}
-                    </p>
+                    <p className="truncate text-xs text-foreground-muted">{user.email}</p>
                   </div>
                 </div>
               </div>
             )}
-            
+
             <nav className="flex flex-col gap-2">
               {bottomNavItems.map((item) => (
                 <NavLink key={item.href} item={item} />
               ))}
-              
+
               {/* Logout button */}
               <button
                 onClick={async () => {
@@ -236,12 +236,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                   router.push('/login');
                 }}
                 className={cn(
-                  "group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200 text-foreground hover:bg-destructive/10 hover:text-destructive",
-                  collapsed && "justify-center px-3"
+                  'group relative flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all duration-200 text-foreground hover:bg-destructive/10 hover:text-destructive',
+                  collapsed && 'justify-center px-3'
                 )}
                 title={collapsed ? 'Logout' : undefined}
               >
-                <LogOut className={cn("h-6 w-6 flex-shrink-0", collapsed && "h-7 w-7")} />
+                <LogOut className={cn('h-6 w-6 flex-shrink-0', collapsed && 'h-7 w-7')} />
                 {!collapsed && <span className="truncate">Logout</span>}
               </button>
             </nav>
@@ -264,7 +264,7 @@ export const MobileMenuButton: React.FC<MobileMenuButtonProps> = ({ className })
       variant="ghost"
       size="icon"
       onClick={() => setMobileOpen(true)}
-      className={cn("lg:hidden", className)}
+      className={cn('lg:hidden', className)}
     >
       <Menu className="h-5 w-5" />
       <span className="sr-only">Open sidebar</span>
@@ -281,7 +281,7 @@ export const MainContent: React.FC<MainContentProps> = ({ children, className })
   return (
     <main
       className={cn(
-        "min-h-screen w-full flex-1 transition-all duration-300 ease-in-out",
+        'min-h-screen w-full flex-1 transition-all duration-300 ease-in-out',
         className
       )}
     >

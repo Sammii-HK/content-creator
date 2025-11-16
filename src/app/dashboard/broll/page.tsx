@@ -5,24 +5,19 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Video, Play, Download, Scissors } from 'lucide-react';
+import { Video, Play, Download, Plus } from 'lucide-react';
 
-interface VideoItem {
+interface BrollVideo {
   id: string;
-  name?: string;
+  name: string;
   fileUrl: string;
   duration: number;
   category?: string;
   createdAt: string;
-  theme?: string;
-  tone?: string;
-  template?: { name: string } | null;
-  broll?: { id: string; name: string } | null;
-  brollId?: string | null;
 }
 
-export default function VideoLibrary() {
-  const [videos, setVideos] = useState<VideoItem[]>([]);
+export default function BrollLibrary() {
+  const [videos, setVideos] = useState<BrollVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
@@ -37,10 +32,8 @@ export default function VideoLibrary() {
       const activePersonaId =
         typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
 
-      // Fetch generated videos - include all videos if no persona selected, or filter by persona
-      const url = activePersonaId
-        ? `/api/videos/generated?personaId=${activePersonaId}`
-        : '/api/videos/generated';
+      // Fetch B-roll videos - include all videos if no persona selected, or filter by persona
+      const url = activePersonaId ? `/api/broll?personaId=${activePersonaId}` : '/api/broll';
 
       const response = await fetch(url, {
         credentials: 'include', // Include cookies for auth
@@ -48,24 +41,23 @@ export default function VideoLibrary() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched generated videos for gallery:', data.videos?.length || 0, 'total');
-        // Filter out videos without file URLs
-        const realVideos = (data.videos || []).filter(
-          (v: VideoItem) =>
+        console.log('Fetched B-roll videos:', data.broll?.length || 0, 'total');
+        // Filter out placeholder videos
+        const realVideos = (data.broll || []).filter(
+          (v: BrollVideo) =>
             v.fileUrl &&
-            v.fileUrl.trim() !== '' &&
             !v.fileUrl.includes('/placeholder/') &&
             !v.fileUrl.includes('example.com') &&
             !v.fileUrl.includes('test.mp4')
         );
-        console.log('Filtered real generated videos for gallery:', realVideos.length);
+        console.log('Filtered real B-roll videos:', realVideos.length);
         setVideos(realVideos);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to fetch generated videos:', response.status, errorData);
+        console.error('Failed to fetch B-roll videos:', response.status, errorData);
       }
     } catch (error) {
-      console.error('Failed to fetch generated videos:', error);
+      console.error('Failed to fetch B-roll videos:', error);
     } finally {
       setLoading(false);
     }
@@ -82,7 +74,7 @@ export default function VideoLibrary() {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="text-gray-400 mt-4">Loading your video library...</p>
+          <p className="text-gray-400 mt-4">Loading your B-roll library...</p>
         </div>
       </div>
     );
@@ -99,12 +91,17 @@ export default function VideoLibrary() {
                 <Button variant="ghost">← Dashboard</Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold">Generated Videos</h1>
-                <p className="text-muted-foreground">View and manage your AI-generated content</p>
+                <h1 className="text-2xl font-bold">B-roll Library</h1>
+                <p className="text-muted-foreground">
+                  Your uploaded source videos for content creation
+                </p>
               </div>
             </div>
             <Link href="/dashboard/upload">
-              <Button>Upload New Video</Button>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Upload New Video
+              </Button>
             </Link>
           </div>
         </div>
@@ -116,10 +113,12 @@ export default function VideoLibrary() {
           <Card className="text-center py-16">
             <CardContent>
               <div className="text-6xl mb-4">🎬</div>
-              <CardTitle className="text-xl mb-2">No generated videos yet</CardTitle>
-              <p className="text-muted-foreground mb-6">Generate your first video to see it here</p>
-              <Link href="/dashboard/generate">
-                <Button size="lg">Generate Your First Video</Button>
+              <CardTitle className="text-xl mb-2">No B-roll videos uploaded yet</CardTitle>
+              <p className="text-muted-foreground mb-6">
+                Upload your first video to start creating content
+              </p>
+              <Link href="/dashboard/upload">
+                <Button size="lg">Upload Your First Video</Button>
               </Link>
             </CardContent>
           </Card>
@@ -229,26 +228,14 @@ export default function VideoLibrary() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-base truncate">
-                              {video.name || video.theme || 'Generated Video'}
-                            </h3>
+                            <h3 className="font-semibold text-base truncate">{video.name}</h3>
                             <div className="flex items-center gap-3 mt-1 flex-wrap">
                               <Badge variant="outline" className="text-xs">
                                 {formatDuration(video.duration)}
                               </Badge>
-                              {video.tone && (
+                              {video.category && (
                                 <Badge variant="secondary" className="text-xs">
-                                  {video.tone}
-                                </Badge>
-                              )}
-                              {video.template?.name && (
-                                <Badge variant="outline" className="text-xs">
-                                  Template: {video.template.name}
-                                </Badge>
-                              )}
-                              {video.broll?.name && (
-                                <Badge variant="outline" className="text-xs">
-                                  B-roll: {video.broll.name}
+                                  {video.category}
                                 </Badge>
                               )}
                               <span className="text-xs text-muted-foreground">
@@ -283,14 +270,12 @@ export default function VideoLibrary() {
                               <Download className="h-4 w-4 mr-1" />
                               Download
                             </Button>
-                            {video.brollId && (
-                              <Button size="sm" asChild>
-                                <Link href={`/dashboard/generate?videoId=${video.brollId}`}>
-                                  <Play className="h-4 w-4 mr-1" />
-                                  Regenerate
-                                </Link>
-                              </Button>
-                            )}
+                            <Button size="sm" asChild>
+                              <Link href={`/dashboard/generate?videoId=${video.id}`}>
+                                <Play className="h-4 w-4 mr-1" />
+                                Generate
+                              </Link>
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -322,13 +307,21 @@ export default function VideoLibrary() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-purple-600">
-                    {new Set(videos.map((v) => v.category)).size}
+                    {new Set(videos.map((v) => v.category).filter(Boolean)).size}
                   </div>
                   <div className="text-muted-foreground text-sm">Categories</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-yellow-600">0</div>
-                  <div className="text-muted-foreground text-sm">Segments Created</div>
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {
+                      videos.filter((v) => {
+                        const daysSinceUpload =
+                          (Date.now() - new Date(v.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+                        return daysSinceUpload <= 7;
+                      }).length
+                    }
+                  </div>
+                  <div className="text-muted-foreground text-sm">Uploaded This Week</div>
                 </div>
               </div>
             </CardContent>

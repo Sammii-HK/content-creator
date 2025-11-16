@@ -16,21 +16,28 @@ export class TemplateService {
    * Get all active templates with performance data
    */
   async getAllTemplates(personaId?: string) {
+    const whereClause: any = { isActive: true };
+
+    // If personaId is provided, filter by it, otherwise get all templates
+    if (personaId) {
+      whereClause.personaId = personaId;
+    }
+
     const templates = await db.template.findMany({
-      where: { isActive: true, ...(personaId ? { personaId } : {}) },
+      where: whereClause,
       include: {
         videos: {
           include: {
-            metrics: true
-          }
-        }
+            metrics: true,
+          },
+        },
       },
-      orderBy: { performance: 'desc' }
+      orderBy: [{ performance: 'desc' }, { createdAt: 'desc' }], // Fallback to createdAt if no performance
     });
 
-    return templates.map(template => ({
+    return templates.map((template) => ({
       ...template,
-      performanceData: this.calculatePerformance(template.videos)
+      performanceData: this.calculatePerformance(template.videos),
     }));
   }
 
@@ -38,60 +45,73 @@ export class TemplateService {
    * Get template by ID
    */
   async getTemplate(id: string, personaId?: string) {
-    return await db.template.findUnique({
-      where: { id },
-      include: {
-        videos: {
-          include: {
-            metrics: true
-          }
+    return await db.template
+      .findUnique({
+        where: { id },
+        include: {
+          videos: {
+            include: {
+              metrics: true,
+            },
+          },
+        },
+      })
+      .then((template) => {
+        if (!template) return null;
+        if (personaId && template.personaId && template.personaId !== personaId) {
+          return null;
         }
-      }
-    }).then(template => {
-      if (!template) return null;
-      if (personaId && template.personaId && template.personaId !== personaId) {
-        return null;
-      }
-      return template;
-    });
+        return template;
+      });
   }
 
   /**
    * Get best performing templates for a specific category
    */
   async getBestTemplates(personaId?: string, limit: number = 5) {
+    const whereClause: any = {
+      isActive: true,
+      performance: { not: null },
+    };
+
+    // If personaId is provided, filter by it, otherwise get all templates
+    if (personaId) {
+      whereClause.personaId = personaId;
+    }
+
     return await db.template.findMany({
-      where: { 
-        isActive: true,
-        performance: { not: null },
-        ...(personaId ? { personaId } : {})
-      },
+      where: whereClause,
       orderBy: { performance: 'desc' },
       take: limit,
       include: {
         videos: {
           include: {
-            metrics: true
+            metrics: true,
           },
           orderBy: { createdAt: 'desc' },
-          take: 3 // Recent videos for context
-          }
-      }
+          take: 3, // Recent videos for context
+        },
+      },
     });
   }
 
   /**
    * Create a new template
    */
-  async createTemplate(name: string, templateJson: VideoTemplate, parentId: string | undefined, personaId: string) {
+  async createTemplate(
+    name: string,
+    templateJson: VideoTemplate,
+    parentId: string | undefined,
+    personaId: string
+  ) {
     return await db.template.create({
       data: {
         name,
         json: JSON.parse(JSON.stringify(templateJson)),
         parentId,
         isActive: true,
-        personaId
-      }
+        personaId,
+      },
     });
   }
 
@@ -104,10 +124,10 @@ export class TemplateService {
       include: {
         videos: {
           include: {
-            metrics: true
-          }
-        }
-      }
+            metrics: true,
+          },
+        },
+      },
     });
 
     if (!template) {
@@ -119,10 +139,10 @@ export class TemplateService {
     }
 
     const performance = this.calculatePerformance(template.videos);
-    
+
     await db.template.update({
       where: { id: templateId },
-      data: { performance: performance.score }
+      data: { performance: performance.score },
     });
 
     return performance;
@@ -137,10 +157,10 @@ export class TemplateService {
       include: {
         videos: {
           include: {
-            metrics: true
-          }
-        }
-      }
+            metrics: true,
+          },
+        },
+      },
     });
 
     if (!template) {
@@ -152,24 +172,24 @@ export class TemplateService {
     }
 
     // Separate high and low performing videos
-    const videosWithMetrics = template.videos.filter(v => v.metrics);
-    const avgEngagement = videosWithMetrics.reduce((sum, v) => 
-      sum + (v.metrics?.engagement || 0), 0) / videosWithMetrics.length;
+    const videosWithMetrics = template.videos.filter((v) => v.metrics);
+    const avgEngagement =
+      videosWithMetrics.reduce((sum, v) => sum + (v.metrics?.engagement || 0), 0) /
+      videosWithMetrics.length;
 
-    const highPerforming = videosWithMetrics.filter(v => 
-      (v.metrics?.engagement || 0) > avgEngagement * 1.2);
-    const lowPerforming = videosWithMetrics.filter(v => 
-      (v.metrics?.engagement || 0) < avgEngagement * 0.8);
+    const highPerforming = videosWithMetrics.filter(
+      (v) => (v.metrics?.engagement || 0) > avgEngagement * 1.2
+    );
+    const lowPerforming = videosWithMetrics.filter(
+      (v) => (v.metrics?.engagement || 0) < avgEngagement * 0.8
+    );
 
     // Use LLM to suggest improvements
-    const refinementSuggestions = await llmService.refineTemplate(
-      template.json,
-      {
-        avgEngagement,
-        topPerformingVideos: highPerforming,
-        lowPerformingVideos: lowPerforming
-      }
-    );
+    const refinementSuggestions = await llmService.refineTemplate(template.json, {
+      avgEngagement,
+      topPerformingVideos: highPerforming,
+      lowPerformingVideos: lowPerforming,
+    });
 
     // Apply suggested changes to create new template version
     const refinedTemplate = this.applyRefinements(
@@ -193,7 +213,7 @@ export class TemplateService {
     return {
       newTemplate,
       suggestions: refinementSuggestions,
-      originalPerformance: this.calculatePerformance(template.videos)
+      originalPerformance: this.calculatePerformance(template.videos),
     };
   }
 
@@ -202,7 +222,7 @@ export class TemplateService {
    */
   private calculatePerformance(videos: unknown[]): TemplatePerformance {
     const videosWithMetrics = videos.filter((v: any) => v.metrics);
-    
+
     if (videosWithMetrics.length === 0) {
       return {
         totalVideos: videos.length,
@@ -210,24 +230,29 @@ export class TemplateService {
         avgLikes: 0,
         avgEngagement: 0,
         avgCompletionRate: 0,
-        score: 0
+        score: 0,
       };
     }
 
     const metrics = videosWithMetrics.map((v: any) => v.metrics);
-    
+
     const avgViews = metrics.reduce((sum, m) => sum + (m.views || 0), 0) / metrics.length;
     const avgLikes = metrics.reduce((sum, m) => sum + (m.likes || 0), 0) / metrics.length;
     const avgEngagement = metrics.reduce((sum, m) => sum + (m.engagement || 0), 0) / metrics.length;
-    const avgCompletionRate = metrics.reduce((sum, m) => sum + (m.completionRate || 0), 0) / metrics.length;
+    const avgCompletionRate =
+      metrics.reduce((sum, m) => sum + (m.completionRate || 0), 0) / metrics.length;
 
     // Calculate composite score (0-100)
-    const score = Math.min(100, Math.max(0, 
-      (avgEngagement * 0.4) + 
-      (avgCompletionRate * 0.3) + 
-      (Math.min(avgLikes / avgViews * 100, 20) * 0.2) + // Likes ratio capped at 20%
-      (Math.log10(avgViews + 1) * 0.1 * 10) // View count factor
-    ));
+    const score = Math.min(
+      100,
+      Math.max(
+        0,
+        avgEngagement * 0.4 +
+          avgCompletionRate * 0.3 +
+          Math.min((avgLikes / avgViews) * 100, 20) * 0.2 + // Likes ratio capped at 20%
+          Math.log10(avgViews + 1) * 0.1 * 10 // View count factor
+      )
+    );
 
     return {
       totalVideos: videos.length,
@@ -235,7 +260,7 @@ export class TemplateService {
       avgLikes,
       avgEngagement,
       avgCompletionRate,
-      score
+      score,
     };
   }
 
@@ -252,7 +277,7 @@ export class TemplateService {
           // Handle scene-specific changes
           const pathParts = change.field.split('.');
           const sceneIndex = parseInt(pathParts[1]);
-          
+
           if (refined.scenes[sceneIndex]) {
             if (pathParts[2] === 'text' && pathParts[3] === 'style') {
               refined.scenes[sceneIndex].text.style[pathParts[4]] = change.newValue;
@@ -280,17 +305,17 @@ export class TemplateService {
     const existingTemplates = await db.template.findMany({
       where: {
         name: {
-          startsWith: baseName
-        }
-      }
+          startsWith: baseName,
+        },
+      },
     });
 
     const versionNumbers = existingTemplates
-      .map(t => {
+      .map((t) => {
         const match = t.name.match(/v(\d+)$/);
         return match ? parseInt(match[1]) : 1;
       })
-      .filter(v => !isNaN(v));
+      .filter((v) => !isNaN(v));
 
     return Math.max(...versionNumbers, 1) + 1;
   }
@@ -305,19 +330,19 @@ export class TemplateService {
         parent: true,
         videos: {
           include: {
-            metrics: true
-          }
+            metrics: true,
+          },
         },
         children: {
           include: {
             videos: {
               include: {
-                metrics: true
-              }
-            }
-          }
-        }
-      }
+                metrics: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!template) {
@@ -327,38 +352,38 @@ export class TemplateService {
     // Build evolution tree
     const evolution = [];
     let current = template.parent;
-    
+
     // Get ancestors
     while (current) {
       const parentWithVideos = await db.template.findUnique({
         where: { id: current.id },
-        include: { 
-          parent: true, 
-          videos: { include: { metrics: true } } 
-        }
+        include: {
+          parent: true,
+          videos: { include: { metrics: true } },
+        },
       });
-      
+
       if (parentWithVideos) {
         evolution.unshift({
           ...parentWithVideos,
-          performanceData: this.calculatePerformance(parentWithVideos.videos || [])
+          performanceData: this.calculatePerformance(parentWithVideos.videos || []),
         });
       }
-      
+
       current = parentWithVideos?.parent || null;
     }
 
     // Add current template
     evolution.push({
       ...template,
-      performanceData: this.calculatePerformance(template.videos || [])
+      performanceData: this.calculatePerformance(template.videos || []),
     });
 
     // Add children
-    template.children.forEach(child => {
+    template.children.forEach((child) => {
       evolution.push({
         ...child,
-        performanceData: this.calculatePerformance(child.videos)
+        performanceData: this.calculatePerformance(child.videos),
       });
     });
 
@@ -370,27 +395,27 @@ export class TemplateService {
    */
   async createTemplateVariants(baseTemplateId: string, variantCount: number = 2) {
     const baseTemplate = await this.getTemplate(baseTemplateId);
-    
+
     if (!baseTemplate) {
       throw new Error('Base template not found');
     }
 
     const variants = [];
-    
+
     for (let i = 0; i < variantCount; i++) {
       // Create slight variations
       const variantTemplate = this.createTemplateVariation(
-        baseTemplate.json as unknown as VideoTemplate, 
+        baseTemplate.json as unknown as VideoTemplate,
         i + 1
       );
-      
+
       const variant = await this.createTemplate(
         `${baseTemplate.name} - Variant ${i + 1}`,
         variantTemplate,
         baseTemplate.id,
         baseTemplate.personaId || ''
       );
-      
+
       variants.push(variant);
     }
 
@@ -400,7 +425,10 @@ export class TemplateService {
   /**
    * Create a template variation
    */
-  private createTemplateVariation(baseTemplate: VideoTemplate, variantNumber: number): VideoTemplate {
+  private createTemplateVariation(
+    baseTemplate: VideoTemplate,
+    variantNumber: number
+  ): VideoTemplate {
     const variant = JSON.parse(JSON.stringify(baseTemplate)); // Deep clone
 
     // Apply different variations based on variant number
@@ -411,7 +439,7 @@ export class TemplateService {
           (scene.text as any).position.y += (Math.random() - 0.5) * 20; // ±10% position change
         });
         break;
-        
+
       case 2:
         // Variation 2: Adjust timing
         variant.scenes.forEach((scene: Record<string, unknown>) => {
@@ -420,11 +448,11 @@ export class TemplateService {
           (scene as any).end = (scene.start as number) + duration;
         });
         break;
-        
+
       case 3:
         // Variation 3: Adjust text styling
         variant.scenes.forEach((scene: Record<string, unknown>) => {
-          (scene.text as any).style.fontSize *= (0.9 + Math.random() * 0.2); // ±10% size change
+          (scene.text as any).style.fontSize *= 0.9 + Math.random() * 0.2; // ±10% size change
         });
         break;
     }

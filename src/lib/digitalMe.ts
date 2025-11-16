@@ -6,16 +6,26 @@ import { PersonaNotFoundError } from './persona-context';
 
 // Schema for voice analysis
 const VoiceAnalysisSchema = z.object({
-  tone: z.enum(['energetic', 'calm', 'mysterious', 'educational', 'funny', 'inspiring', 'poetic', 'casual', 'professional']),
+  tone: z.enum([
+    'energetic',
+    'calm',
+    'mysterious',
+    'educational',
+    'funny',
+    'inspiring',
+    'poetic',
+    'casual',
+    'professional',
+  ]),
   themes: z.array(z.string()).describe('Main themes and topics'),
   writingStyle: z.object({
     sentenceLength: z.enum(['short', 'medium', 'long', 'mixed']),
     vocabulary: z.enum(['simple', 'complex', 'technical', 'creative']),
     rhythm: z.enum(['fast', 'steady', 'slow', 'varied']),
-    personality: z.array(z.string()).describe('Personality traits evident in writing')
+    personality: z.array(z.string()).describe('Personality traits evident in writing'),
   }),
   keyPhrases: z.array(z.string()).describe('Characteristic phrases or expressions'),
-  contentTypes: z.array(z.string()).describe('Types of content this person creates')
+  contentTypes: z.array(z.string()).describe('Types of content this person creates'),
 });
 
 const ContentGenerationSchema = z.object({
@@ -24,7 +34,7 @@ const ContentGenerationSchema = z.object({
   caption: z.string().describe('Social media caption with your tone and style'),
   hashtags: z.array(z.string()).describe('Relevant hashtags without # symbol'),
   tone: z.string().describe('Overall tone of the content'),
-  callToAction: z.string().optional().describe('Optional call to action in your style')
+  callToAction: z.string().optional().describe('Optional call to action in your style'),
 });
 
 export interface VoiceExample {
@@ -82,7 +92,7 @@ Analyze:
 5. Characteristic phrases or expressions they use
 6. Types of content they typically create
 
-Focus on identifying what makes this creator's voice unique and authentic.`
+Focus on identifying what makes this creator's voice unique and authentic.`,
     });
 
     return result.object;
@@ -95,11 +105,11 @@ Focus on identifying what makes this creator's voice unique and authentic.`
     console.log('🧠 Creating embeddings for', texts.length, 'texts...');
 
     const embeddings: number[][] = [];
-    
+
     for (const text of texts) {
       const result = await embed({
         model: this.embeddingModel,
-        value: text
+        value: text,
       });
       embeddings.push(result.embedding);
     }
@@ -127,7 +137,7 @@ Focus on identifying what makes this creator's voice unique and authentic.`
     await this.ensurePersona(personaId);
 
     // Create embeddings for the content
-    const texts = samples.map(s => `${s.hook} ${s.body}`);
+    const texts = samples.map((s) => `${s.hook} ${s.body}`);
     const embeddings = await this.createEmbeddings(texts);
 
     // Store in database
@@ -145,8 +155,8 @@ Focus on identifying what makes this creator's voice unique and authentic.`
           caption: sample.caption,
           tags: sample.tags || [],
           engagement: sample.engagement,
-          embedding: embedding
-        }
+          embedding: embedding,
+        },
       });
     }
 
@@ -164,7 +174,7 @@ Focus on identifying what makes this creator's voice unique and authentic.`
     // Get all voice examples for persona
     const examples = await db.voiceExample.findMany({
       where: { personaId },
-      orderBy: { engagement: 'desc' }
+      orderBy: { engagement: 'desc' },
     });
 
     if (examples.length === 0) {
@@ -172,12 +182,12 @@ Focus on identifying what makes this creator's voice unique and authentic.`
     }
 
     // Analyze the examples to create profile
-    const sampleTexts = examples.map(e => `${e.hook} ${e.body}`);
+    const sampleTexts = examples.map((e) => `${e.hook} ${e.body}`);
     const analysis = await this.analyzeVoiceFromSamples(sampleTexts);
 
     // Calculate preferred tones based on engagement
     const toneEngagement: { [key: string]: number[] } = {};
-    examples.forEach(example => {
+    examples.forEach((example) => {
       if (example.engagement) {
         if (!toneEngagement[example.tone]) {
           toneEngagement[example.tone] = [];
@@ -189,11 +199,11 @@ Focus on identifying what makes this creator's voice unique and authentic.`
     const preferredTones = Object.entries(toneEngagement)
       .map(([tone, engagements]) => ({
         tone,
-        avgEngagement: engagements.reduce((a, b) => a + b, 0) / engagements.length
+        avgEngagement: engagements.reduce((a, b) => a + b, 0) / engagements.length,
       }))
       .sort((a, b) => b.avgEngagement - a.avgEngagement)
       .slice(0, 3)
-      .map(t => t.tone);
+      .map((t) => t.tone);
 
     // Create or update voice profile
     const profileData = {
@@ -203,7 +213,7 @@ Focus on identifying what makes this creator's voice unique and authentic.`
       summary: `Creator with ${analysis.tone} tone, focuses on ${analysis.themes.slice(0, 3).join(', ')}. Writing style: ${analysis.writingStyle.sentenceLength} sentences, ${analysis.writingStyle.vocabulary} vocabulary, ${analysis.writingStyle.rhythm} rhythm.`,
       preferredTones: preferredTones.length > 0 ? preferredTones : [analysis.tone],
       topThemes: analysis.themes.slice(0, 5),
-      lexicalTraits: analysis.writingStyle
+      lexicalTraits: analysis.writingStyle,
     };
 
     const profile = await db.voiceProfile.update({
@@ -212,8 +222,8 @@ Focus on identifying what makes this creator's voice unique and authentic.`
         summary: profileData.summary,
         preferredTones: profileData.preferredTones,
         topThemes: profileData.topThemes,
-        lexicalTraits: profileData.lexicalTraits
-      }
+        lexicalTraits: profileData.lexicalTraits,
+      },
     });
 
     console.log('✅ Voice profile generated:', profile.summary);
@@ -244,15 +254,18 @@ Focus on identifying what makes this creator's voice unique and authentic.`
     const recentExamples = await db.voiceExample.findMany({
       where: { personaId, engagement: { gt: 0 } },
       orderBy: { engagement: 'desc' },
-      take: 3
+      take: 3,
     });
 
-    const exampleText = recentExamples.length > 0 
-      ? recentExamples.map(e => `"${e.hook} ${e.body}"`).join('\n')
-      : '';
+    const exampleText =
+      recentExamples.length > 0
+        ? recentExamples.map((e) => `"${e.hook} ${e.body}"`).join('\n')
+        : '';
 
     const personaSummary = persona.summary || `${persona.name} persona voice profile`;
-    const preferredTones = persona.preferredTones?.length ? persona.preferredTones.join(', ') : 'authentic';
+    const preferredTones = persona.preferredTones?.length
+      ? persona.preferredTones.join(', ')
+      : 'authentic';
     const topThemes = persona.topThemes?.length ? persona.topThemes.join(', ') : persona.niche;
 
     const result = await generateObject({
@@ -284,7 +297,89 @@ Generate content that:
 4. Is optimized for the target platform
 5. Includes engaging hook, main content, and caption
 
-The content should sound like the creator wrote it themselves.`
+The content should sound like the creator wrote it themselves.`,
+    });
+
+    return result.object;
+  }
+
+  /**
+   * Generate template JSON from natural language description
+   */
+  async generateTemplateFromDescription(description: string, personaId: string): Promise<any> {
+    const persona = await this.ensurePersona(personaId);
+
+    console.log('🎨 Generating template from description for persona:', persona.name);
+
+    const TemplateSchema = z.object({
+      duration: z.number().describe('Total video duration in seconds (5-60)'),
+      scenes: z.array(
+        z.object({
+          start: z.number().describe('Start time in seconds'),
+          end: z.number().describe('End time in seconds'),
+          text: z.object({
+            content: z
+              .string()
+              .describe(
+                'Text content (use {{hook}}, {{content}}, {{question}}, {{answer}}, {{title}}, {{items}} for variables)'
+              ),
+            position: z.object({
+              x: z
+                .number()
+                .min(0)
+                .max(100)
+                .describe('Horizontal position percentage (0-100, 50 = center)'),
+              y: z
+                .number()
+                .min(0)
+                .max(100)
+                .describe('Vertical position percentage (0-100, 50 = center)'),
+            }),
+            style: z.object({
+              fontSize: z.number().min(12).max(72).describe('Font size in pixels'),
+              fontWeight: z.string().describe('Font weight: normal, bold, etc.'),
+              color: z.string().describe('Text color in hex format (e.g., #ffffff)'),
+              stroke: z.string().optional().describe('Text stroke color in hex format'),
+              strokeWidth: z.number().optional().describe('Text stroke width'),
+            }),
+          }),
+          filters: z
+            .array(z.string())
+            .optional()
+            .describe('CSS filters like brightness(1.2), contrast(1.1)'),
+        })
+      ),
+    });
+
+    const result = await generateObject({
+      model: this.model,
+      schema: TemplateSchema,
+      prompt: `Convert this video template description into a structured template JSON:
+
+DESCRIPTION:
+${description}
+
+PERSONA CONTEXT:
+${persona.summary || persona.name}
+Preferred tones: ${persona.preferredTones?.join(', ') || 'authentic'}
+Themes: ${persona.topThemes?.join(', ') || persona.niche}
+
+Create a video template that:
+1. Matches the description's timing and layout
+2. Uses appropriate text positioning for mobile vertical videos (9:16 aspect ratio)
+3. Includes proper text styling (size, color, stroke for readability)
+4. Uses template variables like {{hook}}, {{content}}, {{question}}, {{answer}}, {{title}}, {{items}}
+5. Has scenes that don't overlap in timing
+6. Is optimized for short-form content (5-60 seconds)
+
+Common positions:
+- Top: y=15-25 (for hooks/titles)
+- Middle: y=40-60 (for main content)
+- Bottom: y=75-85 (for CTAs)
+
+Text should be large enough to read on mobile (36-48px for main content, 48-60px for hooks).
+Always include stroke/outline for text readability over video.
+`,
     });
 
     return result.object;
@@ -293,12 +388,15 @@ The content should sound like the creator wrote it themselves.`
   /**
    * Update voice profile with new performance data
    */
-  async updateVoiceProfile(newEngagementData: Array<{
-    content: string;
-    tone: string;
-    theme: string;
-    engagement: number;
-  }>, personaId: string): Promise<void> {
+  async updateVoiceProfile(
+    newEngagementData: Array<{
+      content: string;
+      tone: string;
+      theme: string;
+      engagement: number;
+    }>,
+    personaId: string
+  ): Promise<void> {
     await this.ensurePersona(personaId);
 
     console.log('🔄 Updating voice profile with new engagement data for persona:', personaId);
@@ -307,7 +405,7 @@ The content should sound like the creator wrote it themselves.`
     for (const data of newEngagementData) {
       const embedding = await embed({
         model: this.embeddingModel,
-        value: data.content
+        value: data.content,
       });
 
       await db.voiceExample.create({
@@ -318,8 +416,8 @@ The content should sound like the creator wrote it themselves.`
           hook: data.content.split(' ').slice(0, 8).join(' '), // First 8 words as hook
           body: data.content,
           engagement: data.engagement,
-          embedding: embedding.embedding
-        }
+          embedding: embedding.embedding,
+        },
       });
     }
 

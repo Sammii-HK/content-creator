@@ -37,6 +37,7 @@ export default function UploadPage() {
   const [uploadStatus, setUploadStatus] = useState<
     Record<string, 'uploading' | 'success' | 'error'>
   >({});
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [completedCount, setCompletedCount] = useState(0);
   const [totalUploading, setTotalUploading] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -72,17 +73,21 @@ export default function UploadPage() {
   }, []);
 
   const handleUpload = useCallback(
-    async (file: File, fileName: string) => {
+    async (file: File, fileName: string, retryCount = 0) => {
       const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+      const maxRetries = 3;
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
 
       // Skip if already uploading
-      if (uploadingFiles.has(fileId)) {
+      if (uploadingFiles.has(fileId) && retryCount === 0) {
         console.log(`Skipping ${fileName} - already uploading`);
         return;
       }
 
       setUploadingFiles((prev) => new Set(prev).add(fileId));
-      console.log(`Starting upload for ${fileName} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+      console.log(
+        `Starting upload for ${fileName} (${(file.size / 1024 / 1024).toFixed(2)} MB)${retryCount > 0 ? ` - Retry ${retryCount}/${maxRetries}` : ''}`
+      );
 
       try {
         // Get active persona from localStorage
@@ -117,7 +122,10 @@ export default function UploadPage() {
         console.log(`Saving ${fileName} to database...`);
         const dbResponse = await fetch('/api/broll/add', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Include cookies for auth
           body: JSON.stringify({
             name: metadata.name || file.name.replace(/\.[^/.]+$/, ''),
             description: metadata.description || `Video: ${file.name}`,
@@ -146,19 +154,55 @@ export default function UploadPage() {
       } catch (error) {
         console.error(`Upload failed for ${fileName}:`, error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        // Check if it's a network error or timeout (common when device locks)
+        const isNetworkError =
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('NetworkError') ||
+          errorMessage.includes('network') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('aborted') ||
+          !navigator.onLine;
+
+        // Retry on network errors if we haven't exceeded max retries
+        if (isNetworkError && retryCount < maxRetries) {
+          console.log(`Network error detected, retrying ${fileName} in ${retryDelay}ms...`);
+
+          // Remove from uploading set temporarily
+          setUploadingFiles((prev) => {
+            const next = new Set(prev);
+            next.delete(fileId);
+            return next;
+          });
+
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
+
+          // Retry the upload
+          return handleUpload(file, fileName, retryCount + 1);
+        }
+
         console.error('Full error details:', {
           fileName,
           fileSize: file.size,
           error: errorMessage,
+          retryCount,
+          isNetworkError,
           stack: error instanceof Error ? error.stack : undefined,
         });
-        throw new Error(`${fileName}: ${errorMessage}`);
+
+        throw new Error(
+          `${fileName}: ${errorMessage}${isNetworkError ? ' (Network interrupted - try again when device is unlocked)' : ''}`
+        );
       } finally {
-        setUploadingFiles((prev) => {
-          const next = new Set(prev);
-          next.delete(fileId);
-          return next;
-        });
+        // Only remove from uploading set if not retrying
+        if (retryCount === 0 || retryCount >= maxRetries) {
+          setUploadingFiles((prev) => {
+            const next = new Set(prev);
+            next.delete(fileId);
+            return next;
+          });
+        }
       }
     },
     [videoMetadata, uploadingFiles, removeFile]
@@ -230,6 +274,12 @@ export default function UploadPage() {
         });
         setUploadStatus((prev) => ({ ...prev, ...initialStatus }));
 
+        // Add files to uploadingFiles Set immediately for UI feedback
+        newFilesToUpload.forEach((file) => {
+          const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+          setUploadingFiles((prev) => new Set(prev).add(fileId));
+        });
+
         // Upload all files in parallel using Promise.allSettled
         const uploadPromises = newFilesToUpload.map(async (file) => {
           const fileId = `${file.name}-${file.size}-${file.lastModified}`;
@@ -250,6 +300,8 @@ export default function UploadPage() {
               setUploadProgress(Math.round((newCount / total) * 100));
               return newCount;
             });
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setUploadErrors((prev) => ({ ...prev, [fileId]: errorMessage }));
             return { success: false, fileId, fileName: file.name, error };
           }
         });
@@ -276,6 +328,79 @@ export default function UploadPage() {
     },
     [handleUpload]
   );
+
+  const retryUpload = useCallback(
+    async (file: File) => {
+      const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+
+      // Reset error status and mark as uploading immediately
+      setUploadStatus((prev) => ({ ...prev, [fileId]: 'uploading' }));
+      setUploadErrors((prev) => {
+        const next = { ...prev };
+        delete next[fileId];
+        return next;
+      });
+      setUploadingFiles((prev) => new Set(prev).add(fileId));
+
+      // Update total uploading count
+      setTotalUploading((prev) => prev + 1);
+
+      try {
+        await handleUpload(file, file.name);
+        setUploadStatus((prev) => ({ ...prev, [fileId]: 'success' }));
+        setCompletedCount((prev) => prev + 1);
+      } catch (error) {
+        console.error(`Retry upload failed for ${file.name}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setUploadStatus((prev) => ({ ...prev, [fileId]: 'error' }));
+        setUploadErrors((prev) => ({ ...prev, [fileId]: errorMessage }));
+      } finally {
+        setTotalUploading((prev) => Math.max(0, prev - 1));
+      }
+    },
+    [handleUpload]
+  );
+
+  // Handle page visibility changes (device lock/unlock)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Page became visible - checking for failed uploads to retry...');
+        // When page becomes visible again, check for any failed uploads and retry them
+        const failedFiles = selectedFiles.filter((file) => {
+          const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+          return (
+            uploadStatus[fileId] === 'error' &&
+            uploadErrors[fileId]?.includes('Network interrupted')
+          );
+        });
+
+        if (failedFiles.length > 0) {
+          console.log(
+            `Found ${failedFiles.length} upload(s) that failed due to network interruption, retrying...`
+          );
+          failedFiles.forEach((file) => {
+            const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+            // Clear error status and retry
+            setUploadStatus((prev) => ({ ...prev, [fileId]: 'uploading' }));
+            setUploadErrors((prev) => {
+              const next = { ...prev };
+              delete next[fileId];
+              return next;
+            });
+            handleUpload(file, file.name).catch(console.error);
+          });
+        }
+      } else {
+        console.log('Page became hidden - uploads will continue in background');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedFiles, uploadStatus, uploadErrors, handleUpload]);
 
   // Check for files periodically when input might have been used (iOS Photos picker workaround)
   useEffect(() => {
@@ -459,8 +584,10 @@ export default function UploadPage() {
                               {selectedFiles.map((file, index) => {
                                 const fileId = `${file.name}-${file.size}-${file.lastModified}`;
                                 const isUploading = uploadingFiles.has(fileId);
+                                // Show uploading state if in uploadingFiles Set OR if status is explicitly 'uploading'
                                 const status =
                                   uploadStatus[fileId] || (isUploading ? 'uploading' : undefined);
+                                const showUploading = isUploading || status === 'uploading';
 
                                 return (
                                   <div
@@ -470,7 +597,7 @@ export default function UploadPage() {
                                         ? 'bg-success/10 border-success/30'
                                         : status === 'error'
                                           ? 'bg-destructive/10 border-destructive/30'
-                                          : isUploading
+                                          : showUploading
                                             ? 'bg-primary/10 border-primary/30'
                                             : 'bg-background-secondary border-border'
                                     }`}
@@ -480,7 +607,7 @@ export default function UploadPage() {
                                         <CheckCircle className="h-5 w-5 text-success" />
                                       ) : status === 'error' ? (
                                         <X className="h-5 w-5 text-destructive" />
-                                      ) : isUploading ? (
+                                      ) : showUploading ? (
                                         <div className="relative h-5 w-5">
                                           <Video className="h-5 w-5 text-primary animate-pulse" />
                                           <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -494,19 +621,41 @@ export default function UploadPage() {
                                           {(file.size / (1024 * 1024)).toFixed(1)} MB
                                           {status === 'success' && ' • Uploaded'}
                                           {status === 'error' && ' • Failed'}
-                                          {isUploading && !status && ' • Uploading...'}
+                                          {showUploading && ' • Uploading...'}
                                         </p>
+                                        {status === 'error' && uploadErrors[fileId] && (
+                                          <p
+                                            className="text-xs text-destructive mt-1 truncate"
+                                            title={uploadErrors[fileId]}
+                                          >
+                                            {uploadErrors[fileId]}
+                                          </p>
+                                        )}
                                       </div>
-                                      {!isUploading && status !== 'uploading' && (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => removeFile(file.name)}
-                                          className="text-destructive hover:text-destructive"
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </Button>
-                                      )}
+                                      <div className="flex items-center gap-2">
+                                        {status === 'error' && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => retryUpload(file)}
+                                            className="text-primary hover:text-primary"
+                                            disabled={isUploading}
+                                          >
+                                            <Upload className="h-3 w-3 mr-1" />
+                                            Retry
+                                          </Button>
+                                        )}
+                                        {!showUploading && (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => removeFile(file.name)}
+                                            className="text-destructive hover:text-destructive"
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 );

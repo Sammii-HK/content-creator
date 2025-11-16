@@ -14,7 +14,7 @@ const GenerateTextOnlySchema = z.object({
   templateId: z.string().optional(),
   includeTrends: z.boolean().optional().default(true),
   generateVariants: z.number().min(1).max(5).optional().default(1),
-  personaId: z.string().optional()
+  personaId: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       templateId,
       includeTrends,
       generateVariants,
-      personaId
+      personaId,
     } = GenerateTextOnlySchema.parse(body);
 
     // Validate persona if provided
@@ -46,11 +46,11 @@ export async function POST(request: NextRequest) {
         take: 5,
         where: {
           collectedAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-          }
-        }
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+          },
+        },
       });
-      trends = recentTrends.map(t => t.tag);
+      trends = recentTrends.map((t) => t.tag);
     }
 
     // Get performance context for LLM
@@ -58,31 +58,31 @@ export async function POST(request: NextRequest) {
       include: { metrics: true },
       where: {
         metrics: {
-          engagement: { gte: 75 } // High engagement threshold
-        }
+          engagement: { gte: 75 }, // High engagement threshold
+        },
       },
       orderBy: {
-        metrics: { engagement: 'desc' }
+        metrics: { engagement: 'desc' },
       },
-      take: 3
+      take: 3,
     });
 
     const lowPerformingVideos = await db.video.findMany({
       include: { metrics: true },
       where: {
         metrics: {
-          engagement: { lte: 25 } // Low engagement threshold
-        }
+          engagement: { lte: 25 }, // Low engagement threshold
+        },
       },
       orderBy: {
-        metrics: { engagement: 'asc' }
+        metrics: { engagement: 'asc' },
       },
-      take: 3
+      take: 3,
     });
 
     const previousPerformance = {
-      highPerforming: highPerformingVideos.map(v => v.caption),
-      lowPerforming: lowPerformingVideos.map(v => v.caption)
+      highPerforming: highPerformingVideos.map((v) => v.caption),
+      lowPerforming: lowPerformingVideos.map((v) => v.caption),
     };
 
     // Determine template to use
@@ -96,48 +96,54 @@ export async function POST(request: NextRequest) {
     }
 
     if (!template) {
-      return NextResponse.json(
-        { error: 'No template available' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'No template available' }, { status: 404 });
     }
 
     // Generate content variants with persona context
     let contentVariants;
     if (personaId) {
       // Use persona-aware generation
-      contentVariants = generateVariants > 1 
-        ? await Promise.all(
-            Array.from({ length: generateVariants }, () =>
-              digitalMeService.generateAuthenticContent(
+      contentVariants =
+        generateVariants > 1
+          ? await Promise.all(
+              Array.from({ length: generateVariants }, () =>
+                digitalMeService.generateAuthenticContent(
+                  `${theme} content in ${tone} tone`,
+                  { theme, targetDuration: duration },
+                  personaId
+                )
+              )
+            )
+          : [
+              await digitalMeService.generateAuthenticContent(
                 `${theme} content in ${tone} tone`,
                 { theme, targetDuration: duration },
                 personaId
-              )
-            )
-          )
-        : [await digitalMeService.generateAuthenticContent(
-            `${theme} content in ${tone} tone`,
-            { theme, targetDuration: duration },
-            personaId
-          )];
+              ),
+            ];
     } else {
       // Use generic generation
-      contentVariants = generateVariants > 1 
-        ? await llmService.generateVariants({
-            theme,
-            tone,
-            duration,
-            trends,
-            previousPerformance
-          }, generateVariants)
-        : [await llmService.generateVideoContent({
-            theme,
-            tone,
-            duration,
-            trends,
-            previousPerformance
-          })];
+      contentVariants =
+        generateVariants > 1
+          ? await llmService.generateVariants(
+              {
+                theme,
+                tone,
+                duration,
+                trends,
+                previousPerformance,
+              },
+              generateVariants
+            )
+          : [
+              await llmService.generateVideoContent({
+                theme,
+                tone,
+                duration,
+                trends,
+                previousPerformance,
+              }),
+            ];
     }
 
     const results = [];
@@ -145,35 +151,42 @@ export async function POST(request: NextRequest) {
     // Process each variant (text only, no video rendering)
     for (let i = 0; i < contentVariants.length; i++) {
       const content = contentVariants[i];
-      
+
       try {
+        // Handle different content structures:
+        // - llmService returns: { hook, content (string), caption, tone, hashtags }
+        // - digitalMeService returns: { hook, script (array), caption, tone, hashtags, callToAction }
+        const contentText =
+          content.content || (Array.isArray(content.script) ? content.script.join(' ') : '');
+        const contentLength = contentText.length;
+
         // Create mock features for now
         const features = {
-          hookStrength: content.hook.length < 50 ? 1 : 0.5,
-          contentLength: content.content.length,
-          hashtags: content.hashtags,
+          hookStrength: content.hook?.length < 50 ? 1 : 0.5,
+          contentLength,
+          hashtags: content.hashtags || [],
           toneScore: 75, // Mock score
           avgBrightness: 60,
           avgContrast: 55,
           motionLevel: 70,
           colorVariance: 65,
-          textCoverage: 25
+          textCoverage: 25,
         };
 
         // Save to database (without video rendering)
         const video = await db.video.create({
           data: {
             theme: `${theme} - Text Only ${i + 1}`,
-            tone: content.tone,
+            tone: content.tone || 'energetic',
             duration,
-            hookLines: [content.hook],
-            caption: content.caption,
+            hookLines: [content.hook || ''],
+            caption: content.caption || contentText,
             templateId: template.id,
             brollId: null, // No B-roll used
             fileUrl: '', // No video file generated
             userId: user.id,
-            features
-          }
+            features,
+          },
         });
 
         results.push({
@@ -182,15 +195,14 @@ export async function POST(request: NextRequest) {
           features,
           templateUsed: template.name,
           status: 'text-only-generation',
-          message: 'Content generated successfully - video rendering requires B-roll content'
+          message: 'Content generated successfully - video rendering requires B-roll content',
         });
-
       } catch (error) {
         console.error('Text generation failed for variant', i, error);
         results.push({
           error: 'Text generation failed',
           content,
-          templateUsed: template.name
+          templateUsed: template.name,
         });
       }
     }
@@ -200,17 +212,17 @@ export async function POST(request: NextRequest) {
       results,
       trendsUsed: trends,
       templateUsed: template.name,
-      message: 'Text content generated successfully. Upload B-roll content to enable video rendering.',
+      message:
+        'Text content generated successfully. Upload B-roll content to enable video rendering.',
       nextSteps: [
         'Add real B-roll videos via /dashboard/content',
         'Test full video generation via /api/generate',
-        'Set up Cloudflare Workers for automation'
-      ]
+        'Set up Cloudflare Workers for automation',
+      ],
     });
-
   } catch (error) {
     console.error('Text generation error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request', details: error.issues },
@@ -219,7 +231,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }

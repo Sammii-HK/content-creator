@@ -11,7 +11,7 @@ const CreateBrollSchema = z.object({
   duration: z.number().positive('Duration must be positive'),
   category: z.string().optional(),
   tags: z.array(z.string()).default([]),
-  personaId: z.string()
+  personaId: z.string(),
 });
 
 export async function GET(request: NextRequest) {
@@ -24,17 +24,23 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const personaId = searchParams.get('personaId') || undefined;
 
-    await requirePersona(personaId);
+    if (personaId) {
+      await requirePersona(personaId);
+    }
 
-    const where: Record<string, unknown> = { 
+    const where: Record<string, unknown> = {
       userId: user.id,
-      personaId 
     };
-    
+
+    // Only filter by personaId if provided
+    if (personaId) {
+      where.personaId = personaId;
+    }
+
     if (category) {
       where.category = category;
     }
-    
+
     if (active !== null) {
       where.isActive = active === 'true';
     }
@@ -43,7 +49,7 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
-      skip: offset
+      skip: offset,
     });
 
     const total = await db.broll.count({ where });
@@ -54,24 +60,17 @@ export async function GET(request: NextRequest) {
         total,
         limit,
         offset,
-        hasMore: offset + limit < total
-      }
+        hasMore: offset + limit < total,
+      },
     });
-
   } catch (error) {
     console.error('Failed to fetch B-roll items:', error);
-    
+
     if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -87,25 +86,21 @@ export async function POST(request: NextRequest) {
       data: {
         ...data,
         userId: user.id,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      broll
+      broll,
     });
-
   } catch (error) {
     console.error('B-roll creation failed:', error);
-    
+
     if (error instanceof Error && error.message === 'Unauthorized') {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid B-roll data', details: error.issues },
@@ -113,9 +108,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
