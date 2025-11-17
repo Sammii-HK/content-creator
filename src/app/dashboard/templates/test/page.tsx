@@ -60,10 +60,10 @@ export default function TestTemplates() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<BrollVideo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -71,7 +71,6 @@ export default function TestTemplates() {
       // Get active persona from localStorage
       const personaId =
         typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
-      setActivePersonaId(personaId);
 
       // Fetch templates
       const templatesUrl = personaId ? `/api/templates?personaId=${personaId}` : '/api/templates';
@@ -256,15 +255,13 @@ export default function TestTemplates() {
                   <CardHeader>
                     <CardTitle>Preview</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="aspect-[9/16] bg-black rounded-lg overflow-hidden">
-                      <VideoGenerator
-                        videoUrl={selectedVideo.fileUrl}
-                        template={selectedTemplate.json}
-                        content={testContent}
-                        // No onComplete - preview only
-                      />
-                    </div>
+                  <CardContent className="p-0">
+                    <VideoGenerator
+                      videoUrl={selectedVideo.fileUrl}
+                      template={selectedTemplate.json}
+                      content={testContent}
+                      // No onComplete - preview only
+                    />
                   </CardContent>
                 </Card>
               ) : (

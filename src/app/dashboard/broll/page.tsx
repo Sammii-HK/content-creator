@@ -33,7 +33,10 @@ export default function BrollLibrary() {
         typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
 
       // Fetch B-roll videos - include all videos if no persona selected, or filter by persona
-      const url = activePersonaId ? `/api/broll?personaId=${activePersonaId}` : '/api/broll';
+      // Also explicitly request active videos
+      const url = activePersonaId
+        ? `/api/broll?personaId=${activePersonaId}&active=true`
+        : '/api/broll?active=true';
 
       const response = await fetch(url, {
         credentials: 'include', // Include cookies for auth

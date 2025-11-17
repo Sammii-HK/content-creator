@@ -56,45 +56,8 @@ const renderTextOverlay = (
     ctx.fillStyle = style.color || '#ffffff';
     ctx.fillText(text, x, y);
 
-    // Verify text was actually drawn by checking if pixel changed
-    // IMPORTANT: getImageData uses canvas coordinates (scaled), not display coordinates
-    const scale = window.devicePixelRatio || 1;
-    const testX = Math.floor(x * scale);
-    const testY = Math.floor(y * scale);
-    if (testX >= 0 && testX < ctx.canvas.width && testY >= 0 && testY < ctx.canvas.height) {
-      const imageData = ctx.getImageData(testX, testY, 1, 1);
-      const pixel = imageData.data;
-      const hasColor = pixel[0] > 0 || pixel[1] > 0 || pixel[2] > 0; // Check if pixel has color
-
-      // Always log text rendering for debugging
-      console.log('✅ TEXT RENDERED:', {
-        text: text.substring(0, 100),
-        fullText: text,
-        position: `(${x.toFixed(0)}, ${y.toFixed(0)})`,
-        fontSize,
-        color: style.color || '#ffffff',
-        stroke: style.stroke || 'none',
-        canvasSize: `${ctx.canvas.width}x${ctx.canvas.height}`,
-        pixelAtPosition: `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${pixel[3]})`,
-        textVisible: hasColor ? 'YES' : 'NO - PIXEL IS BLACK/EMPTY',
-        warning: !hasColor ? '⚠️ Text may not be visible - check color/position' : undefined,
-      });
-
-      if (!hasColor) {
-        console.error('❌ TEXT NOT VISIBLE! Pixel at text position is black/empty:', {
-          expectedColor: style.color || '#ffffff',
-          actualPixel: `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${pixel[3]})`,
-          textPosition: `(${x}, ${y})`,
-          canvasSize: `${ctx.canvas.width}x${ctx.canvas.height}`,
-        });
-      }
-    } else {
-      console.error('❌ TEXT POSITION OUT OF BOUNDS!', {
-        position: `(${x}, ${y})`,
-        canvasSize: `${ctx.canvas.width}x${ctx.canvas.height}`,
-        text: text.substring(0, 50),
-      });
-    }
+    // Removed getImageData check - it was causing performance issues (60+ calls per second)
+    // Text visibility is verified by the fact that fillText was called successfully
   } catch (error) {
     console.error('❌ Error rendering text overlay:', error, {
       scene,
@@ -197,7 +160,6 @@ const replaceVariables = (text: string, content: Record<string, string>): string
         for (const mappedKey of mappings) {
           value = content[mappedKey];
           if (value && value !== '') {
-            console.log(`✅ Mapped variable "{{${varName}}}" to content key "${mappedKey}"`);
             break;
           }
         }
@@ -210,7 +172,6 @@ const replaceVariables = (text: string, content: Record<string, string>): string
       for (const [key, val] of Object.entries(content)) {
         if (key.toLowerCase() === lowerVarName) {
           value = val;
-          console.log(`✅ Found case-insensitive match: "{{${varName}}}" -> "${key}"`);
           break;
         }
       }
@@ -218,9 +179,6 @@ const replaceVariables = (text: string, content: Record<string, string>): string
 
     if (value !== undefined && value !== null && value !== '') {
       result = result.replace(new RegExp(`\\{\\{${varName}\\}\\}`, 'g'), value);
-      console.log(
-        `✅ Replaced "{{${varName}}}" with: "${value.substring(0, 50)}${value.length > 50 ? '...' : ''}"`
-      );
     } else {
       // Variable not found - log warning and leave placeholder or use fallback
       console.warn(
@@ -238,6 +196,9 @@ const replaceVariables = (text: string, content: Record<string, string>): string
 };
 
 // IndexedDB helper for caching generated videos
+// CACHE_VERSION: Increment this to invalidate all old cached videos when fixing bugs
+const CACHE_VERSION = 2; // Changed from 1 to invalidate old bad videos
+
 const getVideoCacheKey = (
   template: Record<string, unknown>,
   content: Record<string, string | string[]>
@@ -246,7 +207,7 @@ const getVideoCacheKey = (
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}:${typeof v === 'string' ? v : v.join(',')}`)
     .join('|');
-  return `video_${template.duration}_${contentHash.slice(0, 100)}`;
+  return `video_v${CACHE_VERSION}_${template.duration}_${contentHash.slice(0, 100)}`;
 };
 
 const openVideoCacheDB = (): Promise<IDBDatabase> => {
@@ -279,15 +240,80 @@ const getCachedVideo = async (key: string): Promise<Blob | null> => {
   }
 };
 
+const _clearAllVideoCache = async (): Promise<void> => {
+  try {
+    const db = await openVideoCacheDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(['videos'], 'readwrite');
+      const store = transaction.objectStore('videos');
+      const clearRequest = store.clear();
+      clearRequest.onsuccess = () => {
+        console.log('🧹 Cleared all video cache');
+        resolve();
+      };
+      clearRequest.onerror = () => reject(clearRequest.error);
+    });
+  } catch (error) {
+    console.warn('Failed to clear video cache:', error);
+  }
+};
+
 const saveCachedVideo = async (key: string, blob: Blob): Promise<void> => {
   try {
     const db = await openVideoCacheDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(['videos'], 'readwrite');
       const store = transaction.objectStore('videos');
-      const request = store.put(blob, key);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+
+      // First, save the new video
+      const putRequest = store.put(blob, key);
+      putRequest.onsuccess = () => {
+        // Then, limit cache size to max 10 videos
+        const countRequest = store.count();
+        countRequest.onsuccess = () => {
+          const count = countRequest.result;
+          const MAX_CACHE_SIZE = 10;
+
+          if (count > MAX_CACHE_SIZE) {
+            // Get all keys, sort by key (which includes timestamp), delete oldest
+            const getAllKeysRequest = store.getAllKeys();
+            getAllKeysRequest.onsuccess = () => {
+              const keys = getAllKeysRequest.result as string[];
+              // Sort keys (they should be in insertion order roughly)
+              // Delete oldest entries (first ones)
+              const keysToDelete = keys.slice(0, count - MAX_CACHE_SIZE);
+              let deleteCount = 0;
+              keysToDelete.forEach((oldKey) => {
+                const deleteRequest = store.delete(oldKey);
+                deleteRequest.onsuccess = () => {
+                  deleteCount++;
+                  if (deleteCount === keysToDelete.length) {
+                    console.log(
+                      `🧹 Cleared ${keysToDelete.length} old cache entries, keeping ${MAX_CACHE_SIZE} most recent`
+                    );
+                    resolve();
+                  }
+                };
+                deleteRequest.onerror = () => {
+                  console.warn('Failed to delete old cache entry:', oldKey);
+                  deleteCount++;
+                  if (deleteCount === keysToDelete.length) {
+                    resolve();
+                  }
+                };
+              });
+              if (keysToDelete.length === 0) {
+                resolve();
+              }
+            };
+            getAllKeysRequest.onerror = () => resolve(); // Continue even if cleanup fails
+          } else {
+            resolve();
+          }
+        };
+        countRequest.onerror = () => resolve(); // Continue even if count fails
+      };
+      putRequest.onerror = () => reject(putRequest.error);
     });
   } catch (error) {
     console.warn('Failed to cache video:', error);
@@ -334,23 +360,57 @@ export default function VideoGenerator({
   } | null>(null);
 
   const generateVideo = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    // Check cache first
-    const cacheKey = getVideoCacheKey(template, content);
-    const cachedBlob = await getCachedVideo(cacheKey);
-
-    if (cachedBlob) {
-      console.log('✅ Using cached video from IndexedDB');
-      const videoUrl = URL.createObjectURL(cachedBlob);
-      setGeneratedVideo(videoUrl);
-      if (onComplete) {
-        onComplete(cachedBlob);
-      }
+    // Prevent multiple simultaneous generations
+    if (isGenerating) {
+      console.warn('⚠️ Generation already in progress - ignoring duplicate call');
       return;
     }
 
-    console.log('🎬 Generating new video (not in cache)');
+    if (!videoRef.current || !canvasRef.current) {
+      alert('Video or canvas not ready. Please wait for page to load.');
+      return;
+    }
+
+    // TEMPORARILY DISABLE CACHE - Force regeneration every time
+
+    // Still check cache to see if one exists (for debugging)
+    const cacheKey = getVideoCacheKey(template, content);
+    const cachedBlob = await getCachedVideo(cacheKey);
+    if (cachedBlob) {
+      // Delete the cached video
+      try {
+        const db = await openVideoCacheDB();
+        await new Promise<void>((resolve, reject) => {
+          const transaction = db.transaction(['videos'], 'readwrite');
+          const store = transaction.objectStore('videos');
+          const deleteRequest = store.delete(cacheKey);
+          deleteRequest.onsuccess = () => resolve();
+          deleteRequest.onerror = () => reject(deleteRequest.error);
+        });
+      } catch {
+        // Silent fail
+      }
+    }
+
+    // CRITICAL: Force cleanup preview BEFORE starting generation
+    // Cancel all preview animations and intervals
+    if (previewAnimationRef.current !== null) {
+      cancelAnimationFrame(previewAnimationRef.current);
+      previewAnimationRef.current = null;
+    }
+    if (previewTimeoutRef.current !== null) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+    // Clear all preview caches
+    previewSceneMappingCacheRef.current = null;
+    previewCurrentMappingCacheRef.current = null;
+    previewDrawDimensionsCacheRef.current = null;
+    previewStartTimeRef.current = null;
+    previewLastSceneIndexRef.current = -1;
+
+    // CRITICAL: Disable preview to prevent resource competition
+    setIsPreviewMode(false);
     setIsGenerating(true);
     setProgress(0);
 
@@ -358,41 +418,11 @@ export default function VideoGenerator({
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d')!;
 
-    // Log template and content info for debugging - COMPREHENSIVE TEXT LOGGING
-    const scenes = (template.scenes as any[]) || [];
-    console.log('🎬 ========== VIDEO GENERATION START ==========');
-    console.log('📋 Template Info:', {
-      templateDuration: template.duration,
-      sceneCount: scenes.length,
-      availableContent: Object.keys(content),
-      contentValues: content,
-    });
-
-    console.log('📝 ALL SCENES AND EXPECTED TEXT:');
-    scenes.forEach((s: any, index: number) => {
-      const textContent = s.text?.content || 'NO TEXT DEFINED';
-      const variables = textContent.match(/\{\{(\w+)\}\}/g) || [];
-      const replacedText = replaceVariables(textContent, content);
-
-      console.log(`  Scene ${index + 1} (${s.start}s - ${s.end}s):`, {
-        originalText: textContent,
-        variablesFound: variables,
-        replacedText: replacedText,
-        hasTextObject: !!s.text,
-        textObject: s.text,
-        position: s.text?.position,
-        style: s.text?.style,
-        willRender:
-          replacedText.trim() !== '' &&
-          replacedText !== textContent.replace(/\{\{(\w+)\}\}/g, '[$1]'),
-      });
-    });
-    console.log('🎬 ============================================');
-
     // Set canvas size for vertical video
     canvas.width = 1080;
     canvas.height = 1920;
 
+    let renderIntervalId: number | undefined;
     try {
       // Wait for video to be ready
       if (video.readyState < 2) {
@@ -406,10 +436,21 @@ export default function VideoGenerator({
         });
       }
 
-      // Set up recording
+      // Set up recording - use 30fps capture stream
       const stream = canvas.captureStream(30);
+
+      // Try VP9 first, fallback to VP8 if not supported
+      let mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm;codecs=vp8';
+      }
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
+      }
+
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9',
+        mimeType: mimeType,
+        videoBitsPerSecond: 2500000, // 2.5 Mbps for good quality
       });
 
       const chunks: Blob[] = [];
@@ -428,13 +469,13 @@ export default function VideoGenerator({
             reject(new Error('Empty video blob'));
           }
         };
-        recorder.onerror = (e) => {
+        recorder.onerror = () => {
           reject(new Error('Recording error'));
         };
       });
 
-      // Start recording
-      recorder.start(100); // Collect data every 100ms
+      // Start recording - collect data every 200ms for better performance
+      recorder.start(200);
 
       const scenes = (template.scenes as any[]) || [];
       const duration = ((template.duration as number) || 10) * 1000; // Convert to milliseconds
@@ -442,8 +483,6 @@ export default function VideoGenerator({
 
       // Map scenes to source video times using shared function
       const sceneVideoMapping = getSceneVideoMapping(scenes, sourceVideoDuration);
-
-      console.log('🎬 Scene-to-video mapping:', sceneVideoMapping);
 
       // Cache expensive calculations that don't change
       // Ensure we have valid video dimensions
@@ -469,251 +508,116 @@ export default function VideoGenerator({
         drawY = (canvas.height - drawHeight) / 2; // Center vertically
       }
 
-      console.log('📐 Aspect ratio calculation:', {
-        videoSize: `${videoWidth}x${videoHeight}`,
-        videoAspect: videoAspect.toFixed(3),
-        targetAspect: targetAspect.toFixed(3),
-        canvasSize: `${canvas.width}x${canvas.height}`,
-        drawSize: `${drawWidth.toFixed(0)}x${drawHeight.toFixed(0)}`,
-        drawPosition: `(${drawX.toFixed(0)}, ${drawY.toFixed(0)})`,
-      });
-
-      // Render loop
+      // Render loop - use fixed 30fps timer instead of requestAnimationFrame
       const startTime = Date.now();
       let lastSceneIndex = -1;
       let currentMappingCache: any = sceneVideoMapping[0]; // Cache current scene
-      let animationFrameId: number;
-      let lastGoodFrame: ImageData | null = null; // Store last good frame to prevent flashes
-      let nextSceneSeekTime: number | null = null; // Pre-seek to next scene to prevent flashes
-      const PRE_SEEK_BUFFER = 0.1; // Seek 100ms before scene cut
+      const TARGET_FPS = 30;
+      const FRAME_INTERVAL = 1000 / TARGET_FPS; // ~33.33ms per frame
+
+      // Performance monitoring
+      let frameCount = 0;
+      let lastFpsLogTime = startTime;
+      const FPS_LOG_INTERVAL = 2000; // Log FPS every 2 seconds
 
       const renderFrame = () => {
-        const elapsed = Date.now() - startTime;
+        const now = Date.now();
+        const elapsed = now - startTime;
         const outputTime = elapsed / 1000; // Output video time in seconds
 
-        setProgress((elapsed / duration) * 100);
+        // Performance monitoring - log actual FPS (less frequently to reduce overhead)
+        frameCount++;
+        if (now - lastFpsLogTime >= FPS_LOG_INTERVAL) {
+          const actualFps = (frameCount / ((now - lastFpsLogTime) / 1000)).toFixed(1);
+          // Only log if FPS is significantly below target
+          if (parseFloat(actualFps) < TARGET_FPS * 0.8) {
+            console.warn(`⚠️ Low FPS: ${actualFps} FPS (target: ${TARGET_FPS} FPS)`);
+          }
+          frameCount = 0;
+          lastFpsLogTime = now;
+        }
+
+        // Update progress MUCH less frequently to reduce React re-renders (every 500ms instead of 100ms)
+        if (Math.floor(elapsed / 500) !== Math.floor((elapsed - FRAME_INTERVAL) / 500)) {
+          setProgress((elapsed / duration) * 100);
+        }
 
         if (elapsed >= duration) {
+          if (renderIntervalId !== undefined) {
+            clearInterval(renderIntervalId);
+          }
           recorder.stop();
           video.pause();
           return;
         }
 
-        // Find current scene based on output time (optimized: check cached scene first)
+        // OPTIMIZED: Only check for scene changes when near scene boundaries (within 100ms)
+        // This avoids expensive checks every frame when we're in the middle of a scene
         let currentMapping = currentMappingCache;
+        const timeUntilSceneEnd = currentMapping.outputEnd - outputTime;
+        const timeSinceSceneStart = outputTime - currentMapping.outputStart;
 
-        // Only search if we're outside the cached scene's time range
-        if (outputTime < currentMapping.outputStart || outputTime >= currentMapping.outputEnd) {
-          // Find new scene (linear search, but only when scene changes)
-          currentMapping =
+        // Only check for scene change if we're near a boundary (within 100ms)
+        if (timeUntilSceneEnd <= 0.1 || timeSinceSceneStart < 0) {
+          // Find new scene (linear search, but only when near scene boundaries)
+          const newMapping =
             sceneVideoMapping.find(
               (m: any) => outputTime >= m.outputStart && outputTime < m.outputEnd
             ) || sceneVideoMapping[0];
-          currentMappingCache = currentMapping;
+
+          if (newMapping !== currentMapping) {
+            currentMapping = newMapping;
+            currentMappingCache = currentMapping;
+          }
         }
 
         if (!currentMapping) {
-          animationFrameId = requestAnimationFrame(renderFrame);
-          return;
+          return; // Will continue on next interval
         }
 
-        // Calculate position within current scene (0-1) - cache scene duration
-        const sceneDuration = currentMapping.outputEnd - currentMapping.outputStart;
-        const sceneProgress = (outputTime - currentMapping.outputStart) / sceneDuration;
-
-        // Map to source video time - cache video segment duration
-        const videoSegmentDuration = currentMapping.videoEnd - currentMapping.videoStart;
-
-        // Seek video to correct position if scene changed
-        // Use cached index if available, otherwise find it
+        // Use cached scene index - we already know it from lastSceneIndex
         const currentSceneIndex =
-          currentMapping === currentMappingCache && lastSceneIndex >= 0
+          lastSceneIndex >= 0 && currentMapping === currentMappingCache
             ? lastSceneIndex
             : sceneVideoMapping.indexOf(currentMapping);
-        let seekTime = 0;
 
-        // PRE-SEEK: If we're close to the end of a scene, pre-seek to the next scene
-        const timeUntilNextScene = currentMapping.outputEnd - outputTime;
-        if (timeUntilNextScene <= PRE_SEEK_BUFFER && timeUntilNextScene > 0) {
-          const nextSceneIndex = currentSceneIndex + 1;
-          if (nextSceneIndex < sceneVideoMapping.length && !nextSceneSeekTime) {
-            const nextMapping = sceneVideoMapping[nextSceneIndex];
-            nextSceneSeekTime = nextMapping.videoStart;
-            console.log(
-              `⏩ Pre-seeking to next scene ${nextSceneIndex + 1} at ${nextSceneSeekTime.toFixed(2)}s (${timeUntilNextScene.toFixed(2)}s before cut)`
-            );
-            isSeekingRef.current = true;
-            video.currentTime = nextSceneSeekTime;
-            video.addEventListener(
-              'seeked',
-              () => {
-                isSeekingRef.current = false;
-              },
-              { once: true }
-            );
-          }
-        }
-
+        // ONLY seek when scene changes - then let video play naturally
         if (currentSceneIndex !== lastSceneIndex) {
-          // Scene changed - seek to start of this scene's video segment
-          seekTime = Math.max(0, Math.min(currentMapping.videoStart, sourceVideoDuration));
-          console.log(
-            `🎞️ Scene ${currentSceneIndex + 1}: Jumping to ${seekTime.toFixed(2)}s in source video (output ${currentMapping.outputStart.toFixed(2)}-${currentMapping.outputEnd.toFixed(2)}s)`
-          );
-
-          // Reset pre-seek flag
-          nextSceneSeekTime = null;
-
-          // Set seeking flag and seek video (non-blocking)
-          isSeekingRef.current = true;
-          const handleSeeked = () => {
-            video.removeEventListener('seeked', handleSeeked);
-            // Wait for frame to be ready using double RAF for smooth transition
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                // Double-check video is ready and at correct position
-                if (video.readyState >= 2 && Math.abs(video.currentTime - seekTime) < 0.1) {
-                  isSeekingRef.current = false;
-                } else {
-                  // If not ready, wait a bit more
-                  setTimeout(() => {
-                    isSeekingRef.current = false;
-                  }, 100);
-                }
-              });
-            });
-          };
-          video.addEventListener('seeked', handleSeeked, { once: true });
+          const seekTime = Math.max(0, Math.min(currentMapping.videoStart, sourceVideoDuration));
+          // Direct seek - don't use requestAnimationFrame as it adds delay
           video.currentTime = seekTime;
-          // Fallback timeout in case seeked event doesn't fire
-          setTimeout(() => {
-            video.removeEventListener('seeked', handleSeeked);
-            isSeekingRef.current = false;
-          }, 500);
-
           lastSceneIndex = currentSceneIndex;
+          // Update React state only when scene changes
           setCurrentScene(currentSceneIndex);
-        } else {
-          // Within same scene - map output progress to video segment progress
-          // Calculate how far through the scene we are (0-1)
-          const sceneProgress =
-            (outputTime - currentMapping.outputStart) /
-            (currentMapping.outputEnd - currentMapping.outputStart);
-          // Map to position within video segment
-          const targetVideoTime =
-            currentMapping.videoStart +
-            sceneProgress * (currentMapping.videoEnd - currentMapping.videoStart);
-
-          // Only seek if video has drifted significantly (let it play naturally otherwise)
-          const currentVideoTime = video.currentTime;
-          const expectedVideoTime = targetVideoTime;
-          const drift = Math.abs(currentVideoTime - expectedVideoTime);
-
-          // If video has drifted more than 0.3 seconds, correct it (increased threshold to reduce CPU usage)
-          if (drift > 0.3) {
-            seekTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
-            video.currentTime = seekTime;
-          }
         }
 
-        // Ensure video is playing
-        if (video.paused) {
-          video.play().catch(console.error);
+        // CRITICAL: Only check if paused every 10 frames to reduce overhead
+        // Video should play naturally after initial seek
+        if (frameCount % 10 === 0 && video.paused) {
+          video.playbackRate = 1.0;
+          video.play().catch(() => {
+            // Silent error - video might be seeking
+          });
         }
 
-        // CRITICAL: ALWAYS draw a frame - MediaRecorder needs consistent frames
-        // Never skip drawing, even when seeking - use last good frame if needed
-        const videoReady = video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
-        const notSeeking = !isSeekingRef.current;
-
-        // Draw video frame (or reuse last good frame if seeking)
-        if (videoReady && notSeeking) {
-          // Draw fresh video frame
+        // ALWAYS draw current video frame - video plays naturally
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          // Use drawImage directly - it's the fastest way
           ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-          // Save this frame as the last good frame (WITHOUT text, so we can add text on top)
-          // Create a temporary canvas to save just the video frame
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = canvas.width;
-          tempCanvas.height = canvas.height;
-          const tempCtx = tempCanvas.getContext('2d')!;
-          tempCtx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-          lastGoodFrame = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
-        } else if (lastGoodFrame) {
-          // If seeking or not ready, reuse last good frame to prevent flashes
-          ctx.putImageData(lastGoodFrame, 0, 0);
         } else {
-          // No good frame yet - fill with black
+          // Video not ready - fill with black
           ctx.fillStyle = '#000000';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // CRITICAL: ALWAYS render text overlay if scene has text - regardless of seeking state
-        // This ensures text appears on every frame - render AFTER video frame
-        if (currentMapping) {
-          const scene = currentMapping.scene;
-          const mappedSceneIndex = currentMapping.sceneIndex ?? currentSceneIndex;
-
-          // Verify scene exists and has text
-          if (!scene) {
-            console.error(`❌ Scene ${mappedSceneIndex + 1} is null/undefined in mapping:`, {
-              currentMapping,
-              sceneIndex: currentSceneIndex,
-              outputTime: outputTime.toFixed(2),
-            });
-          } else if (scene.text) {
-            try {
-              // Always render text, even during seeks - this goes on top of the video frame
-              const textContent = (scene.text as any)?.content || '';
-              const replacedText = replaceVariables(textContent, content);
-
-              // Only log once per scene change to reduce console spam
-              if (mappedSceneIndex !== previewLastSceneIndexRef.current) {
-                if (replacedText && replacedText.trim() !== '') {
-                  console.log(
-                    `✅ Scene ${mappedSceneIndex + 1} text ready: "${replacedText.substring(0, 50)}${replacedText.length > 50 ? '...' : ''}"`
-                  );
-                } else {
-                  console.warn(
-                    `⚠️ Scene ${mappedSceneIndex + 1} has empty text after replacement:`,
-                    {
-                      original: textContent,
-                      replaced: replacedText,
-                      availableContent: Object.keys(content),
-                    }
-                  );
-                }
-              }
-
-              // Always render text overlay
-              renderTextOverlay(ctx, scene, content);
-            } catch (error) {
-              console.error(`❌ Error rendering text for Scene ${mappedSceneIndex + 1}:`, error, {
-                sceneIndex: currentSceneIndex,
-                scene,
-                sceneText: scene.text,
-                availableContent: Object.keys(content),
-                outputTime: outputTime.toFixed(2),
-              });
-            }
-          } else {
-            // Log if scene exists but has no text (only once per scene)
-            if (mappedSceneIndex !== previewLastSceneIndexRef.current) {
-              console.warn(`⚠️ Scene ${mappedSceneIndex + 1} has no text property:`, {
-                sceneStart: currentMapping.outputStart,
-                sceneEnd: currentMapping.outputEnd,
-                sceneKeys: Object.keys(scene),
-                sceneObject: scene,
-              });
-            }
+        // CRITICAL: ALWAYS render text overlay if scene has text - render AFTER video frame
+        if (currentMapping?.scene?.text) {
+          try {
+            renderTextOverlay(ctx, currentMapping.scene, content);
+          } catch {
+            // Silent error handling during generation for performance
           }
-        } else {
-          console.warn(`⚠️ No scene mapping at ${outputTime.toFixed(2)}s:`, {
-            currentMapping,
-            sceneIndex: currentSceneIndex,
-          });
         }
-
-        animationFrameId = requestAnimationFrame(renderFrame);
       };
 
       // Initialize video position and wait for it to be ready before starting recording
@@ -735,36 +639,64 @@ export default function VideoGenerator({
         }
       });
 
-      await video.play();
-      renderFrame();
+      // Start video playing from first scene
+      video.currentTime = sceneVideoMapping[0]?.videoStart || 0;
+
+      // CRITICAL: Set playback rate explicitly and ensure video plays
+      video.playbackRate = 1.0;
+
+      // Ensure video actually plays - retry if needed
+      let playAttempts = 0;
+      while (video.paused && playAttempts < 5) {
+        try {
+          await video.play();
+          if (!video.paused) break;
+        } catch (error) {
+          console.warn(`Video play attempt ${playAttempts + 1} failed:`, error);
+        }
+        playAttempts++;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      if (video.paused) {
+        throw new Error('Failed to start video playback after multiple attempts');
+      }
+
+      // Removed verbose logging - it slows down generation
+
+      // CRITICAL: Ensure only ONE render interval runs at a time
+      if (renderIntervalId !== undefined) {
+        clearInterval(renderIntervalId);
+      }
+
+      // Start fixed-rate render loop at 30fps - just draws frames, video plays naturally
+      renderIntervalId = window.setInterval(renderFrame, FRAME_INTERVAL);
 
       // Wait for recording to complete
       const videoBlob = await recordingPromise;
-      console.log(
-        '🎥 Video recording complete, blob size:',
-        videoBlob.size,
-        'bytes, type:',
-        videoBlob.type
-      );
 
       // Cache the video in IndexedDB
       const cacheKey = getVideoCacheKey(template, content);
       await saveCachedVideo(cacheKey, videoBlob);
-      console.log('💾 Video cached in IndexedDB with key:', cacheKey);
 
+      // Revoke old URL if it exists to prevent memory leak
+      if (generatedVideo) {
+        URL.revokeObjectURL(generatedVideo);
+      }
       const videoUrl = URL.createObjectURL(videoBlob);
       setGeneratedVideo(videoUrl);
 
       if (onComplete) {
-        console.log('📞 Calling onComplete callback...');
         onComplete(videoBlob);
-      } else {
-        console.warn('⚠️ No onComplete callback provided');
       }
     } catch (error) {
       console.error('Video generation failed:', error);
       alert('Video generation failed. Please try again.');
     } finally {
+      // Clean up interval if it exists
+      if (typeof renderIntervalId !== 'undefined') {
+        clearInterval(renderIntervalId);
+      }
       setIsGenerating(false);
       setProgress(0);
     }
@@ -781,18 +713,6 @@ export default function VideoGenerator({
 
   // Preview rendering function - uses same scene mapping logic as generation
   const renderPreviewFrame = () => {
-    // Debug: Log first few calls to verify it's being called
-    if (Math.random() < 0.05) {
-      console.log('🎨 renderPreviewFrame called', {
-        hasVideoRef: !!videoRef.current,
-        hasCanvasRef: !!canvasRef.current,
-        isPreviewMode,
-        isGenerating,
-        hasGeneratedVideo: !!generatedVideo,
-        isMounted: isMountedRef.current,
-      });
-    }
-
     if (
       !videoRef.current ||
       !canvasRef.current ||
@@ -824,7 +744,7 @@ export default function VideoGenerator({
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) {
       console.warn('⚠️ Could not get 2d context from canvas');
       previewAnimationRef.current = requestAnimationFrame(renderPreviewFrame);
@@ -848,19 +768,6 @@ export default function VideoGenerator({
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    // Debug: Log canvas setup
-    if (Math.random() < 0.01) {
-      console.log('🎨 Canvas setup:', {
-        displayWidth,
-        displayHeight,
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
-        scale,
-        isPreviewMode,
-        videoUrl: videoUrl.substring(0, 50) + '...',
-      });
-    }
-
     // Draw video frame
     if (video.readyState >= 2 && video.videoWidth > 0 && video.duration > 0) {
       const scenes = (template.scenes as any[]) || [];
@@ -876,32 +783,25 @@ export default function VideoGenerator({
       const cycleProgress = timeInCycle / templateDuration;
       const isNearEndOfCycle = cycleProgress > 0.98; // 98% through the cycle
 
-      if (isNearEndOfCycle && isPreviewPlaying) {
-        // Pause at the end of the cycle
+      // Auto-pause at end of cycle - but only if still playing (don't conflict with manual pause)
+      // Use a small debounce to prevent rapid play/pause conflicts
+      if (isNearEndOfCycle && isPreviewPlaying && !video.paused && !video.ended) {
+        // Pause at the end of the cycle - update state first, then pause
         if (isMountedRef.current) {
           setIsPreviewPlaying(false);
         }
-        video.pause();
+        // Use a small delay to avoid AbortError if play() was just called
+        setTimeout(() => {
+          if (video && !video.paused && isMountedRef.current) {
+            video.pause();
+          }
+        }, 10);
       }
 
-      // Clear any pending timeout when playing
+      // Clear any pending timeout when playing (we use requestAnimationFrame instead)
       if (isPreviewPlaying && previewTimeoutRef.current) {
         clearTimeout(previewTimeoutRef.current);
         previewTimeoutRef.current = null;
-      }
-
-      // When paused, still render the current frame but check less frequently
-      if (!isPreviewPlaying) {
-        // Render current frame even when paused (so user can see it)
-        // But schedule next check less frequently to save CPU
-        if (previewTimeoutRef.current === null) {
-          previewTimeoutRef.current = window.setTimeout(() => {
-            if (isMountedRef.current) {
-              previewAnimationRef.current = requestAnimationFrame(renderPreviewFrame);
-            }
-          }, 500);
-        }
-        // Continue rendering the current frame - don't return early
       }
 
       // Cache scene mapping (only recalculate if scenes or duration changed)
@@ -937,85 +837,81 @@ export default function VideoGenerator({
         const videoSegmentDuration = currentMapping.videoEnd - currentMapping.videoStart;
         const targetVideoTime = currentMapping.videoStart + sceneProgress * videoSegmentDuration;
 
-        // Seek video to correct position if scene changed or drifted
-        // Use cached index if available, otherwise find it
-        const currentSceneIndex =
-          currentMapping === previewCurrentMappingCacheRef.current &&
-          previewLastSceneIndexRef.current >= 0
-            ? previewLastSceneIndexRef.current
-            : sceneVideoMapping.indexOf(currentMapping);
-        const currentVideoTime = video.currentTime;
-        const drift = Math.abs(currentVideoTime - targetVideoTime);
+        // Seek video to correct position if scene changed
+        // Use sceneIndex from mapping object (already cached, no need for indexOf)
+        const currentSceneIndex = currentMapping.sceneIndex;
 
         if (currentSceneIndex !== previewLastSceneIndexRef.current) {
-          // Scene changed - seek to start of this scene's video segment
-          const seekTime = Math.max(0, Math.min(currentMapping.videoStart, sourceVideoDuration));
+          // Scene changed - seek to correct time within this scene's video segment
+          const seekTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
           if (Math.abs(video.currentTime - seekTime) > 0.1) {
-            isSeekingRef.current = true;
+            // Only mark as seeking if video is playing (when paused, we can render during seek)
+            if (!video.paused) {
+              isSeekingRef.current = true;
+              // Clear seeking flag when seek completes
+              const handleSeeked = () => {
+                isSeekingRef.current = false;
+              };
+              video.addEventListener('seeked', handleSeeked, { once: true });
+            }
             video.currentTime = seekTime;
-
-            // Wait for seek to complete and frame to be ready before allowing drawing
-            video.addEventListener(
-              'seeked',
-              () => {
-                // Small delay to ensure frame is fully loaded and rendered
-                setTimeout(() => {
-                  // Double-check video is ready and at correct position
-                  if (video.readyState >= 2 && Math.abs(video.currentTime - seekTime) < 0.1) {
-                    isSeekingRef.current = false;
-                  } else {
-                    // If not ready, wait a bit more
-                    setTimeout(() => {
-                      isSeekingRef.current = false;
-                    }, 50);
-                  }
-                }, 50);
-              },
-              { once: true }
-            );
           }
           previewLastSceneIndexRef.current = currentSceneIndex;
-          if (isMountedRef.current) {
+          // Debounce state update to reduce re-renders - only update if scene actually changed
+          if (isMountedRef.current && currentScene !== currentSceneIndex) {
             setCurrentScene(currentSceneIndex);
           }
-        } else if (drift > 0.4) {
-          // Within same scene but drifted - correct position (increased threshold to reduce CPU usage)
-          const seekTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
-          video.currentTime = seekTime;
+        } else {
+          // Same scene - only seek if drift is significant (reduced threshold to minimize seeks)
+          const currentVideoTime = video.currentTime;
+          const drift = Math.abs(currentVideoTime - targetVideoTime);
+          if (drift > 2.0) {
+            // Only correct large drift to avoid constant seeking
+            const seekTime = Math.max(0, Math.min(targetVideoTime, sourceVideoDuration));
+            if (!video.paused) {
+              isSeekingRef.current = true;
+              const handleSeeked = () => {
+                isSeekingRef.current = false;
+              };
+              video.addEventListener('seeked', handleSeeked, { once: true });
+            }
+            video.currentTime = seekTime;
+          }
         }
 
-        // Ensure video is playing (only if preview is playing)
-        if (isPreviewPlaying && video.paused) {
-          video.play().catch(console.error);
-        } else if (!isPreviewPlaying && !video.paused) {
-          video.pause();
+        // Only sync video play/pause state when there's a clear mismatch
+        // Don't force play/pause every frame - let button handler be primary controller
+        // Only handle ended state here as a fallback (button handler should handle it first)
+        if (isPreviewPlaying && video.ended) {
+          // Video ended but we want to play - reset to beginning
+          // This is a fallback; button handler should handle this normally
+          const scenes = (template.scenes as any[]) || [];
+          if (scenes.length > 0 && video.duration > 0) {
+            const sceneVideoMapping =
+              previewSceneMappingCacheRef.current || getSceneVideoMapping(scenes, video.duration);
+            if (sceneVideoMapping.length > 0) {
+              video.currentTime = sceneVideoMapping[0].videoStart;
+              previewStartTimeRef.current = Date.now();
+              previewLastSceneIndexRef.current = -1;
+              video.play().catch(console.error);
+            }
+          }
         }
+        // Don't force play/pause based on isPreviewPlaying - button handler controls this
 
         // Draw video frame - render even when paused (just don't update as frequently)
         const previewVideoReady =
           video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0;
         const previewNotSeeking = !isSeekingRef.current;
+        // When paused, video frame is available even if readyState is lower or seeking
+        const hasVideoDimensions = video.videoWidth > 0 && video.videoHeight > 0;
 
-        // Debug: Log video state periodically (only every 60 frames to avoid spam)
-        if (Math.random() < 0.017) {
-          console.log('🎬 Preview video state:', {
-            readyState: video.readyState,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            duration: video.duration,
-            currentTime: video.currentTime,
-            previewVideoReady,
-            previewNotSeeking,
-            isPreviewPlaying,
-            canvasWidth: canvas.width,
-            canvasHeight: canvas.height,
-            displayWidth,
-            displayHeight,
-          });
-        }
-
-        // Always render if video is ready - even when paused (just shows current frame)
-        if (previewVideoReady && previewNotSeeking) {
+        // Always render if video has dimensions
+        // When paused, always render (frame is available even during seek or lower readyState)
+        // When playing, only render if video is ready and not seeking
+        const canRender =
+          hasVideoDimensions && (video.paused || (previewVideoReady && previewNotSeeking));
+        if (canRender) {
           // Cache draw dimensions (only recalculate if video dimensions changed)
           let drawDims = previewDrawDimensionsCacheRef.current;
           // Check if video dimensions changed by comparing with cached values
@@ -1061,17 +957,6 @@ export default function VideoGenerator({
                 drawDims.drawWidth,
                 drawDims.drawHeight
               );
-              // Debug: Log successful draw occasionally
-              if (Math.random() < 0.01) {
-                console.log('✅ Video frame drawn to canvas:', {
-                  drawX: drawDims.drawX,
-                  drawY: drawDims.drawY,
-                  drawWidth: drawDims.drawWidth,
-                  drawHeight: drawDims.drawHeight,
-                  videoWidth: video.videoWidth,
-                  videoHeight: video.videoHeight,
-                });
-              }
             } catch (error) {
               console.error('❌ Error drawing video frame:', error);
             }
@@ -1080,14 +965,6 @@ export default function VideoGenerator({
           }
         } else {
           // Video not ready - draw a placeholder so user knows something is happening
-          if (Math.random() < 0.01) {
-            console.warn('⚠️ Video not ready for preview:', {
-              readyState: video.readyState,
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
-              previewNotSeeking,
-            });
-          }
           // Draw a placeholder background
           ctx.fillStyle = '#000000';
           ctx.fillRect(0, 0, displayWidth, displayHeight);
@@ -1132,14 +1009,13 @@ export default function VideoGenerator({
     // Schedule next frame
     if (isMountedRef.current) {
       if (isPreviewPlaying) {
-        // When playing, use requestAnimationFrame for smooth animation
+        // When playing, use requestAnimationFrame for smooth 60fps animation
         previewAnimationRef.current = requestAnimationFrame(renderPreviewFrame);
       } else {
-        // When paused, schedule next check with setTimeout (already handled above if needed)
-        // The setTimeout is set in the paused check above, so we don't need to do anything here
-        // But make sure we have a timeout scheduled
+        // When paused, schedule next check with setTimeout to reduce CPU usage
         if (previewTimeoutRef.current === null) {
           previewTimeoutRef.current = window.setTimeout(() => {
+            previewTimeoutRef.current = null;
             if (isMountedRef.current) {
               previewAnimationRef.current = requestAnimationFrame(renderPreviewFrame);
             }
@@ -1153,17 +1029,6 @@ export default function VideoGenerator({
 
   // Start/stop preview rendering
   useEffect(() => {
-    console.log('🔍 Preview useEffect triggered:', {
-      isPreviewMode,
-      isGenerating,
-      generatedVideo: !!generatedVideo,
-      videoUrl: videoUrl ? videoUrl.substring(0, 50) + '...' : 'MISSING',
-      hasTemplate: !!template,
-      hasContent: !!content,
-      hasVideoRef: !!videoRef.current,
-      hasCanvasRef: !!canvasRef.current,
-    });
-
     if (
       isPreviewMode &&
       !isGenerating &&
@@ -1172,30 +1037,13 @@ export default function VideoGenerator({
       canvasRef.current
     ) {
       const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      console.log('✅ Starting preview setup:', {
-        videoSrc: video.src,
-        videoUrl,
-        videoReadyState: video.readyState,
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
-        canvasClientWidth: canvas.clientWidth,
-        canvasClientHeight: canvas.clientHeight,
-      });
 
       // Reset preview timing when video metadata loads
       const handleLoadedMetadata = () => {
-        console.log('🎬 Video metadata loaded!', {
-          readyState: video.readyState,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          duration: video.duration,
-          currentTime: video.currentTime,
-        });
         previewStartTimeRef.current = Date.now();
         previewLastSceneIndexRef.current = -1;
-        setIsPreviewPlaying(true); // Auto-play when video loads
+        // Don't auto-play - let user control playback
+        setIsPreviewPlaying(false);
         // Clear caches when video loads (new video = new dimensions/scenes)
         previewSceneMappingCacheRef.current = null;
         previewCurrentMappingCacheRef.current = null;
@@ -1211,15 +1059,8 @@ export default function VideoGenerator({
               video.currentTime = sceneVideoMapping[0].videoStart;
             }
           }
-          if (isPreviewPlaying) {
-            video.play().catch((err) => {
-              console.error('❌ Error playing video:', err);
-            });
-          }
-          console.log('🚀 Calling renderPreviewFrame from handleLoadedMetadata');
+          // Don't auto-play - just render the first frame
           renderPreviewFrame();
-        } else {
-          console.warn('⚠️ Video readyState < 2 in handleLoadedMetadata:', video.readyState);
         }
       };
 
@@ -1230,25 +1071,41 @@ export default function VideoGenerator({
           videoUrl,
         });
       };
-      const handleLoadStart = () => {
-        console.log('📥 Video loadstart event');
-      };
-      const handleCanPlay = () => {
-        console.log('▶️ Video canplay event', {
-          readyState: video.readyState,
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-        });
+      const handleLoadStart = () => {};
+      const handleCanPlay = () => {};
+
+      const handleEnded = () => {
+        // Video ended - reset for replay
+        // When video ends, reset to beginning and pause immediately
+        // User can click play to restart
+        const scenes = (template.scenes as any[]) || [];
+        if (scenes.length > 0 && video.duration > 0) {
+          const sceneVideoMapping =
+            previewSceneMappingCacheRef.current || getSceneVideoMapping(scenes, video.duration);
+          if (sceneVideoMapping.length > 0) {
+            // Pause first to stop playback
+            video.pause();
+            // Reset video position - don't mark as seeking, just reset
+            video.currentTime = sceneVideoMapping[0].videoStart;
+            // Update state to reflect paused
+            if (isMountedRef.current) {
+              setIsPreviewPlaying(false);
+            }
+          }
+        }
+        // Reset preview timing so it can restart from beginning
+        previewStartTimeRef.current = null;
+        previewLastSceneIndexRef.current = -1;
       };
 
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('error', handleError);
       video.addEventListener('loadstart', handleLoadStart);
       video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('ended', handleEnded);
 
       // Ensure video src is set - always reload if URL changed or src is empty
       if (!video.src || video.src !== videoUrl) {
-        console.log('🔄 Setting video src:', videoUrl);
         video.src = videoUrl;
         video.load();
         // Reset preview state when video URL changes
@@ -1260,19 +1117,8 @@ export default function VideoGenerator({
       }
 
       if (video.readyState >= 2) {
-        console.log('✅ Video already ready, starting preview');
-        if (isPreviewPlaying) {
-          video.play().catch((err) => {
-            console.error('❌ Error playing video:', err);
-          });
-        }
-        console.log('🚀 Calling renderPreviewFrame from useEffect');
+        // Don't auto-play - just render the first frame
         renderPreviewFrame();
-      } else {
-        console.log(
-          '⏳ Video not ready yet, waiting for loadedmetadata. ReadyState:',
-          video.readyState
-        );
       }
 
       return () => {
@@ -1281,6 +1127,7 @@ export default function VideoGenerator({
         video.removeEventListener('error', handleError);
         video.removeEventListener('loadstart', handleLoadStart);
         video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('ended', handleEnded);
         if (previewAnimationRef.current) {
           cancelAnimationFrame(previewAnimationRef.current);
           previewAnimationRef.current = null;
@@ -1331,12 +1178,16 @@ export default function VideoGenerator({
         video.src = '';
         video.load();
       }
+      // Revoke blob URL to prevent memory leak
+      if (generatedVideo) {
+        URL.revokeObjectURL(generatedVideo);
+      }
       // Clear all caches
       previewSceneMappingCacheRef.current = null;
       previewCurrentMappingCacheRef.current = null;
       previewDrawDimensionsCacheRef.current = null;
     };
-  }, []);
+  }, [generatedVideo]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1397,19 +1248,53 @@ export default function VideoGenerator({
             <div className="absolute top-2 right-2 z-10">
               <button
                 onClick={() => {
-                  const wasPlaying = isPreviewPlaying;
-                  setIsPreviewPlaying(!isPreviewPlaying);
-                  if (!wasPlaying) {
-                    // When resuming, adjust start time to continue from current position
-                    const currentStartTime = previewStartTimeRef.current;
-                    if (currentStartTime !== null) {
-                      const elapsed = Date.now() - currentStartTime;
-                      const templateDuration = ((template.duration as number) || 10) * 1000;
-                      const currentTimeInCycle = elapsed % templateDuration;
-                      previewStartTimeRef.current = Date.now() - currentTimeInCycle;
-                    } else {
-                      // Initialize start time if null
+                  const video = videoRef.current;
+                  if (!video) return;
+
+                  const newPlayingState = !isPreviewPlaying;
+                  setIsPreviewPlaying(newPlayingState);
+
+                  if (newPlayingState) {
+                    // PLAY: Handle different states
+                    if (video.ended) {
+                      // Video ended - reset to beginning and play
+                      const scenes = (template.scenes as any[]) || [];
+                      if (scenes.length > 0 && video.duration > 0) {
+                        const sceneVideoMapping =
+                          previewSceneMappingCacheRef.current ||
+                          getSceneVideoMapping(scenes, video.duration);
+                        if (sceneVideoMapping.length > 0) {
+                          // Reset video position - don't mark as seeking since we're paused
+                          video.currentTime = sceneVideoMapping[0].videoStart;
+                        }
+                      }
                       previewStartTimeRef.current = Date.now();
+                      previewLastSceneIndexRef.current = -1;
+                    } else {
+                      // Continue from current position - adjust timing if resuming
+                      const currentStartTime = previewStartTimeRef.current;
+                      if (currentStartTime !== null) {
+                        const elapsed = Date.now() - currentStartTime;
+                        const templateDuration = ((template.duration as number) || 10) * 1000;
+                        const currentTimeInCycle = elapsed % templateDuration;
+                        previewStartTimeRef.current = Date.now() - currentTimeInCycle;
+                      } else {
+                        previewStartTimeRef.current = Date.now();
+                      }
+                    }
+                    // Play the video - ensure we're not already paused to avoid conflicts
+                    if (video.paused) {
+                      video.play().catch((err) => {
+                        // Ignore AbortError - it means pause() was called immediately after play()
+                        if (err.name !== 'AbortError') {
+                          console.error('❌ Error playing video:', err);
+                        }
+                      });
+                    }
+                  } else {
+                    // PAUSE: Simply pause the video - ensure we're not already paused
+                    if (!video.paused) {
+                      video.pause();
                     }
                   }
                 }}
@@ -1504,7 +1389,14 @@ export default function VideoGenerator({
       {/* Controls */}
       <div className="flex justify-center space-x-4">
         <button
-          onClick={generateVideo}
+          onClick={() => {
+            if (!isGenerating) {
+              generateVideo().catch((error) => {
+                console.error('❌ Generate video error:', error);
+                alert(`Video generation failed: ${error.message}`);
+              });
+            }
+          }}
           disabled={isGenerating}
           className={clsx(
             'flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-colors',
@@ -1736,7 +1628,7 @@ export default function VideoGenerator({
               onClick={() => {
                 if (!canvasRef.current || !videoRef.current) return;
                 const canvas = canvasRef.current;
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 const video = videoRef.current;
                 if (!ctx || !video) return;
 

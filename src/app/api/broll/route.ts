@@ -41,7 +41,10 @@ export async function GET(request: NextRequest) {
       where.category = category;
     }
 
-    if (active !== null) {
+    // Default to showing only active videos if active param not explicitly set to false
+    if (active === null || active === undefined) {
+      where.isActive = true; // Default to active videos only
+    } else {
       where.isActive = active === 'true';
     }
 
