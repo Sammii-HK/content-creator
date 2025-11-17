@@ -1,9 +1,10 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
-import "./globals.css";
+import './globals.css';
+import '@/styles/theme.css';
 import { AuthProvider } from '@/lib/auth-context';
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-inter',
@@ -11,13 +12,14 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Smart Content Studio",
-    template: "%s | Smart Content Studio"
+    default: 'Smart Content Studio',
+    template: '%s | Smart Content Studio',
   },
-  description: "AI-driven content creation and optimization platform with premium design and seamless user experience",
-  keywords: ["AI", "content creation", "video editing", "automation", "social media"],
-  authors: [{ name: "Smart Content Studio" }],
-  creator: "Smart Content Studio",
+  description:
+    'AI-driven content creation and optimization platform with premium design and seamless user experience',
+  keywords: ['AI', 'content creation', 'video editing', 'automation', 'social media'],
+  authors: [{ name: 'Smart Content Studio' }],
+  creator: 'Smart Content Studio',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   openGraph: {
     type: 'website',
@@ -45,15 +47,11 @@ export const viewport: Viewport = {
   userScalable: true,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f172a' }
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
   ],
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
@@ -61,9 +59,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="font-sans antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

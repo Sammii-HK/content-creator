@@ -12,6 +12,7 @@ if (ffmpegStatic) {
 }
 
 export interface TextOverlay {
+  id?: string;
   content: string;
   position: { x: number; y: number }; // Percentage positions
   style: {
@@ -26,6 +27,7 @@ export interface TextOverlay {
     boxBorderWidth?: number;
     lineHeightMultiplier?: number;
     backgroundRadius?: number;
+    fontFamily?: string;
   };
 }
 
@@ -37,6 +39,7 @@ export interface VideoScene {
 }
 
 export interface VideoTemplate {
+  name?: string;
   duration: number;
   scenes: VideoScene[];
   textStyle?: Partial<TextOverlay['style']> & {
@@ -46,6 +49,7 @@ export interface VideoTemplate {
     lineHeightMultiplier?: number;
     backgroundRadius?: number;
     boxBorderWidth?: number;
+    fontFamily?: string;
   };
 }
 

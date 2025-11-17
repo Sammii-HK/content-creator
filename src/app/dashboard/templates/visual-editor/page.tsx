@@ -2,6 +2,6 @@
 
 import VisualTemplateEditor from '@/components/template-editor/VisualTemplateEditor';
 
-export default function NewTemplatePage() {
+export default function VisualEditorPage() {
   return <VisualTemplateEditor />;
 }
