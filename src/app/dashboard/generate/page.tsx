@@ -291,6 +291,13 @@ function GenerateVideoContent() {
     }
   };
 
+  // Auto-select first video when videos are loaded and none is selected
+  useEffect(() => {
+    if (brollVideos.length > 0 && selectedBroll.length === 0 && !videoIdFromUrl) {
+      setSelectedBroll([brollVideos[0]]);
+    }
+  }, [brollVideos, selectedBroll.length, videoIdFromUrl]);
+
   const generateContent = async () => {
     if (!selectedTemplate) {
       alert('Please select a template first');

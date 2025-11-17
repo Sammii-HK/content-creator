@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import VideoGenerator from '@/components/VideoGenerator';
 
 interface TextStyle {
   fontSize: number;
@@ -21,6 +22,12 @@ interface TextStyle {
   color: string;
   stroke?: string;
   strokeWidth?: number;
+  maxWidth?: number;
+  fadeIn?: number; // Duration in seconds for fade in
+  fadeOut?: number; // Duration in seconds for fade out
+  background?: boolean | string;
+  backgroundColor?: string;
+  boxBorderWidth?: number;
 }
 
 interface TextOverlay {
@@ -40,6 +47,7 @@ interface VideoTemplate {
   name?: string;
   duration: number;
   scenes: VideoScene[];
+  textStyle?: Partial<TextStyle>;
 }
 
 interface BrollVideo {
@@ -55,6 +63,15 @@ export default function NewTemplate() {
   const [template, setTemplate] = useState<VideoTemplate>({
     name: '',
     duration: 10,
+    textStyle: {
+      fontSize: 48,
+      fontWeight: 'bold',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeWidth: 2,
+      maxWidth: 90,
+      background: 'rgba(0,0,0,0.55)',
+    },
     scenes: [
       {
         start: 0,
@@ -75,9 +92,9 @@ export default function NewTemplate() {
     ],
   });
 
-  const [previewScene, setPreviewScene] = useState(0);
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
   const [availableVideos, setAvailableVideos] = useState<BrollVideo[]>([]);
+  const [selectedPreviewVideo, setSelectedPreviewVideo] = useState<BrollVideo | null>(null);
   const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
   const [personas, setPersonas] = useState<Array<{ id: string; name: string; niche: string }>>([]);
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
@@ -85,6 +102,42 @@ export default function NewTemplate() {
   const [showNaturalLanguage, setShowNaturalLanguage] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'json'>('text'); // Track input mode
   const [jsonCopied, setJsonCopied] = useState(false);
+
+  // Load template from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTemplate = localStorage.getItem('draftTemplate');
+      const savedTemplateName = localStorage.getItem('draftTemplateName');
+      if (savedTemplate) {
+        try {
+          const parsedTemplate = JSON.parse(savedTemplate);
+          setTemplate(parsedTemplate);
+          if (savedTemplateName) {
+            setTemplateName(savedTemplateName);
+          }
+          console.log('📦 Loaded draft template from localStorage');
+        } catch (error) {
+          console.warn('Failed to load draft template from localStorage:', error);
+          localStorage.removeItem('draftTemplate');
+          localStorage.removeItem('draftTemplateName');
+        }
+      }
+    }
+  }, []);
+
+  // Auto-save template to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && template) {
+      try {
+        localStorage.setItem('draftTemplate', JSON.stringify(template));
+        if (templateName) {
+          localStorage.setItem('draftTemplateName', templateName);
+        }
+      } catch (error) {
+        console.warn('Failed to save draft template to localStorage:', error);
+      }
+    }
+  }, [template, templateName]);
 
   useEffect(() => {
     // Fetch personas
@@ -146,6 +199,46 @@ export default function NewTemplate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.name]);
 
+  // Auto-select first video when available videos change
+  useEffect(() => {
+    if (availableVideos.length > 0 && !selectedPreviewVideo) {
+      setSelectedPreviewVideo(availableVideos[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableVideos]);
+
+  // Test content for preview (same as test page)
+  const getTestContent = (): Record<string, string> => {
+    const scriptLines = [
+      'First important point about this topic',
+      'Second key insight that matters',
+      'Third valuable piece of information',
+      'Fourth compelling detail to share',
+      'Fifth and final takeaway message',
+    ];
+
+    return {
+      hook: 'This will change everything you know...',
+      content:
+        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.',
+      script: scriptLines.join(' '),
+      question: "What if I told you there's a better way?",
+      answer:
+        'The answer is simpler than you think. It all comes down to understanding the fundamentals and applying them consistently.',
+      title: 'Amazing Discovery',
+      items: scriptLines.map((line) => `• ${line}`).join('\n'),
+      item1: scriptLines[0] || '',
+      item2: scriptLines[1] || '',
+      item3: scriptLines[2] || '',
+      item4: scriptLines[3] || '',
+      item5: scriptLines[4] || '',
+      caption:
+        'Check out this amazing content! Follow for more tips and insights. #content #tips #viral',
+      callToAction: 'Try it now!',
+      hashtags: '#test #template #content #viral #tips',
+    };
+  };
+
   const isJSON = (str: string): boolean => {
     try {
       const parsed = JSON.parse(str);
@@ -177,7 +270,8 @@ export default function NewTemplate() {
         setTemplate(jsonTemplate);
         setShowNaturalLanguage(false);
         setNaturalLanguageInput('');
-        alert('JSON template loaded! Review and adjust as needed.');
+        // Template will be auto-saved to localStorage via useEffect
+        alert('JSON template loaded and saved locally! Review and adjust as needed.');
       } catch (error) {
         alert('Invalid JSON template. Please check the format.');
         console.error('JSON parse error:', error);
@@ -326,6 +420,15 @@ export default function NewTemplate() {
   const copyBlankTemplateFormat = async () => {
     const blankTemplate = {
       duration: 10,
+      textStyle: {
+        fontSize: 48,
+        fontWeight: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeWidth: 2,
+        maxWidth: 90,
+        background: 'rgba(0, 0, 0, 0.55)',
+      },
       scenes: [
         {
           start: 0,
@@ -391,6 +494,37 @@ export default function NewTemplate() {
     setTemplate({ ...template, scenes: newScenes });
   };
 
+  const clearDraft = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('draftTemplate');
+      localStorage.removeItem('draftTemplateName');
+      setTemplate({
+        name: '',
+        duration: 10,
+        scenes: [
+          {
+            start: 0,
+            end: 10,
+            text: {
+              content: '{{hook}}',
+              position: { x: 50, y: 50 },
+              style: {
+                fontSize: 48,
+                fontWeight: 'bold',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeWidth: 2,
+              },
+            },
+            filters: ['brightness(1.0)', 'contrast(1.0)'],
+          },
+        ],
+      });
+      setTemplateName('');
+      alert('Draft cleared!');
+    }
+  };
+
   const saveTemplate = async () => {
     // If there's JSON in the textarea that hasn't been loaded, parse it and use it directly
     let templateToSave = template;
@@ -446,7 +580,12 @@ export default function NewTemplate() {
       });
 
       if (response.ok) {
-        alert('Template saved successfully!');
+        // Clear draft from localStorage after successful save
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('draftTemplate');
+          localStorage.removeItem('draftTemplateName');
+        }
+        alert('Template saved successfully! Draft cleared from local storage.');
         window.location.href = '/dashboard';
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -784,12 +923,6 @@ export default function NewTemplate() {
                     <div className="flex justify-between items-center mb-3">
                       <h4 className="font-medium">Scene {index + 1}</h4>
                       <div className="flex space-x-2">
-                        <button
-                          onClick={() => setPreviewScene(index)}
-                          className="text-indigo-600 hover:text-indigo-800 text-sm"
-                        >
-                          Preview
-                        </button>
                         {template.scenes.length > 1 && (
                           <button
                             onClick={() => removeScene(index)}
@@ -942,46 +1075,56 @@ export default function NewTemplate() {
 
           {/* Preview */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Template Preview</h3>
+            <h3 className="text-lg font-semibold mb-4">Live Template Preview</h3>
 
-            {/* Video Preview Area */}
-            <div className="bg-black rounded-lg aspect-[9/16] max-w-xs mx-auto mb-6 relative overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-white text-center">
-                  <div className="text-sm mb-2">Scene {previewScene + 1}</div>
-                  <div
-                    className="absolute text-white font-bold"
-                    style={{
-                      fontSize: `${template.scenes[previewScene]?.text.style.fontSize / 4}px`,
-                      left: `${template.scenes[previewScene]?.text.position.x}%`,
-                      top: `${template.scenes[previewScene]?.text.position.y}%`,
-                      transform: 'translate(-50%, -50%)',
-                      color: template.scenes[previewScene]?.text.style.color,
-                      textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
-                    }}
-                  >
-                    {template.scenes[previewScene]?.text.content}
-                  </div>
+            {/* Video Selection for Preview */}
+            {availableVideos.length > 0 && (
+              <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Preview Video:
+                </label>
+                <Select
+                  value={selectedPreviewVideo?.id || ''}
+                  onValueChange={(value) => {
+                    const video = availableVideos.find((v) => v.id === value);
+                    setSelectedPreviewVideo(video || null);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a video for preview" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableVideos.map((video) => (
+                      <SelectItem key={video.id} value={video.id}>
+                        {video.name} ({video.duration}s)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Live Video Preview */}
+            {selectedPreviewVideo ? (
+              <div className="mb-6">
+                <VideoGenerator
+                  videoUrl={selectedPreviewVideo.fileUrl}
+                  template={template as any}
+                  content={getTestContent()}
+                />
+              </div>
+            ) : (
+              <div className="bg-black rounded-lg aspect-[9/16] max-w-xs mx-auto mb-6 relative overflow-hidden flex items-center justify-center">
+                <div className="text-white text-center p-4">
+                  <p className="text-sm mb-2">No video selected</p>
+                  <p className="text-xs text-gray-400">
+                    {availableVideos.length === 0
+                      ? 'Upload videos to see live preview'
+                      : 'Select a video above to preview'}
+                  </p>
                 </div>
               </div>
-            </div>
-
-            {/* Scene Navigation */}
-            <div className="flex justify-center space-x-2 mb-6">
-              {template.scenes.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setPreviewScene(index)}
-                  className={`px-3 py-1 rounded ${
-                    previewScene === index
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  Scene {index + 1}
-                </button>
-              ))}
-            </div>
+            )}
 
             {/* Template Variables */}
             <div className="mb-6">
@@ -1198,6 +1341,15 @@ export default function NewTemplate() {
               <pre className="bg-white rounded p-2 text-xs overflow-auto max-h-32 font-mono border border-blue-200">
                 {`{
   "duration": 10,
+  "textStyle": {
+    "fontSize": 48,
+    "fontWeight": "bold",
+    "color": "#ffffff",
+    "stroke": "#000000",
+    "strokeWidth": 2,
+    "maxWidth": 90,
+    "background": "rgba(0, 0, 0, 0.55)"
+  },
   "scenes": [
     {
       "start": 0,
@@ -1249,6 +1401,15 @@ export default function NewTemplate() {
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md"
                   >
                     Save Template
+                  </Button>
+                  <Button
+                    onClick={clearDraft}
+                    variant="outline"
+                    size="lg"
+                    className="flex items-center gap-2"
+                    title="Clear draft template from local storage"
+                  >
+                    Clear Draft
                   </Button>
                 </div>
               </div>

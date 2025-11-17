@@ -37,7 +37,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Build date filter
-    const dateFilter: Record<string, unknown> = {};
+    const dateFilter: {
+      createdAt?: {
+        gte?: Date;
+        lte?: Date;
+      };
+    } = {};
     if (startDate || endDate) {
       dateFilter.createdAt = {};
       if (startDate) {
@@ -97,7 +102,7 @@ export async function POST(request: NextRequest) {
         totalViews,
         averageEngagement: avgEngagement,
         topPerformers: videos
-          .filter((v) => v.metrics && v.metrics.engagement >= 75)
+          .filter((v) => (v.metrics?.engagement ?? 0) >= 75)
           .slice(0, 5)
           .map((v) => ({
             id: v.id,
@@ -125,11 +130,21 @@ export async function POST(request: NextRequest) {
 
       report.content = {
         templates: templates.length,
-        recentTemplates: templates.slice(0, 5).map((t) => ({
-          id: t.id,
-          name: t.name,
-          duration: t.json?.duration,
-        })),
+        recentTemplates: templates.slice(0, 5).map((t) => {
+          let duration: number | null = null;
+          if (t.json && typeof t.json === 'object' && !Array.isArray(t.json)) {
+            const maybeDuration = (t.json as Record<string, unknown>).duration;
+            if (typeof maybeDuration === 'number') {
+              duration = maybeDuration;
+            }
+          }
+
+          return {
+            id: t.id,
+            name: t.name,
+            duration,
+          };
+        }),
         broll: broll.length,
         recentBroll: broll.slice(0, 5).map((b) => ({
           id: b.id,
@@ -162,7 +177,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Validation error',
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       );

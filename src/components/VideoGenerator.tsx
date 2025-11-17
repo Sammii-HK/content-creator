@@ -1,20 +1,71 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { PlayIcon, EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { PlayIcon, EyeIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import { getSceneVideoMapping } from '@/lib/sceneMapping';
+
+// Helper function to wrap text to fit within maxWidth
+const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const metrics = ctx.measureText(testLine);
+
+    if (metrics.width > maxWidth && currentLine) {
+      // Current line is too wide, start a new line
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+
+  // Add the last line
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [text];
+};
+
+interface TextStyle {
+  fontSize?: number;
+  fontWeight?: string;
+  color?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  maxWidth?: number;
+  fadeIn?: number;
+  fadeOut?: number;
+  lineHeightMultiplier?: number;
+  background?: boolean | string;
+  backgroundColor?: string;
+  backgroundRadius?: number;
+  boxBorderWidth?: number;
+  textAlign?: CanvasTextAlign;
+  fontFamily?: string;
+}
 
 // Helper functions
 const renderTextOverlay = (
   ctx: CanvasRenderingContext2D,
   scene: Record<string, unknown>,
-  content: Record<string, string>
+  content: Record<string, string>,
+  sceneProgress?: number, // 0-1, progress through the scene (for fade calculations)
+  baseStyle: TextStyle = {}
 ) => {
   try {
     // Safely extract text properties with defaults
     const sceneText = (scene.text as any) || {};
+    const style = {
+      ...(baseStyle || {}),
+      ...(sceneText.style || {}),
+    };
     const textContent = sceneText.content || '';
-    const style = sceneText.style || {};
     const pos = sceneText.position || { x: 50, y: 50 };
 
     // Replace template variables
@@ -29,32 +80,114 @@ const renderTextOverlay = (
     }
 
     // Calculate position in pixels (position is percentage 0-100)
-    // IMPORTANT: Use display dimensions, not scaled canvas dimensions, since context is already scaled
-    // The canvas.width/height are scaled (displayWidth * scale), but ctx is scaled by scale,
-    // so we need to use display dimensions for coordinates
-    const displayWidth = ctx.canvas.width / (window.devicePixelRatio || 1);
-    const displayHeight = ctx.canvas.height / (window.devicePixelRatio || 1);
-    const x = (pos.x / 100) * displayWidth;
-    const y = (pos.y / 100) * displayHeight;
+    // For generation: canvas.width/height are already 1080x1920 (no scaling)
+    // For preview: canvas.width/height are scaled by devicePixelRatio, but ctx is also scaled
+    // So we need to check if context is scaled to determine correct dimensions
+    const isContextScaled = ctx.getTransform().a !== 1 || ctx.getTransform().d !== 1;
+    const displayWidth = isContextScaled
+      ? ctx.canvas.width / (window.devicePixelRatio || 1)
+      : ctx.canvas.width;
+    const displayHeight = isContextScaled
+      ? ctx.canvas.height / (window.devicePixelRatio || 1)
+      : ctx.canvas.height;
+    const centerX = (pos.x / 100) * displayWidth;
+    const centerY = (pos.y / 100) * displayHeight;
 
     // Set text properties with defaults
     const fontSize = style.fontSize || 48;
     const fontWeight = style.fontWeight || 'bold';
     const fontFamily = style.fontFamily || 'Arial, sans-serif';
+    const textAlign = style.textAlign || 'center';
     ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-    ctx.textAlign = 'center';
+    ctx.textAlign = textAlign as CanvasTextAlign;
     ctx.textBaseline = 'middle';
 
-    // Add text stroke/outline if specified (render stroke first, then fill)
-    if (style.stroke && style.strokeWidth) {
-      ctx.strokeStyle = style.stroke;
-      ctx.lineWidth = style.strokeWidth;
-      ctx.strokeText(text, x, y);
+    // Handle maxWidth wrapping if specified
+    const maxWidthPercent = style.maxWidth ?? baseStyle.maxWidth ?? 100; // Default to 100% if not specified
+    const boxWidth = (maxWidthPercent / 100) * displayWidth;
+
+    // Wrap text if maxWidth is specified and less than 100%
+    const textLines = maxWidthPercent < 100 ? wrapText(ctx, text, boxWidth) : [text];
+    const measuredWidths = textLines.map((line) => ctx.measureText(line).width);
+    const maxLineWidth = measuredWidths.length > 0 ? Math.max(...measuredWidths) : 0;
+
+    // Calculate line height (fontSize * 1.35 for spacing)
+    const lineHeightMultiplier =
+      style.lineHeightMultiplier ?? baseStyle.lineHeightMultiplier ?? 1.35;
+    const lineHeight = fontSize * lineHeightMultiplier;
+    const totalHeight = textLines.length * lineHeight;
+    const startY = centerY - totalHeight / 2 + lineHeight / 2;
+
+    // Calculate opacity based on fade in/out phases
+    let opacity = 1.0; // Default: fully visible
+    if (sceneProgress !== undefined && (style.fadeIn || style.fadeOut)) {
+      const fadeInDuration = style.fadeIn || 0; // Duration in seconds for fade in
+      const fadeOutDuration = style.fadeOut || 0; // Duration in seconds for fade out
+      const sceneDuration = (scene.end as number) - (scene.start as number);
+      const timeInScene = sceneProgress * sceneDuration;
+
+      // Fade in phase
+      if (fadeInDuration > 0 && timeInScene < fadeInDuration) {
+        opacity = Math.min(1.0, timeInScene / fadeInDuration);
+      }
+      // Fade out phase
+      else if (fadeOutDuration > 0 && timeInScene > sceneDuration - fadeOutDuration) {
+        const fadeOutStart = sceneDuration - fadeOutDuration;
+        const fadeOutProgress = (timeInScene - fadeOutStart) / fadeOutDuration;
+        opacity = Math.max(0.0, 1.0 - fadeOutProgress);
+      }
     }
 
-    // Fill text with color (always render fill for visibility)
-    ctx.fillStyle = style.color || '#ffffff';
-    ctx.fillText(text, x, y);
+    const backgroundSetting = style.background;
+    let backgroundColor: string | null;
+    if (backgroundSetting === false) {
+      backgroundColor = null;
+    } else if (typeof backgroundSetting === 'string') {
+      backgroundColor = backgroundSetting;
+    } else if (style.backgroundColor) {
+      backgroundColor = style.backgroundColor;
+    } else {
+      backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    }
+
+    const backgroundRadius = style.backgroundRadius ?? baseStyle.backgroundRadius ?? 12;
+
+    if (backgroundColor) {
+      const paddingX = fontSize * 0.6;
+      const paddingY = fontSize * 0.4;
+      const bgWidth = maxLineWidth + paddingX * 2;
+      const bgHeight = totalHeight + paddingY * 2;
+      const bgX = centerX - bgWidth / 2;
+      const bgY = startY - lineHeight / 2 - paddingY;
+      const originalAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = backgroundColor;
+      drawRoundedRect(ctx, bgX, bgY, bgWidth, bgHeight, backgroundRadius);
+      ctx.globalAlpha = originalAlpha;
+    }
+
+    // Render each line
+    textLines.forEach((line, index) => {
+      const y = startY + index * lineHeight;
+
+      // Set global alpha for fade effect
+      const originalAlpha = ctx.globalAlpha;
+      ctx.globalAlpha = opacity;
+
+      // Add text stroke/outline if specified (render stroke first, then fill)
+      if (style.stroke && style.strokeWidth) {
+        ctx.strokeStyle = style.stroke;
+        ctx.lineWidth = style.strokeWidth;
+        ctx.strokeText(line, centerX, y);
+      }
+
+      // Fill text with color (always render fill for visibility)
+      ctx.fillStyle = style.color || '#ffffff';
+      ctx.fillText(line, centerX, y);
+
+      // Restore original alpha
+      ctx.globalAlpha = originalAlpha;
+    });
 
     // Removed getImageData check - it was causing performance issues (60+ calls per second)
     // Text visibility is verified by the fact that fillText was called successfully
@@ -67,49 +200,6 @@ const renderTextOverlay = (
       errorStack: error instanceof Error ? error.stack : undefined,
     });
   }
-};
-
-// Shared function to calculate scene-to-video mapping
-const getSceneVideoMapping = (
-  scenes: any[],
-  sourceVideoDuration: number
-): Array<{
-  outputStart: number;
-  outputEnd: number;
-  videoStart: number;
-  videoEnd: number;
-  scene: any;
-  sceneIndex: number;
-}> => {
-  return scenes.map((scene: any, index: number) => {
-    if (scene.videoStart !== undefined && scene.videoEnd !== undefined) {
-      // Use explicit video segment if provided
-      return {
-        outputStart: scene.start,
-        outputEnd: scene.end,
-        videoStart: scene.videoStart,
-        videoEnd: scene.videoEnd,
-        scene: scene,
-        sceneIndex: index,
-      };
-    } else {
-      // Distribute scenes evenly across source video
-      const sceneDuration = scene.end - scene.start;
-      const totalScenes = scenes.length;
-      const videoSegmentDuration = sourceVideoDuration / totalScenes;
-      const videoStart = index * videoSegmentDuration;
-      const videoEnd = Math.min(videoStart + sceneDuration, sourceVideoDuration);
-
-      return {
-        outputStart: scene.start,
-        outputEnd: scene.end,
-        videoStart: videoStart,
-        videoEnd: videoEnd,
-        scene: scene,
-        sceneIndex: index,
-      };
-    }
-  });
 };
 
 // Variable name mapping - maps common template variable names to content keys
@@ -195,19 +285,52 @@ const replaceVariables = (text: string, content: Record<string, string>): string
   return result;
 };
 
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) => {
+  const effectiveRadius = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + effectiveRadius, y);
+  ctx.lineTo(x + width - effectiveRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + effectiveRadius);
+  ctx.lineTo(x + width, y + height - effectiveRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - effectiveRadius, y + height);
+  ctx.lineTo(x + effectiveRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - effectiveRadius);
+  ctx.lineTo(x, y + effectiveRadius);
+  ctx.quadraticCurveTo(x, y, x + effectiveRadius, y);
+  ctx.closePath();
+  ctx.fill();
+};
+
 // IndexedDB helper for caching generated videos
 // CACHE_VERSION: Increment this to invalidate all old cached videos when fixing bugs
-const CACHE_VERSION = 2; // Changed from 1 to invalidate old bad videos
+const CACHE_VERSION = 3; // Incremented to invalidate old cached videos when template structure changes
 
 const getVideoCacheKey = (
   template: Record<string, unknown>,
   content: Record<string, string | string[]>
 ) => {
+  // Include template structure in cache key to detect template changes
+  const templateHash = JSON.stringify({
+    duration: template.duration,
+    scenes: template.scenes, // Include scenes to detect template changes
+  });
   const contentHash = Object.entries(content)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}:${typeof v === 'string' ? v : v.join(',')}`)
     .join('|');
-  return `video_v${CACHE_VERSION}_${template.duration}_${contentHash.slice(0, 100)}`;
+  // Create a hash of the template structure (simple hash function)
+  const templateHashShort = templateHash
+    .split('')
+    .reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0)
+    .toString(36);
+  return `video_v${CACHE_VERSION}_${templateHashShort}_${contentHash.slice(0, 100)}`;
 };
 
 const openVideoCacheDB = (): Promise<IDBDatabase> => {
@@ -340,6 +463,8 @@ export default function VideoGenerator({
   const [isPreviewMode, setIsPreviewMode] = useState(true); // Start with preview enabled
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(true); // Preview play/pause state
   const [showDebugPanel, setShowDebugPanel] = useState(false); // Debug panel visibility
+  const [generationWarning, setGenerationWarning] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -358,358 +483,176 @@ export default function VideoGenerator({
     drawX: number;
     drawY: number;
   } | null>(null);
+  const prevTemplateRef = useRef<string>('');
+  const prevContentRef = useRef<string>('');
+  const videoGenerationTimeRef = useRef<number>(0);
+  const baseTextStyle: TextStyle = ((template as any)?.textStyle as TextStyle) || {};
+
+  const revokeVideoUrl = (url: string | null) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const buildServerTemplate = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !template?.scenes) {
+      return template;
+    }
+
+    const clonedTemplate = JSON.parse(JSON.stringify(template));
+    const isContextScaled = ctx.getTransform().a !== 1 || ctx.getTransform().d !== 1;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const displayWidth = isContextScaled ? canvas.width / devicePixelRatio : canvas.width;
+
+    clonedTemplate.scenes = clonedTemplate.scenes.map((scene: any) => {
+      if (!scene?.text?.content) {
+        return scene;
+      }
+
+      const sceneStyle = {
+        ...(clonedTemplate.textStyle || {}),
+        ...(scene.text.style || {}),
+      };
+
+      const fontSize = sceneStyle.fontSize || 48;
+      const fontWeight = sceneStyle.fontWeight || 'bold';
+      const fontFamily = sceneStyle.fontFamily || 'Arial, sans-serif';
+      ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+
+      const maxWidthPercent = sceneStyle.maxWidth ?? clonedTemplate.textStyle?.maxWidth ?? 100;
+      const boxWidth = (maxWidthPercent / 100) * displayWidth;
+
+      let processedText = replaceVariables(scene.text.content, content).replace(/\r\n/g, '\n');
+
+      if (maxWidthPercent < 100) {
+        const wrappedLines: string[] = [];
+        processedText.split('\n').forEach((paragraph, index, arr) => {
+          const lines = wrapText(ctx, paragraph, boxWidth);
+          wrappedLines.push(...lines);
+          if (index < arr.length - 1) {
+            wrappedLines.push('');
+          }
+        });
+        processedText = wrappedLines.join('\n');
+      }
+
+      return {
+        ...scene,
+        text: {
+          ...scene.text,
+          content: processedText,
+        },
+      };
+    });
+
+    return clonedTemplate;
+  };
 
   const generateVideo = async () => {
-    // Prevent multiple simultaneous generations
     if (isGenerating) {
       console.warn('⚠️ Generation already in progress - ignoring duplicate call');
       return;
     }
 
-    if (!videoRef.current || !canvasRef.current) {
-      alert('Video or canvas not ready. Please wait for page to load.');
+    if (!videoUrl) {
+      alert('Please select a video before generating.');
       return;
     }
 
-    // TEMPORARILY DISABLE CACHE - Force regeneration every time
-
-    // Still check cache to see if one exists (for debugging)
-    const cacheKey = getVideoCacheKey(template, content);
-    const cachedBlob = await getCachedVideo(cacheKey);
-    if (cachedBlob) {
-      // Delete the cached video
-      try {
-        const db = await openVideoCacheDB();
-        await new Promise<void>((resolve, reject) => {
-          const transaction = db.transaction(['videos'], 'readwrite');
-          const store = transaction.objectStore('videos');
-          const deleteRequest = store.delete(cacheKey);
-          deleteRequest.onsuccess = () => resolve();
-          deleteRequest.onerror = () => reject(deleteRequest.error);
-        });
-      } catch {
-        // Silent fail
-      }
-    }
-
-    // CRITICAL: Force cleanup preview BEFORE starting generation
-    // Cancel all preview animations and intervals
-    if (previewAnimationRef.current !== null) {
-      cancelAnimationFrame(previewAnimationRef.current);
-      previewAnimationRef.current = null;
-    }
-    if (previewTimeoutRef.current !== null) {
-      clearTimeout(previewTimeoutRef.current);
-      previewTimeoutRef.current = null;
-    }
-    // Clear all preview caches
-    previewSceneMappingCacheRef.current = null;
-    previewCurrentMappingCacheRef.current = null;
-    previewDrawDimensionsCacheRef.current = null;
-    previewStartTimeRef.current = null;
-    previewLastSceneIndexRef.current = -1;
-
-    // CRITICAL: Disable preview to prevent resource competition
-    setIsPreviewMode(false);
+    setGenerationWarning(null);
+    setGenerationError(null);
     setIsGenerating(true);
-    setProgress(0);
+    setProgress(5);
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d')!;
-
-    // Set canvas size for vertical video
-    canvas.width = 1080;
-    canvas.height = 1920;
-
-    let renderIntervalId: number | undefined;
     try {
-      // Wait for video to be ready
-      if (video.readyState < 2) {
-        await new Promise<void>((resolve) => {
-          const handleCanPlay = () => {
-            video.removeEventListener('canplay', handleCanPlay);
-            resolve();
-          };
-          video.addEventListener('canplay', handleCanPlay);
-          video.load();
-        });
-      }
-
-      // Set up recording - use 30fps capture stream
-      const stream = canvas.captureStream(30);
-
-      // Try VP9 first, fallback to VP8 if not supported
-      let mimeType = 'video/webm;codecs=vp9';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm;codecs=vp8';
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm';
-      }
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: 2500000, // 2.5 Mbps for good quality
-      });
-
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      const recordingPromise = new Promise<Blob>((resolve, reject) => {
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'video/webm' });
-          if (blob.size > 0) {
-            resolve(blob);
-          } else {
-            reject(new Error('Empty video blob'));
-          }
-        };
-        recorder.onerror = () => {
-          reject(new Error('Recording error'));
-        };
-      });
-
-      // Start recording - collect data every 200ms for better performance
-      recorder.start(200);
-
-      const scenes = (template.scenes as any[]) || [];
-      const duration = ((template.duration as number) || 10) * 1000; // Convert to milliseconds
-      const sourceVideoDuration = video.duration || 30; // Fallback if duration not available
-
-      // Map scenes to source video times using shared function
-      const sceneVideoMapping = getSceneVideoMapping(scenes, sourceVideoDuration);
-
-      // Cache expensive calculations that don't change
-      // Ensure we have valid video dimensions
-      const videoWidth = video.videoWidth || 1920;
-      const videoHeight = video.videoHeight || 1080;
-      const videoAspect = videoWidth / videoHeight;
-      const targetAspect = 9 / 16; // 0.5625 for vertical video
-      let drawWidth: number, drawHeight: number, drawX: number, drawY: number;
-
-      // Pre-calculate draw dimensions (only changes if video dimensions change)
-      // For 9:16 output, we need to fit the video properly
-      if (videoAspect > targetAspect) {
-        // Video is wider than 9:16 - crop sides (letterbox)
-        drawHeight = canvas.height; // Fill full height (1920)
-        drawWidth = drawHeight * videoAspect; // Calculate width based on video aspect
-        drawX = (canvas.width - drawWidth) / 2; // Center horizontally
-        drawY = 0;
-      } else {
-        // Video is taller or same as 9:16 - crop top/bottom (pillarbox)
-        drawWidth = canvas.width; // Fill full width (1080)
-        drawHeight = drawWidth / videoAspect; // Calculate height based on video aspect
-        drawX = 0;
-        drawY = (canvas.height - drawHeight) / 2; // Center vertically
-      }
-
-      // Render loop - use fixed 30fps timer instead of requestAnimationFrame
-      const startTime = Date.now();
-      let lastSceneIndex = -1;
-      let currentMappingCache: any = sceneVideoMapping[0]; // Cache current scene
-      const TARGET_FPS = 30;
-      const FRAME_INTERVAL = 1000 / TARGET_FPS; // ~33.33ms per frame
-
-      // Performance monitoring
-      let frameCount = 0;
-      let lastFpsLogTime = startTime;
-      const FPS_LOG_INTERVAL = 2000; // Log FPS every 2 seconds
-
-      const renderFrame = () => {
-        const now = Date.now();
-        const elapsed = now - startTime;
-        const outputTime = elapsed / 1000; // Output video time in seconds
-
-        // Performance monitoring - log actual FPS (less frequently to reduce overhead)
-        frameCount++;
-        if (now - lastFpsLogTime >= FPS_LOG_INTERVAL) {
-          const actualFps = (frameCount / ((now - lastFpsLogTime) / 1000)).toFixed(1);
-          // Only log if FPS is significantly below target
-          if (parseFloat(actualFps) < TARGET_FPS * 0.8) {
-            console.warn(`⚠️ Low FPS: ${actualFps} FPS (target: ${TARGET_FPS} FPS)`);
-          }
-          frameCount = 0;
-          lastFpsLogTime = now;
-        }
-
-        // Update progress MUCH less frequently to reduce React re-renders (every 500ms instead of 100ms)
-        if (Math.floor(elapsed / 500) !== Math.floor((elapsed - FRAME_INTERVAL) / 500)) {
-          setProgress((elapsed / duration) * 100);
-        }
-
-        if (elapsed >= duration) {
-          if (renderIntervalId !== undefined) {
-            clearInterval(renderIntervalId);
-          }
-          recorder.stop();
-          video.pause();
-          return;
-        }
-
-        // OPTIMIZED: Only check for scene changes when near scene boundaries (within 100ms)
-        // This avoids expensive checks every frame when we're in the middle of a scene
-        let currentMapping = currentMappingCache;
-        const timeUntilSceneEnd = currentMapping.outputEnd - outputTime;
-        const timeSinceSceneStart = outputTime - currentMapping.outputStart;
-
-        // Only check for scene change if we're near a boundary (within 100ms)
-        if (timeUntilSceneEnd <= 0.1 || timeSinceSceneStart < 0) {
-          // Find new scene (linear search, but only when near scene boundaries)
-          const newMapping =
-            sceneVideoMapping.find(
-              (m: any) => outputTime >= m.outputStart && outputTime < m.outputEnd
-            ) || sceneVideoMapping[0];
-
-          if (newMapping !== currentMapping) {
-            currentMapping = newMapping;
-            currentMappingCache = currentMapping;
-          }
-        }
-
-        if (!currentMapping) {
-          return; // Will continue on next interval
-        }
-
-        // Use cached scene index - we already know it from lastSceneIndex
-        const currentSceneIndex =
-          lastSceneIndex >= 0 && currentMapping === currentMappingCache
-            ? lastSceneIndex
-            : sceneVideoMapping.indexOf(currentMapping);
-
-        // ONLY seek when scene changes - then let video play naturally
-        if (currentSceneIndex !== lastSceneIndex) {
-          const seekTime = Math.max(0, Math.min(currentMapping.videoStart, sourceVideoDuration));
-          // Direct seek - don't use requestAnimationFrame as it adds delay
-          video.currentTime = seekTime;
-          lastSceneIndex = currentSceneIndex;
-          // Update React state only when scene changes
-          setCurrentScene(currentSceneIndex);
-        }
-
-        // CRITICAL: Only check if paused every 10 frames to reduce overhead
-        // Video should play naturally after initial seek
-        if (frameCount % 10 === 0 && video.paused) {
-          video.playbackRate = 1.0;
-          video.play().catch(() => {
-            // Silent error - video might be seeking
-          });
-        }
-
-        // ALWAYS draw current video frame - video plays naturally
-        if (video.readyState >= 2 && video.videoWidth > 0) {
-          // Use drawImage directly - it's the fastest way
-          ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
-        } else {
-          // Video not ready - fill with black
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // CRITICAL: ALWAYS render text overlay if scene has text - render AFTER video frame
-        if (currentMapping?.scene?.text) {
-          try {
-            renderTextOverlay(ctx, currentMapping.scene, content);
-          } catch {
-            // Silent error handling during generation for performance
-          }
-        }
-      };
-
-      // Initialize video position and wait for it to be ready before starting recording
-      video.currentTime = sceneVideoMapping[0]?.videoStart || 0;
-
-      // Wait for video to seek and be ready before starting render loop
-      await new Promise<void>((resolve) => {
-        const handleSeeked = () => {
-          video.removeEventListener('seeked', handleSeeked);
-          // Small delay to ensure frame is loaded
-          setTimeout(() => {
-            resolve();
-          }, 50);
-        };
-        video.addEventListener('seeked', handleSeeked);
-        // If already seeked, resolve immediately
-        if (video.readyState >= 2) {
-          setTimeout(() => resolve(), 50);
-        }
-      });
-
-      // Start video playing from first scene
-      video.currentTime = sceneVideoMapping[0]?.videoStart || 0;
-
-      // CRITICAL: Set playback rate explicitly and ensure video plays
-      video.playbackRate = 1.0;
-
-      // Ensure video actually plays - retry if needed
-      let playAttempts = 0;
-      while (video.paused && playAttempts < 5) {
-        try {
-          await video.play();
-          if (!video.paused) break;
-        } catch (error) {
-          console.warn(`Video play attempt ${playAttempts + 1} failed:`, error);
-        }
-        playAttempts++;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      if (video.paused) {
-        throw new Error('Failed to start video playback after multiple attempts');
-      }
-
-      // Removed verbose logging - it slows down generation
-
-      // CRITICAL: Ensure only ONE render interval runs at a time
-      if (renderIntervalId !== undefined) {
-        clearInterval(renderIntervalId);
-      }
-
-      // Start fixed-rate render loop at 30fps - just draws frames, video plays naturally
-      renderIntervalId = window.setInterval(renderFrame, FRAME_INTERVAL);
-
-      // Wait for recording to complete
-      const videoBlob = await recordingPromise;
-
-      // Cache the video in IndexedDB
       const cacheKey = getVideoCacheKey(template, content);
-      await saveCachedVideo(cacheKey, videoBlob);
+      const cachedBlob = await getCachedVideo(cacheKey);
+      if (cachedBlob) {
+        try {
+          const db = await openVideoCacheDB();
+          await new Promise<void>((resolve, reject) => {
+            const transaction = db.transaction(['videos'], 'readwrite');
+            const store = transaction.objectStore('videos');
+            const deleteRequest = store.delete(cacheKey);
+            deleteRequest.onsuccess = () => resolve();
+            deleteRequest.onerror = () => reject(deleteRequest.error);
+          });
+          console.log('🗑️ Deleted cached video to force fresh generation');
+        } catch (error) {
+          console.warn('Failed to delete cached video:', error);
+        }
+      }
 
-      // Revoke old URL if it exists to prevent memory leak
       if (generatedVideo) {
-        URL.revokeObjectURL(generatedVideo);
+        revokeVideoUrl(generatedVideo);
+        setGeneratedVideo(null);
       }
-      const videoUrl = URL.createObjectURL(videoBlob);
-      setGeneratedVideo(videoUrl);
 
-      if (onComplete) {
-        onComplete(videoBlob);
+      const templateForServer = buildServerTemplate();
+
+      const response = await fetch('/api/client-render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoUrl,
+          template: templateForServer,
+          content,
+        }),
+      });
+
+      const responseBody = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(responseBody.details || responseBody.error || 'Failed to render video');
       }
+
+      setProgress(65);
+      let renderedBlob: Blob | null = null;
+
+      if (responseBody.videoData) {
+        renderedBlob = base64ToBlob(responseBody.videoData, responseBody.mimeType || 'video/mp4');
+        console.log('✅ Received rendered video data from server');
+      } else if (responseBody.videoUrl) {
+        console.log('✅ Server rendered video:', responseBody.videoUrl);
+        const downloadResponse = await fetch(responseBody.videoUrl);
+        if (!downloadResponse.ok) {
+          throw new Error('Failed to download rendered video');
+        }
+        renderedBlob = await downloadResponse.blob();
+      } else {
+        throw new Error('Render response did not include video data.');
+      }
+
+      if (!renderedBlob) {
+        throw new Error('Failed to obtain rendered video data.');
+      }
+      setProgress(85);
+
+      const objectUrl = URL.createObjectURL(renderedBlob);
+      videoGenerationTimeRef.current = Date.now();
+      setGeneratedVideo(objectUrl);
+      setProgress(95);
+
+      await saveCachedVideo(cacheKey, renderedBlob);
+      console.log('💾 Cached rendered video for replay');
+      setProgress(100);
     } catch (error) {
       console.error('Video generation failed:', error);
-      alert('Video generation failed. Please try again.');
+      setGenerationError(error instanceof Error ? error.message : 'Video generation failed.');
     } finally {
-      // Clean up interval if it exists
-      if (typeof renderIntervalId !== 'undefined') {
-        clearInterval(renderIntervalId);
-      }
       setIsGenerating(false);
-      setProgress(0);
+      setTimeout(() => setProgress(0), 1000);
     }
   };
 
-  const downloadVideo = () => {
-    if (!generatedVideo) return;
-
-    const a = document.createElement('a');
-    a.href = generatedVideo;
-    a.download = `smart-content-${Date.now()}.webm`;
-    a.click();
-  };
+  useEffect(() => {
+    if (generatedVideo && previewRef.current) {
+      previewRef.current.currentTime = 0;
+      previewRef.current.play().catch(() => {});
+    }
+  }, [generatedVideo]);
 
   // Preview rendering function - uses same scene mapping logic as generation
   const renderPreviewFrame = () => {
@@ -756,13 +699,18 @@ export default function VideoGenerator({
       previewStartTimeRef.current = Date.now();
     }
 
-    // Set canvas internal resolution (for rendering quality)
-    const displayWidth = canvas.clientWidth || 540;
-    const displayHeight = canvas.clientHeight || 960;
+    // Set canvas internal resolution to match generation size (1080x1920 for 9:16)
+    // This ensures preview matches generation exactly
+    const GENERATION_WIDTH = 1080;
+    const GENERATION_HEIGHT = 1920;
     const scale = window.devicePixelRatio || 1;
-    canvas.width = displayWidth * scale;
-    canvas.height = displayHeight * scale;
+    canvas.width = GENERATION_WIDTH * scale;
+    canvas.height = GENERATION_HEIGHT * scale;
     ctx.scale(scale, scale);
+
+    // Use generation dimensions for all calculations (not CSS size)
+    const displayWidth = GENERATION_WIDTH;
+    const displayHeight = GENERATION_HEIGHT;
 
     // Clear canvas with black background (so we can see if canvas is rendering)
     ctx.fillStyle = '#000000';
@@ -981,8 +929,13 @@ export default function VideoGenerator({
           // Check if scene has text property - be more lenient
           if (scene.text) {
             try {
+              // Calculate scene progress (0-1) for fade animations
+              const sceneDuration = currentMapping.outputEnd - currentMapping.outputStart;
+              const timeInScene = outputTime - currentMapping.outputStart;
+              const sceneProgress = Math.max(0, Math.min(1, timeInScene / sceneDuration));
+
               // Always render text for current scene - ensure it's rendered AFTER video frame
-              renderTextOverlay(ctx, scene, content);
+              renderTextOverlay(ctx, scene, content, sceneProgress, baseTextStyle);
             } catch (error) {
               console.error('❌ Error rendering text overlay in preview:', error, {
                 sceneIndex: currentSceneIndex,
@@ -1156,10 +1109,103 @@ export default function VideoGenerator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPreviewMode, isGenerating, generatedVideo, videoUrl, template, content, isPreviewPlaying]);
 
+  // Reset cached video when template/content actually change
+  useEffect(() => {
+    const templateStr = JSON.stringify(template);
+    const contentStr = JSON.stringify(content);
+
+    if (prevTemplateRef.current !== templateStr || prevContentRef.current !== contentStr) {
+      prevTemplateRef.current = templateStr;
+      prevContentRef.current = contentStr;
+
+      if (generatedVideo) {
+        URL.revokeObjectURL(generatedVideo);
+        setGeneratedVideo(null);
+      }
+      videoGenerationTimeRef.current = 0;
+    }
+  }, [template, content, generatedVideo]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isGenerating) {
+        setGenerationWarning(
+          'Browser paused recording because this tab is hidden. Please keep the tab visible during generation.'
+        );
+      } else if (!document.hidden) {
+        setGenerationWarning(null);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isGenerating]);
+
+  // Function to load cached video manually for replay
+  const loadCachedVideo = async () => {
+    const cacheKey = getVideoCacheKey(template, content);
+    const cachedBlob = await getCachedVideo(cacheKey);
+
+    if (cachedBlob) {
+      if (generatedVideo) {
+        revokeVideoUrl(generatedVideo);
+      }
+      const videoUrl = URL.createObjectURL(cachedBlob);
+      setGeneratedVideo(videoUrl);
+      videoGenerationTimeRef.current = Date.now();
+      console.log('✅ Loaded cached video for replay:', cacheKey);
+    } else {
+      alert('No cached video found for this template and content.');
+    }
+  };
+
+  const clearGeneratedVideo = () => {
+    if (generatedVideo) {
+      revokeVideoUrl(generatedVideo);
+      setGeneratedVideo(null);
+      videoGenerationTimeRef.current = 0;
+      setGenerationWarning(null);
+      setGenerationError(null);
+    }
+  };
+
+  const base64ToBlob = (base64: string, mimeType: string) => {
+    const byteCharacters = atob(base64);
+    const buffers: ArrayBuffer[] = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+      const slice = byteCharacters.slice(offset, offset + 512);
+      const byteArray = new Uint8Array(slice.length);
+      for (let i = 0; i < slice.length; i++) {
+        byteArray[i] = slice.charCodeAt(i);
+      }
+      buffers.push(byteArray.buffer);
+    }
+
+    return new Blob(buffers, { type: mimeType });
+  };
+
+  const downloadVideo = () => {
+    if (!generatedVideo) {
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = generatedVideo;
+    link.download = `generated-video-${Date.now()}.webm`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Simple: React handles the video element via the src prop
+  // No complex logic needed - just let the video element work
+
   // Cleanup on unmount - critical for preventing memory leaks
   useEffect(() => {
     isMountedRef.current = true;
     const video = videoRef.current; // Capture ref value for cleanup
+    const currentGeneratedVideo = generatedVideo; // Capture current video URL
 
     return () => {
       isMountedRef.current = false;
@@ -1178,16 +1224,19 @@ export default function VideoGenerator({
         video.src = '';
         video.load();
       }
-      // Revoke blob URL to prevent memory leak
-      if (generatedVideo) {
-        URL.revokeObjectURL(generatedVideo);
+      // Only revoke blob URL on unmount, not when video changes
+      // This ensures the video stays playable while component is mounted
+      if (currentGeneratedVideo) {
+        revokeVideoUrl(currentGeneratedVideo);
       }
       // Clear all caches
       previewSceneMappingCacheRef.current = null;
       previewCurrentMappingCacheRef.current = null;
       previewDrawDimensionsCacheRef.current = null;
     };
-  }, [generatedVideo]);
+    // Only run cleanup on unmount, not when generatedVideo changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps = only on mount/unmount
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1337,24 +1386,29 @@ export default function VideoGenerator({
             ref={canvasRef}
             className="absolute inset-0 w-full h-full object-cover"
             style={{
-              display: (isPreviewMode || isGenerating) && !generatedVideo ? 'block' : 'none',
+              // CRITICAL: Keep canvas visible during generation for MediaRecorder
+              // MediaRecorder REQUIRES canvas to be visible to capture frames
+              // ALWAYS show canvas when generating so user can see video being created
+              display: isGenerating || isPreviewMode || !generatedVideo ? 'block' : 'none',
+              visibility: isGenerating || isPreviewMode || !generatedVideo ? 'visible' : 'hidden',
               backgroundColor: '#000000', // Black background so we can see if canvas is visible
+              zIndex: isGenerating ? 10 : 1, // Highest z-index during generation so user can see it
+              pointerEvents: 'none', // Don't block clicks during generation
             }}
           />
 
-          {/* Generated video */}
-          {generatedVideo && (
-            <div className="relative w-full h-full">
+          {/* Generated video - only show AFTER generation completes */}
+          {generatedVideo && !isGenerating && (
+            <div className="relative w-full h-full" style={{ zIndex: 10 }}>
               <video
                 ref={previewRef}
+                key={generatedVideo}
                 src={generatedVideo}
                 className="w-full h-full object-cover"
                 controls
-                autoPlay
-                onEnded={(e) => {
-                  // Pause video when it ends (don't loop)
-                  e.currentTarget.pause();
-                }}
+                preload="auto"
+                playsInline
+                loop
               />
               <div className="absolute top-2 left-2 bg-green-600 text-white text-xs font-bold px-2 py-1 rounded">
                 ✓ GENERATED
@@ -1363,6 +1417,18 @@ export default function VideoGenerator({
           )}
         </div>
       </div>
+
+      {/* Generation alerts */}
+      {generationError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+          {generationError}
+        </div>
+      )}
+      {!generationError && generationWarning && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-900">
+          {generationWarning}
+        </div>
+      )}
 
       {/* Progress Bar */}
       {isGenerating && (
@@ -1381,7 +1447,8 @@ export default function VideoGenerator({
             />
           </div>
           <p className="text-xs text-blue-700 mt-2">
-            This may take a few moments. The video is being recorded with text overlays.
+            This may take a few moments. We are rendering your video on the server with text
+            overlays.
           </p>
         </div>
       )}
@@ -1419,12 +1486,37 @@ export default function VideoGenerator({
         </button>
 
         {generatedVideo && (
+          <>
+            <button
+              onClick={loadCachedVideo}
+              className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+            >
+              <PlayIcon className="h-4 w-4" />
+              <span>Replay Cached Video</span>
+            </button>
+            <button
+              onClick={downloadVideo}
+              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              <span>Download</span>
+            </button>
+            <button
+              onClick={clearGeneratedVideo}
+              className="flex items-center space-x-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              <span>Reset</span>
+            </button>
+          </>
+        )}
+        {!generatedVideo && !isGenerating && (
           <button
-            onClick={downloadVideo}
-            className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+            onClick={loadCachedVideo}
+            className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
           >
-            <ArrowDownTrayIcon className="h-4 w-4" />
-            <span>Download</span>
+            <PlayIcon className="h-4 w-4" />
+            <span>Load Cached Video</span>
           </button>
         )}
       </div>
@@ -1667,7 +1759,7 @@ export default function VideoGenerator({
                   scenes.forEach((scene: any, index: number) => {
                     if (scene.text) {
                       try {
-                        renderTextOverlay(ctx, scene, content);
+                        renderTextOverlay(ctx, scene, content, undefined, baseTextStyle);
                         console.log(`✅ Test rendered text for Scene ${index + 1}`);
                       } catch (error) {
                         console.error(`❌ Failed to test render Scene ${index + 1}:`, error);
