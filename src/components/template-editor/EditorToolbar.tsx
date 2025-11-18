@@ -2,20 +2,9 @@
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Copy,
-  Plus,
-  Redo,
-  Save,
-  Trash2,
-  Type,
-  Undo,
-  Eye,
-  EyeOff,
-  FileJson,
-  Menu,
-} from 'lucide-react';
+import { Copy, Plus, Redo, Save, Trash2, Type, Undo, FileJson, Menu, Eye } from 'lucide-react';
 import { useResponsive } from '@/hooks/useResponsive';
+import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
 interface EditorToolbarProps {
@@ -28,11 +17,54 @@ interface EditorToolbarProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  isPreviewMode: boolean;
-  onTogglePreview: () => void;
+  viewMode: 'edit' | 'previewCuts' | 'previewFull';
+  onViewModeChange: (mode: 'edit' | 'previewCuts' | 'previewFull') => void;
   onSave?: () => void;
   onImportJson?: () => void;
+  onExportJson?: () => void;
 }
+
+const viewOptions: Array<{ id: 'edit' | 'previewCuts' | 'previewFull'; label: string }> = [
+  { id: 'edit', label: 'Edit' },
+  { id: 'previewCuts', label: 'Preview' },
+  { id: 'previewFull', label: 'Full Clip' },
+];
+
+const ViewModeToggle = ({
+  compact = false,
+  onChange,
+  viewMode,
+  onViewModeChange,
+}: {
+  compact?: boolean;
+  onChange?: (mode: 'edit' | 'previewCuts' | 'previewFull') => void;
+  viewMode: 'edit' | 'previewCuts' | 'previewFull';
+  onViewModeChange: (mode: 'edit' | 'previewCuts' | 'previewFull') => void;
+}) => (
+  <div
+    className={cn(
+      'flex rounded-full border border-theme/40 bg-background-secondary text-[11px] font-semibold uppercase tracking-[0.3em]',
+      compact ? 'w-full' : ''
+    )}
+  >
+    {viewOptions.map((option) => (
+      <button
+        key={option.id}
+        className={cn(
+          'flex-1 px-3 py-1 transition',
+          viewMode === option.id ? 'bg-accent text-white' : 'text-secondary hover:text-foreground'
+        )}
+        onClick={() => {
+          onViewModeChange(option.id);
+          onChange?.(option.id);
+        }}
+        type="button"
+      >
+        {option.label}
+      </button>
+    ))}
+  </div>
+);
 
 const EditorToolbar = ({
   templateName,
@@ -44,10 +76,11 @@ const EditorToolbar = ({
   onRedo,
   canUndo,
   canRedo,
-  isPreviewMode,
-  onTogglePreview,
+  viewMode,
+  onViewModeChange,
   onSave,
   onImportJson,
+  onExportJson,
 }: EditorToolbarProps) => {
   const { isMobile, isTablet } = useResponsive();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -56,62 +89,93 @@ const EditorToolbar = ({
   if (isMobile) {
     return (
       <>
-        <header className="flex h-14 items-center justify-between border-b border-theme bg-primary px-4 shadow-theme-sm">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="h-9 w-9"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <Input
-            value={templateName}
-            onChange={(event) => onNameChange(event.target.value)}
-            placeholder="Template"
-            className="mx-2 h-9 flex-1 border-theme bg-secondary text-sm text-primary"
-          />
-          <Button variant="default" size="sm" onClick={onSave} className="h-9 rounded-full px-4">
-            <Save className="h-4 w-4" />
-          </Button>
+        <header className="flex h-16 items-center justify-between border-b border-theme/30 bg-background px-4 backdrop-blur">
+          <div className="flex flex-1 items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="h-9 w-9"
+              aria-label="Toggle menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="flex flex-1 flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-secondary">
+                Template
+              </span>
+              <Input
+                value={templateName}
+                onChange={(event) => onNameChange(event.target.value)}
+                placeholder="Untitled template"
+                className="h-10 border border-theme/40 bg-background-secondary text-sm text-foreground focus-visible:ring-0"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onUndo}
+              disabled={!canUndo}
+              aria-label="Undo"
+            >
+              <Undo className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRedo}
+              disabled={!canRedo}
+              aria-label="Redo"
+            >
+              <Redo className="h-4 w-4" />
+            </Button>
+            <Button variant="default" size="sm" onClick={onSave} className="h-9 rounded-full px-4">
+              <Save className="h-4 w-4" />
+            </Button>
+          </div>
         </header>
+        <div className="border-b border-theme/20 bg-background px-4 py-2">
+          <ViewModeToggle compact viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        </div>
 
         {/* Mobile Menu Drawer */}
         {showMobileMenu && (
-          <div className="border-b border-theme bg-primary p-4 shadow-theme-md">
+          <div className="border-b border-theme/30 bg-background p-4 shadow-theme-md backdrop-blur">
             <div className="flex flex-col gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   onAddText();
                   setShowMobileMenu(false);
                 }}
-                className="justify-start gap-2"
+                className="justify-start gap-2 rounded-2xl"
               >
                 <Plus className="h-4 w-4" />
                 Add Text
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => {
                   onDuplicate();
                   setShowMobileMenu(false);
                 }}
-                className="justify-start gap-2"
+                className="justify-start gap-2 rounded-2xl"
               >
                 <Copy className="h-4 w-4" />
                 Duplicate Scene
               </Button>
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
                 onClick={() => {
                   onDelete();
                   setShowMobileMenu(false);
                 }}
-                className="justify-start gap-2 text-red-600"
+                className="justify-start gap-2 rounded-2xl"
               >
                 <Trash2 className="h-4 w-4" />
                 Delete Scene
@@ -136,36 +200,28 @@ const EditorToolbar = ({
                   <Redo className="h-4 w-4" />
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onTogglePreview();
-                  setShowMobileMenu(false);
-                }}
-                className="justify-start gap-2"
-              >
-                {isPreviewMode ? (
-                  <>
-                    <EyeOff className="h-4 w-4" />
-                    Edit Mode
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4" />
-                    Preview Mode
-                  </>
-                )}
-              </Button>
+              <div className="space-y-2 rounded-2xl border border-theme/40 bg-background-secondary/60 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.4em] text-secondary">
+                  Mode
+                </div>
+                <ViewModeToggle
+                  compact
+                  viewMode={viewMode}
+                  onViewModeChange={(mode) => {
+                    onViewModeChange(mode);
+                    setShowMobileMenu(false);
+                  }}
+                />
+              </div>
               {onImportJson && (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => {
                     onImportJson();
                     setShowMobileMenu(false);
                   }}
-                  className="justify-start gap-2"
+                  className="justify-start gap-2 rounded-2xl"
                 >
                   <FileJson className="h-4 w-4" />
                   Import JSON
@@ -174,51 +230,69 @@ const EditorToolbar = ({
             </div>
           </div>
         )}
+        {viewMode === 'edit' && (
+          <Button
+            variant="default"
+            size="sm"
+            className="fixed bottom-6 right-4 z-40 h-12 gap-2 rounded-full px-5 shadow-theme-xl"
+            onClick={onAddText}
+          >
+            <Plus className="h-4 w-4" />
+            Text
+          </Button>
+        )}
       </>
     );
   }
 
   // Tablet/Desktop Layout
   return (
-    <header className="flex h-16 items-center justify-between border-b border-theme bg-primary px-6 shadow-theme-sm">
-      <div className="flex items-center gap-3">
-        <Type className="h-5 w-5 text-accent" />
-        <Input
-          value={templateName}
-          onChange={(event) => onNameChange(event.target.value)}
-          placeholder="Template name"
-          className="w-48 border-theme bg-secondary text-primary lg:w-64"
-        />
+    <header className="flex h-16 items-center justify-between border-b border-theme/30 bg-background px-6 backdrop-blur">
+      <div className="flex items-center gap-4">
+        <div className="hidden rounded-2xl border border-theme/30 p-2 lg:flex">
+          <Type className="h-4 w-4 text-accent" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-secondary">
+            Template
+          </span>
+          <Input
+            value={templateName}
+            onChange={(event) => onNameChange(event.target.value)}
+            placeholder="Untitled template"
+            className="h-11 w-48 rounded-2xl border border-theme/30 bg-background-secondary text-sm text-foreground focus-visible:ring-0 lg:w-64"
+          />
+        </div>
         {!isTablet && (
-          <>
+          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant="secondary"
               size="icon"
               onClick={onAddText}
-              className="h-9 w-9 rounded-full"
+              className="h-10 w-10 rounded-2xl"
               title="Add Text"
             >
               <Plus className="h-4 w-4" />
             </Button>
             <Button
-              variant="ghost"
+              variant="secondary"
               size="icon"
               onClick={onDuplicate}
-              className="h-9 w-9 rounded-full"
+              className="h-10 w-10 rounded-2xl"
               title="Duplicate Scene"
             >
               <Copy className="h-4 w-4" />
             </Button>
             <Button
-              variant="ghost"
+              variant="destructive"
               size="icon"
               onClick={onDelete}
-              className="h-9 w-9 rounded-full text-red-600"
+              className="h-10 w-10 rounded-2xl"
               title="Delete Scene"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          </>
+          </div>
         )}
       </div>
       <div className="flex items-center gap-2">
@@ -228,7 +302,7 @@ const EditorToolbar = ({
           onClick={onUndo}
           disabled={!canUndo}
           title="Undo (Cmd+Z)"
-          className="h-9 w-9"
+          className="h-9 w-9 rounded-2xl"
         >
           <Undo className="h-4 w-4" />
         </Button>
@@ -238,41 +312,34 @@ const EditorToolbar = ({
           onClick={onRedo}
           disabled={!canRedo}
           title="Redo (Cmd+Shift+Z)"
-          className="h-9 w-9"
+          className="h-9 w-9 rounded-2xl"
         >
           <Redo className="h-4 w-4" />
         </Button>
-        <div className="mx-2 h-6 w-px bg-border" />
-        <Button variant="ghost" size="sm" onClick={onTogglePreview} className="gap-2">
-          {isPreviewMode ? (
-            <>
-              <EyeOff className="h-4 w-4" />
-              {!isTablet && 'Edit'}
-            </>
-          ) : (
-            <>
-              <Eye className="h-4 w-4" />
-              {!isTablet && 'Preview'}
-            </>
-          )}
-        </Button>
+        <ViewModeToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+        {onExportJson && (
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={onExportJson}
+            title="Review/Export JSON"
+            className="h-9 w-9 rounded-2xl"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
         {onImportJson && (
           <Button
-            variant="ghost"
+            variant="secondary"
             size="icon"
             onClick={onImportJson}
             title="Import JSON"
-            className="h-9 w-9"
+            className="h-9 w-9 rounded-2xl"
           >
             <FileJson className="h-4 w-4" />
           </Button>
         )}
-        <Button
-          variant="default"
-          size="sm"
-          onClick={onSave}
-          className="gap-2 rounded-full bg-accent px-4 hover:bg-accent-hover"
-        >
+        <Button variant="default" size="sm" onClick={onSave} className="gap-2 rounded-full px-4">
           <Save className="h-4 w-4" />
           {!isTablet && 'Save'}
         </Button>

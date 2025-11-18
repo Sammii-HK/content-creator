@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -19,15 +20,14 @@ import {
   FONT_OPTIONS,
 } from './presets';
 import type { TextOverlay } from '@/lib/video';
-import { useResponsive } from '@/hooks/useResponsive';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
 
 interface PropertiesPanelProps {
   text?: (TextOverlay & { id: string }) | null;
   onPositionChange: (position: TextOverlay['position']) => void;
   onStyleChange: (style: Partial<TextOverlay['style']>) => void;
   onContentChange: (content: string) => void;
+  isMobileSheet?: boolean;
+  onSelectDefaultText?: () => void;
 }
 
 const PropertiesPanel = ({
@@ -35,80 +35,109 @@ const PropertiesPanel = ({
   onPositionChange,
   onStyleChange,
   onContentChange,
+  isMobileSheet = false,
+  onSelectDefaultText,
 }: PropertiesPanelProps) => {
-  const { isMobile } = useResponsive();
-  const [expandedSections, setExpandedSections] = useState({
-    content: true,
-    position: false,
-    typography: true,
-  });
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  if (!text) {
-    if (isMobile) {
-      return null; // Don't show anything on mobile when no text selected
+  const normalizedBackground = (() => {
+    if (typeof text?.style?.background === 'string') {
+      return text.style.background;
     }
-    return (
-      <aside className="w-80 border-l border-theme bg-secondary p-6">
-        <p className="text-sm text-secondary">Select a text element to edit its properties</p>
-      </aside>
-    );
-  }
+    if (text?.style?.backgroundColor) {
+      return text.style.backgroundColor;
+    }
+    if (text?.style?.background === false) {
+      return 'transparent';
+    }
+    return undefined;
+  })();
 
-  const { position, style } = text;
-  const fontSize = style?.fontSize ?? 40;
-  const strokeWidth = style?.strokeWidth ?? 0;
-
-  const content = (
-    <div className="space-y-4">
-      {/* Content Section */}
-      <section className="space-y-3">
-        <button
-          onClick={() => toggleSection('content')}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-secondary">Content</h3>
-          {expandedSections.content ? (
-            <ChevronUp className="h-4 w-4 text-secondary" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-secondary" />
+  const renderPanelContent = () => {
+    if (!text) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+          <div className="space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-foreground/5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-foreground-muted"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M16 13H8" />
+                <path d="M16 17H8" />
+                <path d="M10 9H8" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">No text selected</h3>
+            <p className="text-xs text-foreground-muted max-w-[200px]">
+              Select a text overlay on the canvas to edit its properties.
+            </p>
+          </div>
+          {onSelectDefaultText && (
+            <Button variant="secondary" size="sm" onClick={onSelectDefaultText} className="mt-2">
+              Select Scene Text
+            </Button>
           )}
-        </button>
-        {expandedSections.content && (
+        </div>
+      );
+    }
+
+    const { position, style } = text;
+    const fontSize = style?.fontSize ?? 40;
+    const strokeWidth = style?.strokeWidth ?? 0;
+    const cleanedContent = (text.content || '')
+      .replace(/\{\{|\}\}/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const previewLabel = cleanedContent || 'Text layer';
+
+    return (
+      <div className="space-y-1">
+        {/* Active Item Indicator */}
+        <div className="mb-4 rounded-lg border border-border/40 bg-background-secondary/30 px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-foreground-muted">
+                Editing
+              </p>
+              <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
+                {previewLabel}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Section */}
+        <div className="space-y-1.5 border-b border-border/30 pb-4">
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
+            Content
+          </Label>
           <Textarea
-            className="min-h-[80px] rounded-xl border-theme bg-elevated text-sm text-primary"
+            className="min-h-[80px] resize-none border-border/40 bg-background text-xs transition-all focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
             value={text.content}
             onChange={(event) => onContentChange(event.target.value)}
-            placeholder="Enter text content..."
+            placeholder="Enter text..."
           />
-        )}
-      </section>
+        </div>
 
-      <div className="h-px bg-border" />
-
-      {/* Position Section */}
-      <section className="space-y-3">
-        <button
-          onClick={() => toggleSection('position')}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-secondary">
+        {/* Position Section */}
+        <div className="space-y-1.5 border-b border-border/30 pb-4 pt-4">
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
             Position
-          </h3>
-          {expandedSections.position ? (
-            <ChevronUp className="h-4 w-4 text-secondary" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-secondary" />
-          )}
-        </button>
-        {expandedSections.position && (
-          <div className="grid grid-cols-2 gap-3">
+          </Label>
+          <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor="position-x" className="text-xs text-secondary">
-                X (%)
+              <Label htmlFor="position-x" className="text-[10px] font-medium text-foreground-muted">
+                X
               </Label>
               <Input
                 id="position-x"
@@ -119,12 +148,12 @@ const PropertiesPanel = ({
                 onChange={(event) =>
                   onPositionChange({ ...position, x: Number(event.target.value) })
                 }
-                className="h-9 border-theme bg-elevated text-primary"
+                className="h-8 border-border/40 bg-background text-xs font-medium transition-all focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="position-y" className="text-xs text-secondary">
-                Y (%)
+              <Label htmlFor="position-y" className="text-[10px] font-medium text-foreground-muted">
+                Y
               </Label>
               <Input
                 id="position-y"
@@ -135,137 +164,172 @@ const PropertiesPanel = ({
                 onChange={(event) =>
                   onPositionChange({ ...position, y: Number(event.target.value) })
                 }
-                className="h-9 border-theme bg-elevated text-primary"
+                className="h-8 border-border/40 bg-background text-xs font-medium transition-all focus:border-primary/60 focus:ring-1 focus:ring-primary/20"
               />
             </div>
           </div>
-        )}
-      </section>
+        </div>
 
-      <div className="h-px bg-border" />
-
-      {/* Typography Section */}
-      <section className="space-y-3">
-        <button
-          onClick={() => toggleSection('typography')}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-secondary">
+        {/* Typography Section */}
+        <div className="space-y-4 border-b border-border/30 pb-4 pt-4">
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
             Typography
-          </h3>
-          {expandedSections.typography ? (
-            <ChevronUp className="h-4 w-4 text-secondary" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-secondary" />
-          )}
-        </button>
-        {expandedSections.typography && (
-          <div className="space-y-4">
-            {/* Font Size */}
-            <div className="space-y-2 rounded-xl bg-tertiary p-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-secondary">Font Size</Label>
-                <span className="text-xs font-semibold text-primary">{fontSize}px</span>
-              </div>
-              <Slider
-                value={[fontSize]}
-                max={96}
-                min={16}
-                onValueChange={([value]) => onStyleChange({ fontSize: value })}
+          </Label>
+
+          {/* Font Size */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-medium text-foreground-muted">Size</Label>
+              <span className="rounded px-1.5 py-0.5 text-[10px] font-bold text-primary bg-primary/10">
+                {fontSize}px
+              </span>
+            </div>
+            <Slider
+              value={[fontSize]}
+              max={96}
+              min={16}
+              step={1}
+              onValueChange={([value]) => onStyleChange({ fontSize: value })}
+              className="w-full"
+            />
+          </div>
+
+          {/* Font Family */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-foreground-muted">Font</Label>
+            <Select
+              value={style?.fontFamily || FONT_OPTIONS[0].stack}
+              onValueChange={(value) => onStyleChange({ fontFamily: value })}
+            >
+              <SelectTrigger className="h-8 border-border/40 bg-background text-xs font-medium transition-all focus:border-primary/60 focus:ring-1 focus:ring-primary/20">
+                <SelectValue placeholder="Select font" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {FONT_OPTIONS.map((font) => (
+                  <SelectItem key={font.id} value={font.stack}>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-xs">{font.label}</span>
+                      <span className="text-[10px] text-foreground-muted">{font.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Colors Section */}
+        <div className="space-y-4 border-b border-border/30 pb-4 pt-4">
+          <Label className="text-[11px] font-semibold uppercase tracking-wider text-foreground-muted">
+            Colors
+          </Label>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[10px] font-medium text-foreground-muted">Text</Label>
+              <ColorSwatchPicker
+                label="Text Color"
+                value={style?.color}
+                options={TEXT_COLOR_OPTIONS}
+                onChange={(color) => onStyleChange({ color })}
               />
             </div>
-
-            {/* Font Family */}
-            <div className="space-y-2">
-              <Label className="text-xs text-secondary">Font Family</Label>
-              <Select
-                value={style?.fontFamily || FONT_OPTIONS[0].stack}
-                onValueChange={(value) => onStyleChange({ fontFamily: value })}
-              >
-                <SelectTrigger className="h-9 border-theme bg-elevated text-primary">
-                  <SelectValue placeholder="Select font" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {FONT_OPTIONS.map((font) => (
-                    <SelectItem key={font.id} value={font.stack}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{font.label}</span>
-                        <span className="text-xs text-secondary">{font.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-medium text-foreground-muted">Stroke</Label>
+              <ColorSwatchPicker
+                label="Stroke Color"
+                value={style?.stroke ?? 'transparent'}
+                options={STROKE_COLOR_OPTIONS}
+                onChange={(color) => onStyleChange({ stroke: color })}
+                allowTransparent
+              />
             </div>
-
-            {/* Colors */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs text-secondary">Text</Label>
-                <ColorSwatchPicker
-                  label="Text Color"
-                  value={style?.color}
-                  options={TEXT_COLOR_OPTIONS}
-                  onChange={(color) => onStyleChange({ color })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-secondary">Stroke</Label>
-                <ColorSwatchPicker
-                  label="Stroke Color"
-                  value={style?.stroke ?? 'transparent'}
-                  options={STROKE_COLOR_OPTIONS}
-                  onChange={(color) => onStyleChange({ stroke: color })}
-                  allowTransparent
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-secondary">Background</Label>
-                <ColorSwatchPicker
-                  label="Background"
-                  value={style?.backgroundColor ?? style?.background?.toString()}
-                  options={BACKGROUND_COLOR_OPTIONS}
-                  onChange={(color) =>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-medium text-foreground-muted">Background</Label>
+              <ColorSwatchPicker
+                label="Background"
+                value={normalizedBackground}
+                options={BACKGROUND_COLOR_OPTIONS}
+                allowTransparent
+                onChange={(color) => {
+                  if (color === 'transparent') {
                     onStyleChange({
-                      background: true,
-                      backgroundColor: color,
-                    })
+                      background: false,
+                      backgroundColor: undefined,
+                    });
+                    return;
                   }
-                />
-              </div>
-            </div>
-
-            {/* Stroke Width */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-secondary">Stroke Width</Label>
-                <span className="text-xs text-primary">{strokeWidth}px</span>
-              </div>
-              <Slider
-                value={[strokeWidth]}
-                min={0}
-                max={10}
-                onValueChange={([value]) => onStyleChange({ strokeWidth: value })}
+                  onStyleChange({
+                    background: true,
+                    backgroundColor: color,
+                  });
+                }}
               />
             </div>
           </div>
-        )}
-      </section>
-    </div>
-  );
+        </div>
 
-  // Mobile: Fixed bottom panel (always visible when text selected)
-  if (isMobile) {
+        {/* Stroke Width */}
+        <div className="space-y-2 pt-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-[10px] font-medium text-foreground-muted">Stroke Width</Label>
+            <span className="rounded px-1.5 py-0.5 text-[10px] font-bold text-primary bg-primary/10">
+              {strokeWidth}px
+            </span>
+          </div>
+          <Slider
+            value={[strokeWidth]}
+            min={0}
+            max={10}
+            step={0.5}
+            onValueChange={([value]) => onStyleChange({ strokeWidth: value })}
+            className="w-full"
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const bodyContent = renderPanelContent();
+
+  // Mobile: Fixed bottom sheet - 15-20% height, positioned at bottom
+  if (isMobileSheet) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-40 max-h-[60vh] overflow-y-auto border-t border-theme bg-primary p-4 shadow-theme-xl">
-        {content}
+      <div className="properties-panel-mobile h-[20vh] min-h-[200px] max-h-[300px] flex-col overflow-hidden bg-background border-t border-border/60 shadow-[0_-1px_0_0_rgba(0,0,0,0.05),0_-4px_24px_rgba(0,0,0,0.08)]">
+        {/* Drag Handle */}
+        <div className="flex shrink-0 items-center justify-center border-b border-border/40 bg-background-secondary/30 py-2">
+          <div className="h-0.5 w-10 rounded-full bg-foreground-muted/30" />
+        </div>
+
+        {/* Header */}
+        <div className="shrink-0 border-b border-border/40 bg-background px-5 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Properties</h2>
+        </div>
+
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 pb-[calc(20px+env(safe-area-inset-bottom))] min-h-0">
+          {bodyContent}
+        </div>
       </div>
     );
   }
 
-  // Desktop: Right sidebar
+  // Desktop: Right sidebar - Figma style
+  const desktopPanel = (
+    <div className="flex h-full max-h-full flex-col overflow-hidden bg-background">
+      {/* Header */}
+      <div className="shrink-0 border-b border-border/60 bg-background px-4 py-3">
+        <h2 className="text-xs font-semibold text-foreground">Properties</h2>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 min-h-0">{bodyContent}</div>
+    </div>
+  );
+
   return (
-    <aside className="w-80 overflow-y-auto border-l border-theme bg-secondary p-6">{content}</aside>
+    <aside className="properties-panel-desktop h-full max-h-full w-[320px] shrink-0 flex-col overflow-hidden border-l border-border/60 bg-background shadow-[-1px_0_0_0_rgba(0,0,0,0.05)]">
+      {desktopPanel}
+    </aside>
   );
 };
 

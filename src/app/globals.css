@@ -5,22 +5,22 @@
 /* Apple-inspired Design System */
 :root {
   /* Colors - Light Mode */
-  --background: #ffffff;
-  --background-secondary: #f8fafc;
-  --background-tertiary: #f1f5f9;
+  --background: #fafafa;
+  --background-secondary: #f2f4f7;
+  --background-tertiary: #ebeef3;
   --foreground: #0f172a;
   --foreground-secondary: #475569;
   --foreground-muted: #64748b;
-  
+
   /* Borders */
   --border: #e2e8f0;
   --border-secondary: #cbd5e1;
-  
+
   /* Accent Colors */
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
   --primary-hover: #2563eb;
-  
+
   /* Semantic Colors */
   --success: #10b981;
   --success-foreground: #ffffff;
@@ -28,21 +28,21 @@
   --warning-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  
+
   /* Border Radius */
   --radius-sm: 6px;
   --radius: 8px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  
+
   /* Spacing Scale (8px base) */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -58,27 +58,28 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Colors - Dark Mode */
-    --background: #0f172a;
-    --background-secondary: #1e293b;
-    --background-tertiary: #334155;
+    --background: #0a0a0a;
+    --background-secondary: #111111;
+    --background-tertiary: #1c1c1c;
     --foreground: #f8fafc;
     --foreground-secondary: #cbd5e1;
     --foreground-muted: #94a3b8;
-    
+    --primary-foreground: #ffffff;
+
     /* Borders */
-    --border: #334155;
-    --border-secondary: #475569;
-    
+    --border: #2a2a2a;
+    --border-secondary: #3a3a3a;
+
     /* Accent Colors - Adjusted for dark mode */
     --primary: #60a5fa;
     --primary-hover: #3b82f6;
-    
+
     /* Shadows - More subtle in dark mode */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.6), 0 1px 2px -1px rgb(0 0 0 / 0.6);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.6), 0 2px 4px -2px rgb(0 0 0 / 0.6);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.6);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.7);
   }
 }
 
@@ -86,39 +87,78 @@
   * {
     border-color: var(--border);
   }
-  
+
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, ui-sans-serif, system-ui, sans-serif;
-    font-feature-settings: "cv11", "ss01";
-    font-variation-settings: "opsz" auto;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', Inter, ui-sans-serif,
+      system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' auto;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, ui-sans-serif, system-ui, sans-serif;
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, ui-sans-serif, system-ui,
+      sans-serif;
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: -0.025em;
   }
-  
-  h1 { font-size: 2.25rem; line-height: 1.2; }
-  h2 { font-size: 1.875rem; line-height: 1.3; }
-  h3 { font-size: 1.5rem; line-height: 1.4; }
-  h4 { font-size: 1.25rem; line-height: 1.5; }
-  h5 { font-size: 1.125rem; line-height: 1.6; }
-  h6 { font-size: 1rem; line-height: 1.6; }
-  
+
+  h1 {
+    font-size: 2.25rem;
+    line-height: 1.2;
+  }
+  h2 {
+    font-size: 1.875rem;
+    line-height: 1.3;
+  }
+  h3 {
+    font-size: 1.5rem;
+    line-height: 1.4;
+  }
+  h4 {
+    font-size: 1.25rem;
+    line-height: 1.5;
+  }
+  h5 {
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+  h6 {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
   @media (min-width: 1024px) {
-    h1 { font-size: 3rem; }
-    h2 { font-size: 2.25rem; }
-    h3 { font-size: 1.875rem; }
-    h4 { font-size: 1.5rem; }
-    h5 { font-size: 1.25rem; }
-    h6 { font-size: 1.125rem; }
+    h1 {
+      font-size: 3rem;
+    }
+    h2 {
+      font-size: 2.25rem;
+    }
+    h3 {
+      font-size: 1.875rem;
+    }
+    h4 {
+      font-size: 1.5rem;
+    }
+    h5 {
+      font-size: 1.25rem;
+    }
+    h6 {
+      font-size: 1.125rem;
+    }
   }
 }
 
@@ -138,22 +178,24 @@
     background-color: var(--primary);
     color: var(--primary-foreground);
   }
-  
+
   .btn-primary:hover {
     background-color: var(--primary-hover);
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
-  
+
   .btn-primary:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
-  
+
   .btn-primary:disabled {
     pointer-events: none;
     opacity: 0.5;
   }
-  
+
   .btn-secondary {
     display: inline-flex;
     align-items: center;
@@ -170,22 +212,24 @@
     color: var(--foreground);
     border-color: var(--border);
   }
-  
+
   .btn-secondary:hover {
     background-color: var(--background-secondary);
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
-  
+
   .btn-secondary:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
-  
+
   .btn-secondary:disabled {
     pointer-events: none;
     opacity: 0.5;
   }
-  
+
   /* Card Styles */
   .card {
     border-radius: 0.75rem;
@@ -195,15 +239,17 @@
     background-color: var(--background);
     border-color: var(--border);
   }
-  
+
   .card:hover {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.1),
+      0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
-  
+
   .card-content {
     padding: 1.5rem;
   }
-  
+
   /* Form Styles */
   .input {
     display: flex;
@@ -218,21 +264,21 @@
     color: var(--foreground);
     transition: all 0.2s;
   }
-  
+
   .input::placeholder {
     color: var(--foreground-muted);
   }
-  
+
   .input:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
-  
+
   .input:disabled {
     cursor: not-allowed;
     opacity: 0.5;
   }
-  
+
   /* Sidebar Styles */
   .sidebar {
     position: fixed;
@@ -247,28 +293,28 @@
     background-color: color-mix(in srgb, var(--background-secondary) 50%, transparent);
     border-color: var(--border);
   }
-  
+
   .sidebar-collapsed {
     transform: translateX(-100%);
   }
-  
+
   @media (min-width: 1024px) {
     .sidebar-collapsed {
       transform: translateX(0);
       width: 4rem;
     }
   }
-  
+
   /* Main Content Area */
   .main-content {
     transition: all 0.3s ease-in-out;
   }
-  
+
   @media (min-width: 1024px) {
     .main-content {
       margin-left: 16rem;
     }
-    
+
     .main-content-collapsed {
       margin-left: 4rem;
     }
@@ -279,56 +325,125 @@
   .text-balance {
     text-wrap: balance;
   }
-  
+
   /* Shadow Utilities */
-  .shadow-soft { 
-    box-shadow: var(--shadow-sm); 
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
   }
-  
-  .shadow-elevated { 
-    box-shadow: var(--shadow-md); 
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-md);
   }
-  
-  .shadow-floating { 
-    box-shadow: var(--shadow-lg); 
+
+  .shadow-floating {
+    box-shadow: var(--shadow-lg);
   }
-  
+
   /* Animation Utilities */
   .animate-fade-in {
     animation: fadeIn 0.3s ease-in-out;
   }
-  
+
   .animate-slide-up {
     animation: slideUp 0.3s ease-out;
   }
-  
+
   .animate-scale-in {
     animation: scaleIn 0.2s ease-out;
   }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Properties Panel Visibility Fix - Desktop: full height, thin (320px) */
+.properties-panel-desktop {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .properties-panel-desktop {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    width: 320px !important;
+    min-width: 320px !important;
+    max-width: 320px !important;
+    flex-shrink: 0 !important;
+    z-index: 10 !important;
+  }
+}
+
+/* Mobile Panel: short, full width, bottom positioned */
+.properties-panel-mobile {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .properties-panel-mobile {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+  }
+
+  .properties-panel-desktop {
+    display: none !important;
+  }
+}
+
+/* Modern Scrollbar for Properties Panel */
+.properties-panel-desktop::-webkit-scrollbar,
+.properties-panel-mobile::-webkit-scrollbar {
+  width: 6px;
+}
+
+.properties-panel-desktop::-webkit-scrollbar-track,
+.properties-panel-mobile::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.properties-panel-desktop::-webkit-scrollbar-thumb,
+.properties-panel-mobile::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.properties-panel-desktop::-webkit-scrollbar-thumb:hover,
+.properties-panel-mobile::-webkit-scrollbar-thumb:hover {
+  background: var(--border-secondary);
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(10px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
 @keyframes scaleIn {
-  from { 
+  from {
     opacity: 0;
     transform: scale(0.95);
   }
-  to { 
+  to {
     opacity: 1;
     transform: scale(1);
   }
