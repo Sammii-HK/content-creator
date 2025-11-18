@@ -65,6 +65,11 @@ export interface VideoRenderOptions {
   endTime?: number;
 }
 
+export interface VideoSegmentRange {
+  sourceStart: number;
+  sourceEnd: number;
+}
+
 export class VideoRenderer {
   private tempDir = path.join(os.tmpdir(), 'smart-content-studio');
 
@@ -193,6 +198,79 @@ export class VideoRenderer {
       return await fs.readFile(outputPath);
     } finally {
       await fs.unlink(outputPath).catch(console.error);
+    }
+  }
+
+  /**
+   * Render a video composed of multiple segments from the source footage.
+   * Each segment is trimmed, concatenated, and then rendered with the provided template.
+   */
+  async renderMultiSegmentVideo(
+    options: VideoRenderOptions & { segments: VideoSegmentRange[] }
+  ): Promise<string> {
+    const { segments, ...baseOptions } = options;
+    if (!segments || segments.length === 0) {
+      throw new Error('At least one segment is required to render a multi-segment video');
+    }
+
+    const tempSegmentFiles: string[] = [];
+    const concatListPath = path.join(this.tempDir, `concat_${uuidv4()}.txt`);
+    const mergedSegmentsPath = path.join(this.tempDir, `merged_${uuidv4()}.mp4`);
+
+    try {
+      for (const segment of segments) {
+        const start = Math.max(0, segment.sourceStart);
+        const end = Math.max(start, segment.sourceEnd);
+        const duration = Math.max(0, end - start);
+        if (duration <= 0.05) {
+          continue;
+        }
+        const segmentPath = path.join(this.tempDir, `segment_${uuidv4()}.mp4`);
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(baseOptions.brollPath)
+            .seekInput(start)
+            .duration(Math.max(0.1, duration))
+            .outputOptions(['-c', 'copy'])
+            .output(segmentPath)
+            .on('end', resolve)
+            .on('error', reject)
+            .run();
+        });
+        tempSegmentFiles.push(segmentPath);
+      }
+
+      if (tempSegmentFiles.length === 0) {
+        throw new Error('No valid segments were provided to render');
+      }
+
+      const concatFileContent = tempSegmentFiles
+        .map((filePath) => `file '${filePath.replace(/'/g, "'\\''")}'`)
+        .join('\n');
+      await fs.writeFile(concatListPath, concatFileContent, 'utf-8');
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg()
+          .input(concatListPath)
+          .inputOptions(['-f', 'concat', '-safe', '0'])
+          .outputOptions(['-c', 'copy'])
+          .output(mergedSegmentsPath)
+          .on('end', resolve)
+          .on('error', reject)
+          .run();
+      });
+
+      const videoUrl = await this.renderVideo({
+        ...baseOptions,
+        brollPath: mergedSegmentsPath,
+        startTime: undefined,
+        endTime: undefined,
+      });
+
+      return videoUrl;
+    } finally {
+      await Promise.all(tempSegmentFiles.map((file) => fs.unlink(file).catch(() => {})));
+      await fs.unlink(concatListPath).catch(() => {});
+      await fs.unlink(mergedSegmentsPath).catch(() => {});
     }
   }
 

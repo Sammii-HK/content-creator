@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import SegmentAdjuster from '@/components/SegmentAdjuster';
 
 interface Video {
   id: string;
   name: string;
   duration: number;
   category: string;
+  fileUrl?: string;
   segmentCount?: number;
 }
 
@@ -22,6 +24,26 @@ interface ContentPlan {
   timeline: any[];
 }
 
+interface PlanSegment {
+  id: string;
+  startTime: number;
+  endTime: number;
+  adjustedStartTime?: number;
+  adjustedEndTime?: number;
+  quality?: number;
+}
+
+interface TimelineItem {
+  type: string;
+  startTime: number;
+  endTime: number;
+  content?: string;
+  segmentId?: string;
+  sourceStart?: number;
+  sourceEnd?: number;
+  position?: { x: number; y: number };
+}
+
 export default function AIStudio() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<string>('');
@@ -29,17 +51,57 @@ export default function AIStudio() {
   const [generating, setGenerating] = useState(false);
   const [contentPlan, setContentPlan] = useState<ContentPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activePersonaId, setActivePersonaId] = useState<string | null>(null);
+  const [adjustedSegments, setAdjustedSegments] = useState<PlanSegment[]>([]);
+  const [showAdjuster, setShowAdjuster] = useState(false);
+  const [creatingVideo, setCreatingVideo] = useState(false);
+  const [creationError, setCreationError] = useState<string | null>(null);
+  const [creationResult, setCreationResult] = useState<{
+    videoUrl?: string;
+    videoId?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchVideos();
   }, []);
+
+  useEffect(() => {
+    const storedPersona =
+      typeof window !== 'undefined' ? localStorage.getItem('activePersona') : null;
+    setActivePersonaId(storedPersona);
+  }, []);
+
+  useEffect(() => {
+    if (!contentPlan) {
+      setAdjustedSegments([]);
+      return;
+    }
+
+    const normalized: PlanSegment[] = (contentPlan.segments || []).map((segment: PlanSegment) => ({
+      ...segment,
+      adjustedStartTime:
+        typeof segment.adjustedStartTime === 'number'
+          ? segment.adjustedStartTime
+          : segment.startTime,
+      adjustedEndTime:
+        typeof segment.adjustedEndTime === 'number' ? segment.adjustedEndTime : segment.endTime,
+    }));
+    setAdjustedSegments(normalized);
+  }, [contentPlan]);
+
+  const planVideo = useMemo(() => {
+    if (contentPlan?.video?.id) {
+      return videos.find((video) => video.id === contentPlan.video.id) || null;
+    }
+    return videos.find((video) => video.id === selectedVideo) || null;
+  }, [videos, contentPlan, selectedVideo]);
 
   const fetchVideos = async () => {
     try {
       const response = await fetch('/api/broll');
       if (response.ok) {
         const data = await response.json();
-        
+
         // Get videos with segment counts
         const videosWithSegments = await Promise.all(
           (data.broll || []).map(async (video: any) => {
@@ -48,15 +110,15 @@ export default function AIStudio() {
               const segData = await segResponse.json();
               return {
                 ...video,
-                segmentCount: segData.segments?.length || 0
+                segmentCount: segData.segments?.length || 0,
               };
             } catch {
               return { ...video, segmentCount: 0 };
             }
           })
         );
-        
-        setVideos(videosWithSegments.filter(v => v.segmentCount > 0));
+
+        setVideos(videosWithSegments.filter((v) => v.segmentCount > 0));
       }
     } catch (error) {
       console.error('Failed to fetch videos:', error);
@@ -65,8 +127,29 @@ export default function AIStudio() {
     }
   };
 
+  const handleSegmentsAdjusted = (segments: PlanSegment[]) => {
+    setAdjustedSegments(segments);
+    setContentPlan((previous) => {
+      if (!previous) return previous;
+      const updatedTimeline = buildTimelineFromSegments(
+        segments,
+        previous.script,
+        previous.template?.type || 'instagram-reel'
+      );
+      return {
+        ...previous,
+        segments,
+        timeline: updatedTimeline,
+      };
+    });
+  };
+
   const generateContent = async () => {
     if (!selectedVideo || !prompt.trim()) return;
+    if (!activePersonaId) {
+      alert('Select a persona first using the persona switcher in the dashboard header.');
+      return;
+    }
 
     setGenerating(true);
     try {
@@ -75,13 +158,17 @@ export default function AIStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           videoId: selectedVideo,
-          prompt: prompt.trim()
-        })
+          prompt: prompt.trim(),
+          personaId: activePersonaId,
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setContentPlan(data.contentPlan);
+        setCreationResult(null);
+        setCreationError(null);
+        setShowAdjuster(false);
       } else {
         const error = await response.json();
         alert(`Failed to generate content: ${error.error}`);
@@ -93,11 +180,65 @@ export default function AIStudio() {
     }
   };
 
+  const handleCreateVideo = async () => {
+    if (!contentPlan) {
+      alert('Generate a content plan first.');
+      return;
+    }
+    if (!activePersonaId) {
+      alert('Select a persona first using the persona switcher.');
+      return;
+    }
+    if (!planVideo?.id) {
+      alert('Select a source video with segments.');
+      return;
+    }
+
+    setCreatingVideo(true);
+    setCreationError(null);
+    setCreationResult(null);
+
+    try {
+      const response = await fetch('/api/ai/create-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personaId: activePersonaId,
+          videoId: contentPlan.video.id,
+          segments: adjustedSegments,
+          timeline: contentPlan.timeline,
+          script: contentPlan.script,
+          template: contentPlan.template,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Video creation failed');
+      }
+
+      const data = await response.json();
+      setCreationResult({
+        videoUrl: data.videoUrl || data.video?.fileUrl,
+        videoId: data.video?.id,
+      });
+    } catch (error) {
+      setCreationError(error instanceof Error ? error.message : 'Video creation failed');
+    } finally {
+      setCreatingVideo(false);
+    }
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const segmentsForDisplay: PlanSegment[] = adjustedSegments.length
+    ? adjustedSegments
+    : (contentPlan?.segments as PlanSegment[]) || [];
+  const timelineToDisplay: TimelineItem[] = (contentPlan?.timeline as TimelineItem[]) || [];
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -109,7 +250,9 @@ export default function AIStudio() {
           </Link>
           <div>
             <h1 className="text-3xl font-bold">🎬 AI Content Studio</h1>
-            <p className="text-muted-foreground">Generate authentic content using your voice + video segments</p>
+            <p className="text-muted-foreground">
+              Generate authentic content using your voice + video segments
+            </p>
           </div>
         </div>
 
@@ -164,14 +307,20 @@ Examples:
                     />
                   </div>
 
-                  <Button 
+                  <Button
                     onClick={generateContent}
-                    disabled={generating || !selectedVideo || !prompt.trim()}
+                    disabled={generating || !selectedVideo || !prompt.trim() || !activePersonaId}
                     className="w-full"
                     size="lg"
                   >
                     {generating ? '🤖 AI Generating...' : '✨ Generate Content'}
                   </Button>
+
+                  {!activePersonaId && (
+                    <p className="text-xs text-amber-600">
+                      Select an active persona from the dashboard switcher to enable generation.
+                    </p>
+                  )}
 
                   {videos.length === 0 && (
                     <div className="text-center py-4 text-muted-foreground text-sm">
@@ -214,9 +363,7 @@ Examples:
                       <Badge variant="secondary">
                         {contentPlan.template.type.replace('-', ' ')}
                       </Badge>
-                      <Badge variant="outline">
-                        {contentPlan.segments.length} segments
-                      </Badge>
+                      <Badge variant="outline">{contentPlan.segments.length} segments</Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -228,13 +375,19 @@ Examples:
                         <div>
                           <p className="text-sm font-medium mb-1">Script:</p>
                           {contentPlan.script.script.map((line: string, i: number) => (
-                            <p key={i} className="text-sm">• {line}</p>
+                            <p key={i} className="text-sm">
+                              • {line}
+                            </p>
                           ))}
                         </div>
-                        <p className="text-sm"><strong>Caption:</strong> {contentPlan.script.caption}</p>
+                        <p className="text-sm">
+                          <strong>Caption:</strong> {contentPlan.script.caption}
+                        </p>
                         <div className="flex flex-wrap gap-1">
                           {contentPlan.script.hashtags.map((tag: string) => (
-                            <Badge key={tag} variant="outline" className="text-xs">#{tag}</Badge>
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              #{tag}
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -244,11 +397,22 @@ Examples:
                     <div>
                       <h4 className="font-medium mb-2">🎬 Selected Segments</h4>
                       <div className="space-y-2">
-                        {contentPlan.segments.map((segment: any, i: number) => (
-                          <div key={segment.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                            <span className="font-mono text-sm">
-                              {formatDuration(segment.startTime)} → {formatDuration(segment.endTime)}
-                            </span>
+                        {segmentsForDisplay.map((segment, i: number) => (
+                          <div
+                            key={segment.id || i}
+                            className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-2 bg-muted rounded"
+                          >
+                            <div>
+                              <span className="block font-mono text-sm">
+                                Original: {formatDuration(segment.startTime)} →{' '}
+                                {formatDuration(segment.endTime)}
+                              </span>
+                              <span className="block font-mono text-xs text-primary">
+                                Adjusted:{' '}
+                                {formatDuration(segment.adjustedStartTime ?? segment.startTime)} →{' '}
+                                {formatDuration(segment.adjustedEndTime ?? segment.endTime)}
+                              </span>
+                            </div>
                             <Badge variant="secondary">{segment.quality}/10</Badge>
                           </div>
                         ))}
@@ -259,27 +423,73 @@ Examples:
                     <div>
                       <h4 className="font-medium mb-2">⏱️ Timeline Preview</h4>
                       <div className="space-y-1 text-sm">
-                        {contentPlan.timeline.map((item: any, i: number) => (
-                          <div key={i} className="flex items-center space-x-2">
-                            <span className="font-mono w-16">
-                              {formatDuration(item.startTime)}
-                            </span>
+                        {timelineToDisplay.map((item, i: number) => (
+                          <div key={`${item.type}-${i}`} className="flex items-center space-x-2">
+                            <span className="font-mono w-16">{formatDuration(item.startTime)}</span>
                             <Badge variant="outline" className="text-xs">
                               {item.type}
                             </Badge>
                             <span className="text-muted-foreground">
-                              {item.content || `Segment ${i + 1}`}
+                              {item.type === 'video-segment' && item.segmentId
+                                ? `Segment ${item.segmentId} (${formatDuration(
+                                    item.sourceStart ?? 0
+                                  )} → ${formatDuration(item.sourceEnd ?? 0)})`
+                                : item.content || `Segment ${i + 1}`}
                             </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
+                    {/* Segment Adjuster */}
+                    <div className="space-y-3">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setShowAdjuster((prev) => !prev)}
+                      >
+                        {showAdjuster ? 'Hide Segment Adjuster' : 'Adjust Segments'}
+                      </Button>
+                      {showAdjuster && planVideo?.fileUrl ? (
+                        <SegmentAdjuster
+                          videoUrl={planVideo.fileUrl}
+                          videoDuration={planVideo.duration}
+                          segments={segmentsForDisplay}
+                          script={contentPlan.script}
+                          onChange={handleSegmentsAdjusted}
+                        />
+                      ) : (
+                        showAdjuster && (
+                          <p className="text-sm text-muted-foreground">
+                            Select a video that has an accessible file URL to preview adjustments.
+                          </p>
+                        )
+                      )}
+                    </div>
+
                     {/* Actions */}
                     <div className="space-y-2">
-                      <Button className="w-full" size="lg">
-                        🎥 Create Video
+                      <Button
+                        className="w-full"
+                        size="lg"
+                        onClick={handleCreateVideo}
+                        disabled={creatingVideo || !activePersonaId}
+                      >
+                        {creatingVideo ? 'Rendering…' : '🎥 Create Video'}
                       </Button>
+                      {creationError && (
+                        <p className="text-sm text-red-500 text-center">{creationError}</p>
+                      )}
+                      {creationResult?.videoUrl && (
+                        <a
+                          href={creationResult.videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-center text-sm text-primary underline"
+                        >
+                          View rendered video →
+                        </a>
+                      )}
                       <Button variant="outline" className="w-full">
                         📋 Save as Template
                       </Button>
@@ -302,4 +512,67 @@ Examples:
       </div>
     </div>
   );
+}
+
+function buildTimelineFromSegments(
+  segments: PlanSegment[],
+  script: any,
+  _templateType?: string
+): TimelineItem[] {
+  const timeline: TimelineItem[] = [];
+  let currentTime = 0;
+
+  if (script?.hook) {
+    timeline.push({
+      type: 'text-overlay',
+      startTime: currentTime,
+      endTime: currentTime + 3,
+      content: script.hook,
+      position: { x: 0.5, y: 0.3 },
+    });
+  }
+
+  segments.forEach((segment, index) => {
+    const start =
+      typeof segment.adjustedStartTime === 'number' ? segment.adjustedStartTime : segment.startTime;
+    const end =
+      typeof segment.adjustedEndTime === 'number' ? segment.adjustedEndTime : segment.endTime;
+    const duration = Math.max(0, end - start);
+    if (duration <= 0.05) {
+      return;
+    }
+
+    timeline.push({
+      type: 'video-segment',
+      startTime: currentTime,
+      endTime: currentTime + duration,
+      segmentId: segment.id,
+      sourceStart: start,
+      sourceEnd: end,
+    });
+
+    if (Array.isArray(script?.script) && script.script[index]) {
+      timeline.push({
+        type: 'text-overlay',
+        startTime: currentTime + 1,
+        endTime: currentTime + Math.max(1, duration - 0.5),
+        content: script.script[index],
+        position: { x: 0.5, y: 0.7 },
+      });
+    }
+
+    currentTime += duration;
+  });
+
+  if (script?.callToAction) {
+    timeline.push({
+      type: 'text-overlay',
+      startTime: Math.max(0, currentTime - 3),
+      endTime: currentTime,
+      content: script.callToAction,
+      position: { x: 0.5, y: 0.8 },
+    });
+  }
+
+  return timeline;
 }
