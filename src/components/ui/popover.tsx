@@ -168,7 +168,7 @@ export const PopoverContent = ({
     <div
       ref={contentRef}
       className={clsx(
-        'z-50 rounded-2xl border border-slate-200 bg-white/95 p-4 text-slate-900 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-white/80',
+        'z-[100] rounded-2xl border border-border/50 bg-background p-4 text-foreground shadow-xl',
         className
       )}
       style={{
@@ -182,6 +182,7 @@ export const PopoverContent = ({
               ? 'translate(-100%, 0)'
               : 'translate(-50%, 0)',
         minWidth: 200,
+        backgroundColor: 'var(--background)',
       }}
     >
       {children}

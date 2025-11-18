@@ -108,6 +108,8 @@ const VisualTemplateEditor = () => {
   const [videosLoading, setVideosLoading] = useState(true);
   const [videosError, setVideosError] = useState<string | null>(null);
   const [initialTemplate, setInitialTemplate] = useState<VideoTemplate | undefined>(undefined);
+  const [mobileSheetHeight, setMobileSheetHeight] = useState<'collapsed' | 'half' | 'full'>('half');
+  const [isPropertiesCollapsed, setIsPropertiesCollapsed] = useState(false);
 
   const {
     template,
@@ -398,145 +400,303 @@ const VisualTemplateEditor = () => {
         }}
       />
       <div
-        className={`bg-background-secondary flex flex-col ${
-          isMobile ? 'h-[calc(100vh-56px)]' : 'h-[calc(100vh-64px)]'
+        className={`bg-background ${
+          isMobile ? 'flex flex-col h-[calc(100vh-56px)]' : 'h-[calc(100vh-64px)]'
         }`}
       >
-        <div className="flex h-full w-full flex-1 flex-col md:flex-row overflow-hidden min-h-0">
-          <main
-            className={`flex flex-1 flex-col overflow-y-auto min-w-100 relative min-h-[70%] ${
-              isMobile ? 'gap-4 p-4 pb-[400px]' : 'gap-6 p-6'
-            }`}
-            style={{ flex: '1 1 0%' }}
-          >
-            <section className="rounded-3xl border border-theme/40 bg-background p-5 shadow-theme-sm backdrop-blur">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-1 text-foreground">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-secondary">
-                    Preview Clip
-                  </p>
-                  <p className="text-sm text-foreground-secondary">
-                    Connect your b-roll to see text overlays in context.
-                  </p>
-                </div>
-                <div className="flex flex-1 flex-col gap-2 md:max-w-md">
-                  <Select
-                    value={previewVideoId}
-                    onValueChange={(value) => setPreviewVideoId(value)}
-                    disabled={videosLoading || !availableVideos.length}
-                  >
-                    <SelectTrigger className="h-11 rounded-full border border-theme/50 bg-background-secondary text-foreground focus-visible:ring-0">
-                      <SelectValue
-                        placeholder={
-                          videosLoading ? 'Loading clips...' : 'Select a clip from your library'
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent align="end" className="w-[320px]">
-                      {availableVideos.map((video) => (
-                        <SelectItem key={video.id} value={video.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{video.name}</span>
-                            <span className="text-xs text-foreground-secondary">
-                              Duration {formatDuration(video.duration)}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {videosError && <p className="text-xs text-red-500">{videosError}</p>}
-                  {!videosLoading && !availableVideos.length && !videosError && (
-                    <p className="text-xs text-foreground-secondary">
-                      No clips yet. Upload a video from your dashboard to preview templates with
-                      your own footage.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Scene Timeline */}
-            <section className="rounded-3xl border border-theme/40 bg-background p-5 shadow-theme-sm backdrop-blur relative z-10">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-secondary">
-                      Scene Timeline
+        {/* Mobile Layout */}
+        {isMobile ? (
+          <div className="flex flex-col h-full w-full flex-1 overflow-hidden min-h-0">
+            <main className="flex flex-col overflow-y-auto transition-all duration-200 gap-4 p-4 pb-[400px] flex-1 w-full">
+              {/* Preview Clip Section */}
+              <section
+                className="rounded-2xl border border-border/50 bg-background p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-border/70"
+                style={{ backgroundColor: 'var(--background)' }}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-muted">
+                      Preview Clip
                     </p>
                     <p className="text-sm text-foreground-secondary">
-                      Jump between cuts to fine-tune overlays frame by frame.
+                      Connect your b-roll to see text overlays in context.
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={addTextScene}
-                    className="h-10 rounded-full border border-dashed border-theme/60 text-foreground"
-                  >
-                    + Scene
-                  </Button>
-                </div>
-                <div
-                  className={`flex w-full gap-2 ${
-                    isMobile ? 'flex-nowrap overflow-x-auto pb-1 pr-2' : 'flex-wrap'
-                  }`}
-                >
-                  {template.scenes.map((scene, index) => {
-                    const sceneStart = typeof scene.start === 'number' ? scene.start : index * 2; // fallback spacing
-                    const sceneEnd = typeof scene.end === 'number' ? scene.end : sceneStart + 2;
-                    return (
-                      <button
-                        key={scene.text?.id || index}
-                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                          selectedSceneIndex === index
-                            ? 'bg-accent text-white shadow-theme-sm'
-                            : 'border border-theme/60 bg-background-secondary text-foreground hover:border-theme'
-                        }`}
-                        onClick={() => selectScene(index)}
+                  <div className="flex flex-1 flex-col gap-2">
+                    <Select
+                      value={previewVideoId}
+                      onValueChange={(value) => setPreviewVideoId(value)}
+                      disabled={videosLoading || !availableVideos.length}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border border-border/50 bg-background text-foreground transition-all hover:border-border focus-visible:ring-2 focus-visible:ring-primary/20">
+                        <SelectValue
+                          placeholder={
+                            videosLoading ? 'Loading clips...' : 'Select a clip from your library'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        align="end"
+                        className="w-[320px]"
+                        style={{ backgroundColor: 'var(--background)' }}
                       >
-                        Scene {index + 1}{' '}
-                        <span className="text-xs text-foreground-secondary">
-                          {sceneStart.toFixed(1)}s – {sceneEnd.toFixed(1)}s
-                        </span>
-                      </button>
-                    );
-                  })}
+                        {availableVideos.map((video) => (
+                          <SelectItem key={video.id} value={video.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-foreground">{video.name}</span>
+                              <span className="text-xs text-foreground-secondary">
+                                Duration {formatDuration(video.duration)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {videosError && <p className="text-xs text-red-500">{videosError}</p>}
+                    {!videosLoading && !availableVideos.length && !videosError && (
+                      <p className="text-xs text-foreground-secondary">
+                        No clips yet. Upload a video from your dashboard to preview templates with
+                        your own footage.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            {/* Canvas - Centered and responsive */}
-            <section className="flex min-h-[500px] flex-1 items-center justify-center rounded-lg border border-border/40 bg-background p-6 relative z-0">
-              <InteractiveVideoCanvas
-                videoUrl={selectedPreviewVideo?.fileUrl ?? ''}
-                scene={selectedScene}
-                scenes={template.scenes}
-                selectedTextId={selectedTextId}
-                content={TEST_CONTENT}
-                viewMode={viewMode}
-                onSelect={selectText}
-                onPositionChange={updateTextPosition}
-              />
-            </section>
-          </main>
+              {/* Scene Timeline */}
+              <section
+                className="rounded-2xl border border-border/50 bg-background p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-border/70"
+                style={{ backgroundColor: 'var(--background)' }}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-muted">
+                        Scene Timeline
+                      </p>
+                      <p className="text-xs text-foreground-secondary">Tap scenes to edit</p>
+                    </div>
+                  </div>
+                  <div className="flex w-full gap-2 flex-nowrap overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                    {template.scenes.map((scene, index) => {
+                      const sceneStart = typeof scene.start === 'number' ? scene.start : index * 2;
+                      const sceneEnd = typeof scene.end === 'number' ? scene.end : sceneStart + 2;
+                      const isSelected = selectedSceneIndex === index;
+                      return (
+                        <button
+                          key={scene.text?.id || index}
+                          className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium transition-all snap-start min-w-[120px] ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 ring-2 ring-primary/30'
+                              : 'border border-border/60 bg-background text-foreground hover:border-primary/50 hover:bg-primary/5 active:scale-95'
+                          }`}
+                          onClick={() => selectScene(index)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                isSelected ? 'bg-primary-foreground' : 'bg-primary/40'
+                              }`}
+                            />
+                            <span className="font-semibold">Scene {index + 1}</span>
+                          </div>
+                          <span
+                            className={`text-xs mt-0.5 block ${isSelected ? 'opacity-90' : 'opacity-70'}`}
+                          >
+                            {sceneStart.toFixed(1)}s – {sceneEnd.toFixed(1)}s
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={addTextScene}
+                      className="shrink-0 min-w-[120px] rounded-xl border-2 border-dashed border-border/60 bg-background-secondary/50 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 active:scale-95 flex items-center justify-center gap-2 py-2.5"
+                    >
+                      <span className="text-lg">+</span>
+                      <span className="text-sm font-medium">Add</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
 
-          {/* Desktop Panel - Always render, CSS handles visibility (md+ screens) */}
-          <PropertiesPanel
-            text={selectedText}
-            onPositionChange={(position) =>
-              selectedText?.id && updateTextPosition(selectedText.id, position)
-            }
-            onStyleChange={(style) => selectedText?.id && updateTextStyle(selectedText.id, style)}
-            onContentChange={(content) =>
-              selectedText?.id && updateTextContent(selectedText.id, content)
-            }
-            isMobileSheet={false}
-            onSelectDefaultText={
-              activeSceneTextId ? () => selectText(activeSceneTextId) : undefined
-            }
-          />
-        </div>
+              {/* Canvas */}
+              <section
+                className="flex items-center justify-center min-h-[60vh] max-h-[70vh] rounded-xl border border-border/50 bg-background p-4 transition-all duration-200 hover:border-border/70 hover:shadow-sm"
+                style={{ backgroundColor: 'var(--background)' }}
+              >
+                <InteractiveVideoCanvas
+                  videoUrl={selectedPreviewVideo?.fileUrl ?? ''}
+                  scene={selectedScene}
+                  scenes={template.scenes}
+                  selectedTextId={selectedTextId}
+                  content={TEST_CONTENT}
+                  viewMode={viewMode}
+                  onSelect={selectText}
+                  onPositionChange={updateTextPosition}
+                />
+              </section>
+            </main>
+          </div>
+        ) : (
+          // Desktop Layout: Flex Row with Canvas Left and Properties Right
+          <div className="flex flex-row h-full w-full overflow-hidden">
+            {/* Left: Canvas Area - Takes 60-70% width */}
+            <main
+              className="flex flex-col overflow-y-auto transition-all duration-200 gap-6 p-8 flex-1 min-w-0"
+              style={{ minWidth: '60%', maxWidth: '70%' }}
+            >
+              {/* Preview Clip Section */}
+              <section
+                className="rounded-2xl border border-border/50 bg-background p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-border/70"
+                style={{ backgroundColor: 'var(--background)' }}
+              >
+                <div className="flex flex-row items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-muted">
+                      Preview Clip
+                    </p>
+                    <p className="text-sm text-foreground-secondary">
+                      Connect your b-roll to see text overlays in context.
+                    </p>
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2 max-w-md">
+                    <Select
+                      value={previewVideoId}
+                      onValueChange={(value) => setPreviewVideoId(value)}
+                      disabled={videosLoading || !availableVideos.length}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border border-border/50 bg-background text-foreground transition-all hover:border-border focus-visible:ring-2 focus-visible:ring-primary/20">
+                        <SelectValue
+                          placeholder={
+                            videosLoading ? 'Loading clips...' : 'Select a clip from your library'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        align="end"
+                        className="w-[320px]"
+                        style={{ backgroundColor: 'var(--background)' }}
+                      >
+                        {availableVideos.map((video) => (
+                          <SelectItem key={video.id} value={video.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-foreground">{video.name}</span>
+                              <span className="text-xs text-foreground-secondary">
+                                Duration {formatDuration(video.duration)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {videosError && <p className="text-xs text-red-500">{videosError}</p>}
+                    {!videosLoading && !availableVideos.length && !videosError && (
+                      <p className="text-xs text-foreground-secondary">
+                        No clips yet. Upload a video from your dashboard to preview templates with
+                        your own footage.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* Scene Timeline */}
+              <section
+                className="rounded-2xl border border-border/50 bg-background p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-border/70"
+                style={{ backgroundColor: 'var(--background)' }}
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground-muted">
+                        Scene Timeline
+                      </p>
+                      <p className="text-sm text-foreground-secondary">
+                        Jump between cuts to fine-tune overlays frame by frame.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={addTextScene}
+                      className="h-10 shrink-0 rounded-xl border border-dashed border-border/60 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5"
+                    >
+                      + Scene
+                    </Button>
+                  </div>
+                  <div className="flex w-full gap-2 flex-wrap">
+                    {template.scenes.map((scene, index) => {
+                      const sceneStart = typeof scene.start === 'number' ? scene.start : index * 2;
+                      const sceneEnd = typeof scene.end === 'number' ? scene.end : sceneStart + 2;
+                      const isSelected = selectedSceneIndex === index;
+                      return (
+                        <button
+                          key={scene.text?.id || index}
+                          className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 ring-2 ring-primary/30'
+                              : 'border border-border/60 bg-background text-foreground hover:border-primary/50 hover:bg-primary/5 active:scale-95'
+                          }`}
+                          onClick={() => selectScene(index)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                isSelected ? 'bg-primary-foreground' : 'bg-primary/40'
+                              }`}
+                            />
+                            <span className="font-semibold">Scene {index + 1}</span>
+                          </div>
+                          <span
+                            className={`text-xs mt-0.5 block ${isSelected ? 'opacity-90' : 'opacity-70'}`}
+                          >
+                            {sceneStart.toFixed(1)}s – {sceneEnd.toFixed(1)}s
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+
+              {/* Canvas - Centered */}
+              <section
+                className="flex items-center justify-center min-h-[600px] flex-1 w-full rounded-xl border border-border/50 bg-background p-6 transition-all duration-200 hover:border-border/70 hover:shadow-sm"
+                style={{ backgroundColor: 'var(--background)' }}
+              >
+                <InteractiveVideoCanvas
+                  videoUrl={selectedPreviewVideo?.fileUrl ?? ''}
+                  scene={selectedScene}
+                  scenes={template.scenes}
+                  selectedTextId={selectedTextId}
+                  content={TEST_CONTENT}
+                  viewMode={viewMode}
+                  onSelect={selectText}
+                  onPositionChange={updateTextPosition}
+                />
+              </section>
+            </main>
+
+            {/* Right: Properties Panel - Fixed width */}
+            <PropertiesPanel
+              text={selectedText}
+              onPositionChange={(position) =>
+                selectedText?.id && updateTextPosition(selectedText.id, position)
+              }
+              onStyleChange={(style) => selectedText?.id && updateTextStyle(selectedText.id, style)}
+              onContentChange={(content) =>
+                selectedText?.id && updateTextContent(selectedText.id, content)
+              }
+              isMobileSheet={false}
+              viewMode={viewMode}
+              isCollapsed={isPropertiesCollapsed}
+              onToggleCollapse={() => setIsPropertiesCollapsed(!isPropertiesCollapsed)}
+              onSelectDefaultText={
+                activeSceneTextId ? () => selectText(activeSceneTextId) : undefined
+              }
+            />
+          </div>
+        )}
       </div>
 
       {/* Mobile Panel - Always render, CSS handles visibility (below md screens) */}
@@ -550,6 +710,9 @@ const VisualTemplateEditor = () => {
           selectedText?.id && updateTextContent(selectedText.id, content)
         }
         isMobileSheet={true}
+        viewMode={viewMode}
+        mobileSheetHeight={mobileSheetHeight}
+        onMobileSheetHeightChange={setMobileSheetHeight}
         onSelectDefaultText={activeSceneTextId ? () => selectText(activeSceneTextId) : undefined}
       />
 

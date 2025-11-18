@@ -52,7 +52,9 @@ const ViewModeToggle = ({
         key={option.id}
         className={cn(
           'flex-1 px-3 py-1 transition',
-          viewMode === option.id ? 'bg-accent text-white' : 'text-secondary hover:text-foreground'
+          viewMode === option.id
+            ? 'bg-primary text-primary-foreground'
+            : 'text-secondary hover:text-foreground'
         )}
         onClick={() => {
           onViewModeChange(option.id);

@@ -362,7 +362,7 @@
   }
 }
 
-/* Properties Panel Visibility Fix - Desktop: full height, thin (320px) */
+/* Properties Panel Visibility Fix - Desktop: only show/hide, let Tailwind handle layout */
 .properties-panel-desktop {
   display: none;
 }
@@ -375,15 +375,13 @@
     position: relative !important;
     height: 100% !important;
     max-height: 100% !important;
-    width: 320px !important;
-    min-width: 320px !important;
-    max-width: 320px !important;
     flex-shrink: 0 !important;
-    z-index: 10 !important;
+    flex-grow: 0 !important;
+    /* Width controlled by Tailwind classes in component */
   }
 }
 
-/* Mobile Panel: short, full width, bottom positioned */
+/* Mobile Panel: collapsible bottom sheet */
 .properties-panel-mobile {
   display: none !important;
 }
@@ -398,6 +396,7 @@
     left: 0 !important;
     right: 0 !important;
     z-index: 9999 !important;
+    will-change: height;
   }
 
   .properties-panel-desktop {
@@ -405,10 +404,19 @@
   }
 }
 
+/* Ensure mobile panel is visible even when height is auto (collapsed button) */
+@media (max-width: 767px) {
+  .properties-panel-mobile.h-auto {
+    height: auto !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
 /* Modern Scrollbar for Properties Panel */
 .properties-panel-desktop::-webkit-scrollbar,
 .properties-panel-mobile::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .properties-panel-desktop::-webkit-scrollbar-track,
@@ -419,12 +427,43 @@
 .properties-panel-desktop::-webkit-scrollbar-thumb,
 .properties-panel-mobile::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .properties-panel-desktop::-webkit-scrollbar-thumb:hover,
 .properties-panel-mobile::-webkit-scrollbar-thumb:hover {
   background: var(--border-secondary);
+}
+
+/* Smooth transitions utility */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Editor-specific utilities */
+.editor-section {
+  transition: all 0.2s ease;
+}
+
+.editor-section:hover {
+  transform: translateY(-1px);
+}
+
+/* Backdrop blur utilities */
+.backdrop-blur-editor {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes slideUp {

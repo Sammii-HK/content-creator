@@ -232,7 +232,7 @@ export class VideoRenderer {
             .duration(Math.max(0.1, duration))
             .outputOptions(['-c', 'copy'])
             .output(segmentPath)
-            .on('end', resolve)
+            .on('end', () => resolve())
             .on('error', reject)
             .run();
         });
@@ -254,7 +254,7 @@ export class VideoRenderer {
           .inputOptions(['-f', 'concat', '-safe', '0'])
           .outputOptions(['-c', 'copy'])
           .output(mergedSegmentsPath)
-          .on('end', resolve)
+          .on('end', () => resolve())
           .on('error', reject)
           .run();
       });

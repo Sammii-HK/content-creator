@@ -202,6 +202,7 @@ const InteractiveVideoCanvas = ({
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const nextScenePreloadRef = useRef<number | null>(null);
   const lastFrameRef = useRef<ImageData | null>(null);
   const dragStateRef = useRef<{
@@ -307,7 +308,7 @@ const InteractiveVideoCanvas = ({
         renderTextOverlay(ctx, currentRenderScene.text, content, canvas.width, canvas.height);
       }
 
-      // Draw selection indicator
+      // Draw selection indicator - Modern, subtle design
       if (!isPreviewMode && selectedTextId && currentRenderScene?.text?.id === selectedTextId) {
         const bbox = getTextBoundingBox(
           currentRenderScene.text,
@@ -317,13 +318,20 @@ const InteractiveVideoCanvas = ({
           ctx
         );
         if (bbox) {
+          // Subtle border with glow effect
           ctx.strokeStyle = '#3b82f6';
           ctx.lineWidth = 2;
-          ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+          ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
+          ctx.shadowBlur = 8;
+          ctx.strokeRect(bbox.x - 2, bbox.y - 2, bbox.width + 4, bbox.height + 4);
+          ctx.shadowBlur = 0;
 
-          // Draw corner handles
-          const handleSize = 8;
-          ctx.fillStyle = '#3b82f6';
+          // Corner handles - more modern design
+          const handleSize = 10;
+          const handleRadius = 3;
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 2;
           const corners = [
             { x: bbox.x, y: bbox.y },
             { x: bbox.x + bbox.width, y: bbox.y },
@@ -331,12 +339,26 @@ const InteractiveVideoCanvas = ({
             { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
           ];
           corners.forEach((corner) => {
-            ctx.fillRect(
-              corner.x - handleSize / 2,
-              corner.y - handleSize / 2,
-              handleSize,
-              handleSize
+            ctx.beginPath();
+            const x = corner.x - handleSize / 2;
+            const y = corner.y - handleSize / 2;
+            ctx.moveTo(x + handleRadius, y);
+            ctx.lineTo(x + handleSize - handleRadius, y);
+            ctx.quadraticCurveTo(x + handleSize, y, x + handleSize, y + handleRadius);
+            ctx.lineTo(x + handleSize, y + handleSize - handleRadius);
+            ctx.quadraticCurveTo(
+              x + handleSize,
+              y + handleSize,
+              x + handleSize - handleRadius,
+              y + handleSize
             );
+            ctx.lineTo(x + handleRadius, y + handleSize);
+            ctx.quadraticCurveTo(x, y + handleSize, x, y + handleSize - handleRadius);
+            ctx.lineTo(x, y + handleRadius);
+            ctx.quadraticCurveTo(x, y, x + handleRadius, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
           });
         }
       }
@@ -364,12 +386,22 @@ const InteractiveVideoCanvas = ({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
     const handleLoaded = () => {
       setVideoDuration(video.duration || 0);
+      setIsLoading(false);
     };
+    const handleCanPlay = () => setIsLoading(false);
+    const handleLoadStart = () => setIsLoading(true);
+
     video.addEventListener('loadedmetadata', handleLoaded);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('loadstart', handleLoadStart);
+
     return () => {
       video.removeEventListener('loadedmetadata', handleLoaded);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('loadstart', handleLoadStart);
     };
   }, [videoUrl]);
 
@@ -741,7 +773,7 @@ const InteractiveVideoCanvas = ({
 
   return (
     <div ref={containerRef} className="relative flex flex-col items-center gap-4 text-foreground">
-      <div className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground-secondary">
+      <div className="text-xs font-semibold uppercase tracking-[0.3em] text-foreground-muted">
         {viewMode === 'edit'
           ? 'Scene Window'
           : viewMode === 'previewFull'
@@ -762,25 +794,35 @@ const InteractiveVideoCanvas = ({
           preload="auto"
           crossOrigin="anonymous"
         />
-        <canvas
-          ref={canvasRef}
-          width={1080}
-          height={1920}
-          className={`aspect-[9/16] w-full rounded-[32px] border border-theme/40 shadow-theme-xl transition ${
-            isPreviewMode ? 'cursor-default' : isDragging ? 'cursor-grabbing' : 'cursor-move'
-          }`}
-          style={{ touchAction: 'none' }}
-          onClick={handleCanvasClick}
-          onPointerDown={handlePointerDown}
-        />
-        {!isPreviewMode && <SmartGuides activeGuides={activeGuides} snapPoints={snapPoints} />}
-        {!isPreviewMode && !isDragging && (
-          <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-4 py-1 text-[11px] text-white backdrop-blur">
-            Click & drag text to reposition
-          </div>
-        )}
-        <div className="w-full space-y-2">
-          <div className="flex flex-wrap items-center justify-between text-[11px] uppercase tracking-[0.2em] text-foreground-secondary">
+        <div className="relative w-full">
+          {isLoading && !videoUrl && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-[32px] bg-gradient-to-br from-background-secondary/50 to-background-secondary/30">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-border/30 border-t-primary" />
+                <p className="text-xs text-foreground-muted">Loading canvas...</p>
+              </div>
+            </div>
+          )}
+          <canvas
+            ref={canvasRef}
+            width={1080}
+            height={1920}
+            className={`aspect-[9/16] w-full rounded-[32px] border border-border/50 shadow-lg transition-all ${
+              isPreviewMode ? 'cursor-default' : isDragging ? 'cursor-grabbing' : 'cursor-move'
+            } ${isLoading ? 'opacity-50' : 'opacity-100'}`}
+            style={{ touchAction: 'none' }}
+            onClick={handleCanvasClick}
+            onPointerDown={handlePointerDown}
+          />
+          {!isPreviewMode && <SmartGuides activeGuides={activeGuides} snapPoints={snapPoints} />}
+          {!isPreviewMode && !isDragging && (
+            <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-[11px] text-white backdrop-blur-md shadow-lg">
+              Click & drag text to reposition
+            </div>
+          )}
+        </div>
+        <div className="w-full space-y-3">
+          <div className="flex flex-wrap items-center justify-between text-[11px] font-medium uppercase tracking-[0.2em] text-foreground-muted">
             <span>
               {viewMode === 'previewFull'
                 ? `Scene ${currentSceneIndex + 1} of ${scenes.length}`
@@ -803,9 +845,9 @@ const InteractiveVideoCanvas = ({
                 : `${playbackStart.toFixed(2)}s – ${playbackEnd.toFixed(2)}s`}
             </span>
           </div>
-          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/50">
+          <div className="relative h-2 w-full overflow-hidden rounded-full bg-background-secondary/50">
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-accent"
+              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-150 shadow-sm shadow-primary/30"
               style={{ width: `${sceneProgress * 100}%` }}
             />
           </div>
