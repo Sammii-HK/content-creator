@@ -1,13 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['ffmpeg-static', 'fluent-ffmpeg'],
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        'fluent-ffmpeg': 'fluent-ffmpeg',
-      },
-    },
-  },
+  turbopack: {},
   // Disable caching in development
   ...(process.env.NODE_ENV === 'development' && {
     headers: async () => {

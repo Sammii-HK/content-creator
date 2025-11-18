@@ -2,9 +2,9 @@
 
 :root {
   /* Light Mode (Default) */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #f1f3f5;
+  --bg-primary: #fafafa;
+  --bg-secondary: #f2f4f7;
+  --bg-tertiary: #e9ecf1;
   --bg-elevated: #ffffff;
 
   --text-primary: #1a1a1a;
@@ -29,10 +29,10 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Dark Mode */
-    --bg-primary: #1a1a1a;
-    --bg-secondary: #2d2d2d;
-    --bg-tertiary: #3a3a3a;
-    --bg-elevated: #2d2d2d;
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-tertiary: #1c1c1c;
+    --bg-elevated: #1a1a1a;
 
     --text-primary: #ffffff;
     --text-secondary: #9ca3af;

@@ -24,7 +24,7 @@ export interface TemplateEditorState {
 
 const DEFAULT_TEMPLATE: VideoTemplate = {
   name: 'New Visual Template',
-  duration: 12,
+  duration: 15,
   textStyle: {
     fontSize: 48,
     fontWeight: 'bold',
@@ -53,7 +53,7 @@ const DEFAULT_TEMPLATE: VideoTemplate = {
     },
     {
       start: 3,
-      end: 12,
+      end: 9,
       text: {
         id: 'scene-2',
         content: '{{content}}',
@@ -65,6 +65,23 @@ const DEFAULT_TEMPLATE: VideoTemplate = {
           stroke: '#000000',
           strokeWidth: 1,
           maxWidth: 85,
+        },
+      },
+    },
+    {
+      start: 9,
+      end: 15,
+      text: {
+        id: 'scene-3',
+        content: '{{answer}}',
+        position: { x: 50, y: 78 },
+        style: {
+          fontSize: 38,
+          fontWeight: 'semibold',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeWidth: 1,
+          maxWidth: 80,
         },
       },
     },

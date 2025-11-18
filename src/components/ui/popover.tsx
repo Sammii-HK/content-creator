@@ -105,19 +105,19 @@ interface PopoverTriggerProps {
 }
 
 export const PopoverTrigger = ({ children }: PopoverTriggerProps) => {
-  const context = usePopoverContext();
-  const { open, setOpen } = context;
+  const { open, setOpen, triggerRef } = usePopoverContext();
 
   const handleRef = useCallback(
-    (node: HTMLElement) => {
-      context.triggerRef.current = node;
+    (node: HTMLElement | null) => {
+      triggerRef.current = node;
       const childRef = (children as any).ref;
       if (typeof childRef === 'function') {
         childRef(node);
+      } else if (childRef && typeof childRef === 'object') {
+        childRef.current = node;
       }
-      // Note: Object refs are not forwarded to avoid React Compiler immutability errors
     },
-    [context, children]
+    [triggerRef, children]
   );
 
   return cloneElement(children, {
